@@ -19,7 +19,7 @@ load_dotenv()
 
 # ---------------- CONFIG ----------------
 TOKEN = os.environ.get("TOKEN_BOT", "")
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
+
 PREFIX = "."
 DUMPER_PATH = "catlogger.lua"
 
@@ -105,115 +105,6 @@ def _find_lua() -> str:
 
 _lua_interp = _find_lua()
 
-# ---------------- SECURITY ----------------
-_THREAT_PATTERNS = [
-
-# ENV - environment variable extraction
-re.compile(r"os\.getenv", re.I),
-re.compile(r"getenv\(", re.I),
-
-# SHELL - arbitrary command / process execution
-re.compile(r"os\.execute", re.I),
-re.compile(r"io\.popen", re.I),
-
-# DEBUG - introspection abuse
-re.compile(r"debug\.getinfo", re.I),
-re.compile(r"debug\.getregistry", re.I),
-re.compile(r"debug\.getupvalue", re.I),
-
-# FFI - native code bridge
-re.compile(r"require\(['\"]ffi['\"]\)", re.I),
-
-# SENSITIVE UNIX PATHS
-re.compile(r"/etc/passwd", re.I),
-re.compile(r"/etc/shadow", re.I),
-re.compile(r"/proc/self", re.I),
-re.compile(r"/proc/net", re.I),
-
-# SENSITIVE WINDOWS PATHS
-re.compile(r"AppData[/\\\\]Roaming", re.I),
-re.compile(r"AppData[/\\\\]Local", re.I),
-re.compile(r"\\\\System32\\\\", re.I),
-re.compile(r"\\\\Windows\\\\", re.I),
-re.compile(r"NTUSER\.DAT", re.I),
-
-# ROBLOX EXPLOITS - executor globals
-re.compile(r"\bgetgenv\s*\(", re.I),
-re.compile(r"\bgetrenv\s*\(", re.I),
-re.compile(r"\bgetfenv\s*\(", re.I),
-re.compile(r"\bsetfenv\s*\(", re.I),
-re.compile(r"\bgetrawmetatable\s*\(", re.I),
-re.compile(r"\bsetrawmetatable\s*\(", re.I),
-re.compile(r"\bhookfunction\s*\(", re.I),
-re.compile(r"\bnewcclosure\s*\(", re.I),
-re.compile(r"\biscclosure\s*\(", re.I),
-re.compile(r"\bsynapse\s*\.\s*\w+", re.I),
-re.compile(r"\bsyn\s*\.", re.I),
-re.compile(r"\bfluxus\s*\.\s*\w+", re.I),
-re.compile(r"\bscript-ware\b", re.I),
-
-# ROBLOX EXPLOIT DETECTORS / ENV LOGGERS
-re.compile(r"UELD[_\s]*DETECTOR", re.I),
-re.compile(r"ENV[_\s]*LOGGER", re.I),
-re.compile(r"ENV LOGGER DETECTED", re.I),
-re.compile(r"env logger is currently running", re.I),
-re.compile(r"this env logger", re.I),
-re.compile(r"luau cli\s*/\s*standalone", re.I),
-
-]
-
-def detect_threats(text: str):
-    for pat in _THREAT_PATTERNS:
-        if pat.search(text):
-            return True, pat.pattern
-    return False, None
-
-# ---------------- SANITIZE ----------------
-def sanitize_output(text: str):
-
-    text = re.sub(r"/home/[^\s]+", "/home/REDACTED", text)
-    text = re.sub(r"/root/[^\s]+", "/root/REDACTED", text)
-    text = re.sub(r"/etc/[^\s]+", "/etc/REDACTED", text)
-    text = re.sub(r"/proc/[^\s]+", "/proc/REDACTED", text)
-    text = re.sub(r"/sys/[^\s]+", "/sys/REDACTED", text)
-    text = re.sub(r"/var/[^\s]+", "/var/REDACTED", text)
-
-    text = re.sub(r"[A-Za-z]:\\\\[^\s]+", r"DRIVE:\\REDACTED", text, flags=re.I)
-    text = re.sub(r"AppData[/\\\\][^\s]+", "AppData\\REDACTED", text, flags=re.I)
-
-    text = re.sub(r"HOME=.*", "HOME=REDACTED", text)
-    text = re.sub(r"USER=.*", "USER=REDACTED", text)
-    text = re.sub(r"USERNAME=.*", "USERNAME=REDACTED", text)
-
-    return text
-
-# ---------------- WEBHOOK ----------------
-def send_to_webhook(user_id, user_name, action, details, preview=None):
-
-    if not WEBHOOK_URL:
-        return
-
-    embed = {
-        "title": "🚨 Security Alert",
-        "color": 0xff0000,
-        "fields": [
-            {"name": "User", "value": f"{user_name} (`{user_id}`)"},
-            {"name": "Action", "value": action},
-            {"name": "Matched Pattern", "value": f"`{details.replace('`', '\u02cb')}`"},
-        ],
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-
-    if preview:
-        embed["fields"].append({
-            "name": "Preview",
-            "value": f"```lua\n{preview[:800]}\n```"
-        })
-
-    try:
-        requests.post(WEBHOOK_URL, json={"embeds": [embed]}, timeout=5)
-    except Exception:
-        pass
 
 # ---------------- HELPERS ----------------
 def extract_links(text):
@@ -403,25 +294,7 @@ async def process_link(ctx,link=None):
         await ctx.send("❌ Failed to get content.")
         return
 
-    status=await ctx.send("🔎 scanning input")
-
-    input_text=content.decode("utf-8",errors="ignore")
-
-    is_threat,pattern=detect_threats(input_text)
-
-    if is_threat:
-
-        send_to_webhook(
-            ctx.author.id,
-            str(ctx.author),
-            "Input Threat",
-            pattern
-        )
-
-        await status.edit(content="🚨 blocked security threat")
-        return
-
-    await status.edit(content="⚙️ dumping")
+    status=await ctx.send("⚙️ dumping")
 
     dumped,exec_ms,loops,lines,error=await run_dumper(content)
 
@@ -430,22 +303,6 @@ async def process_link(ctx,link=None):
         return
 
     dumped_text=dumped.decode("utf-8",errors="ignore")
-
-    dumped_text=sanitize_output(dumped_text)
-
-    is_threat,pattern=detect_threats(dumped_text)
-
-    if is_threat:
-
-        send_to_webhook(
-            ctx.author.id,
-            str(ctx.author),
-            "Output Threat",
-            pattern
-        )
-
-        await status.edit(content="🚨 dangerous output blocked")
-        return
 
     paste,raw=upload_to_pastefy(dumped_text,title=original_filename)
 
