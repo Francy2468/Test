@@ -10,6 +10,8 @@ import time
 import re
 import asyncio
 import functools
+import random
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 # ---------------- CONFIG ----------------
@@ -22,6 +24,63 @@ MAX_FILE_SIZE = 5 * 1024 * 1024
 DUMP_TIMEOUT = 60
 
 LUA_INTERPRETERS = ["lua5.3", "lua5.4", "luajit", "lua"]
+
+# ---------------- PROXY POOL ----------------
+_PROXY_SOURCES = [
+    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
+    "https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt",
+    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/proxies.txt",
+    "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt",
+    "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt",
+    "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt",
+    "https://raw.githubusercontent.com/roosterkid/openproxylist/main/HTTPS_RAW.txt",
+    "https://raw.githubusercontent.com/mmpx12/proxy-list/master/https.txt",
+    "https://raw.githubusercontent.com/almroot/proxylist/master/list.txt",
+    "https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/https/https.txt",
+]
+
+_proxy_pool: list = []
+_proxy_lock = threading.Lock()
+
+def _load_proxies():
+    """Fetch proxies from multiple public sources and populate the pool."""
+    found = set()
+    for url in _PROXY_SOURCES:
+        try:
+            r = requests.get(url, timeout=10)
+            if r.status_code == 200:
+                for line in r.text.splitlines():
+                    line = line.strip()
+                    if line and re.match(r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?):\d{1,5}$", line):
+                        found.add(line)
+        except Exception:
+            continue
+    with _proxy_lock:
+        _proxy_pool.clear()
+        _proxy_pool.extend(list(found))
+    return len(_proxy_pool)
+
+def _get_proxy_dict():
+    """Return a random proxy dict for requests, or None if pool is empty."""
+    with _proxy_lock:
+        if not _proxy_pool:
+            return None
+        addr = random.choice(_proxy_pool)
+    proxy = f"http://{addr}"
+    return {"http": proxy, "https": proxy}
+
+def _requests_get(url, **kwargs):
+    """requests.get with proxy rotation and automatic fallback."""
+    proxies = _get_proxy_dict()
+    if proxies:
+        try:
+            return requests.get(url, proxies=proxies, timeout=kwargs.pop("timeout", 10), **kwargs)
+        except Exception:
+            pass
+    return requests.get(url, timeout=kwargs.pop("timeout", 10), **kwargs)
+
+# Load proxies in a background thread so startup is not blocked.
+threading.Thread(target=_load_proxies, daemon=True).start()
 
 # ---------------- BOT ----------------
 intents = discord.Intents.default()
@@ -72,18 +131,63 @@ re.compile(r"debug\.getupvalue", re.I),
 # FFI
 re.compile(r"require\(['\"]ffi['\"]\)", re.I),
 
-# PATHS
+# PATHS - Unix
 re.compile(r"/home/", re.I),
 re.compile(r"/root/", re.I),
 re.compile(r"/etc/", re.I),
+re.compile(r"/proc/", re.I),
+re.compile(r"/sys/", re.I),
+re.compile(r"/var/", re.I),
+re.compile(r"/tmp/", re.I),
 
-# WINDOWS
-re.compile(r"[A-Z]:\\\\", re.I),
+# PATHS - Windows malicious
+re.compile(r"[A-Za-z]:\\\\", re.I),
+re.compile(r"[A-Za-z]:/", re.I),
+re.compile(r"\\\\AppData\\\\", re.I),
+re.compile(r"AppData[/\\\\]Roaming", re.I),
+re.compile(r"AppData[/\\\\]Local", re.I),
+re.compile(r"\\\\Users\\\\", re.I),
+re.compile(r"\\\\System32\\\\", re.I),
+re.compile(r"\\\\Windows\\\\", re.I),
+re.compile(r"\\\\Program Files", re.I),
+re.compile(r"NTUSER\.DAT", re.I),
+re.compile(r"\\\\Temp\\\\", re.I),
 
 # COMMANDS
 re.compile(r"\bwhoami\b", re.I),
 re.compile(r"\buname\b", re.I),
 re.compile(r"\bid\b", re.I),
+re.compile(r"\bnetstat\b", re.I),
+re.compile(r"\bipconfig\b", re.I),
+re.compile(r"\bifconfig\b", re.I),
+re.compile(r"\bcmd\.exe\b", re.I),
+re.compile(r"\bpowershell\b", re.I),
+
+# ROBLOX EXPLOITS - getgenv / syn env / other executor globals
+re.compile(r"\bgetgenv\s*\(", re.I),
+re.compile(r"\bgetrenv\s*\(", re.I),
+re.compile(r"\bgetfenv\s*\(", re.I),
+re.compile(r"\bsetfenv\s*\(", re.I),
+re.compile(r"\bgetrawmetatable\s*\(", re.I),
+re.compile(r"\bsetrawmetatable\s*\(", re.I),
+re.compile(r"\bhookfunction\s*\(", re.I),
+re.compile(r"\bnewcclosure\s*\(", re.I),
+re.compile(r"\biscclosure\s*\(", re.I),
+re.compile(r"\bsynapse\s*\.\s*\w+", re.I),
+re.compile(r"\bsyn\s*\.", re.I),
+re.compile(r"\bfluxus\s*\.\s*\w+", re.I),
+re.compile(r"\bscript-ware\b", re.I),
+
+# ROBLOX EXPLOIT DETECTORS / ENV LOGGERS
+re.compile(r"UELD[_\s]*DETECTOR", re.I),
+re.compile(r"ENV[_\s]*LOGGER", re.I),
+re.compile(r"ENV LOGGER DETECTED", re.I),
+re.compile(r"env logger is currently running", re.I),
+re.compile(r"this env logger", re.I),
+re.compile(r"luau cli\s*/\s*standalone", re.I),
+
+# ROBLOX SERVICES abused by exploits (combined with executor globals above)
+re.compile(r"BindableEvent", re.I),
 
 ]
 
@@ -99,11 +203,16 @@ def sanitize_output(text: str):
     text = re.sub(r"/home/[^\s]+", "/home/REDACTED", text)
     text = re.sub(r"/root/[^\s]+", "/root/REDACTED", text)
     text = re.sub(r"/etc/[^\s]+", "/etc/REDACTED", text)
+    text = re.sub(r"/proc/[^\s]+", "/proc/REDACTED", text)
+    text = re.sub(r"/sys/[^\s]+", "/sys/REDACTED", text)
+    text = re.sub(r"/var/[^\s]+", "/var/REDACTED", text)
 
-    text = re.sub(r"[A-Z]:\\\\[^\s]+", r"C:\\REDACTED", text)
+    text = re.sub(r"[A-Za-z]:\\\\[^\s]+", r"DRIVE:\\REDACTED", text, flags=re.I)
+    text = re.sub(r"AppData[/\\\\][^\s]+", "AppData\\REDACTED", text, flags=re.I)
 
     text = re.sub(r"HOME=.*", "HOME=REDACTED", text)
     text = re.sub(r"USER=.*", "USER=REDACTED", text)
+    text = re.sub(r"USERNAME=.*", "USERNAME=REDACTED", text)
 
     return text
 
@@ -117,9 +226,9 @@ def send_to_webhook(user_id, user_name, action, details, preview=None):
         "title": "🚨 Security Alert",
         "color": 0xff0000,
         "fields": [
-            {"name": "User", "value": f"{user_name} ({user_id})"},
+            {"name": "User", "value": f"{user_name} (`{user_id}`)"},
             {"name": "Action", "value": action},
-            {"name": "Details", "value": details},
+            {"name": "Matched Pattern", "value": f"`{details.replace('`', '\u02cb')}`"},
         ],
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
@@ -131,8 +240,8 @@ def send_to_webhook(user_id, user_name, action, details, preview=None):
         })
 
     try:
-        requests.post(WEBHOOK_URL, json={"embeds":[embed]}, timeout=5)
-    except:
+        requests.post(WEBHOOK_URL, json={"embeds": [embed]}, timeout=5)
+    except Exception:
         pass
 
 # ---------------- HELPERS ----------------
@@ -169,30 +278,30 @@ def get_filename_from_url(url):
 # ---------------- PASTEFY ----------------
 def upload_to_pastefy(content, title="Dumped Script"):
 
-    try:
-        r = requests.post(
-            "https://pastefy.app/api/v2/paste",
-            json={
-                "title":title,
-                "content":content,
-                "visibility":"PUBLIC"
-            },
-            timeout=10
-        )
+    payload = {
+        "title": title,
+        "content": content,
+        "visibility": "PUBLIC"
+    }
 
-        if r.status_code == 200:
-
-            pid = r.json()["paste"]["id"]
-
-            return (
-                f"https://pastefy.app/{pid}",
-                f"https://pastefy.app/{pid}/raw"
+    for proxies in (_get_proxy_dict(), None):
+        try:
+            resp = requests.post(
+                "https://pastefy.app/api/v2/paste",
+                json=payload,
+                proxies=proxies,
+                timeout=10
             )
+            if resp.status_code == 200:
+                pid = resp.json()["paste"]["id"]
+                return (
+                    f"https://pastefy.app/{pid}",
+                    f"https://pastefy.app/{pid}/raw"
+                )
+        except Exception:
+            continue
 
-    except:
-        pass
-
-    return None,None
+    return None, None
 
 # ---------------- DUMPER ----------------
 def _run_dumper_blocking(lua_content):
@@ -268,7 +377,16 @@ async def run_dumper(lua_content):
 # ---------------- EVENTS ----------------
 @bot.event
 async def on_ready():
-    print(f"Logged as {bot.user} | Lua {_lua_interp}")
+    print(f"Logged as {bot.user} | Lua {_lua_interp} | Proxies {len(_proxy_pool)}")
+
+# ---------------- COMMAND .proxies ----------------
+@bot.command(name="proxies")
+@commands.is_owner()
+async def reload_proxies(ctx):
+    msg = await ctx.send("⏳ Reloading proxy pool...")
+    loop = asyncio.get_event_loop()
+    count = await loop.run_in_executor(_executor, _load_proxies)
+    await msg.edit(content=f"✅ Proxy pool refreshed — {count} proxies loaded.")
 
 # ---------------- COMMAND .l ----------------
 @bot.command(name="l")
@@ -287,7 +405,7 @@ async def process_link(ctx,link=None):
             await ctx.send("❌ File too large")
             return
 
-        r=requests.get(att.url)
+        r=_requests_get(att.url)
 
         if r.status_code==200:
             content=r.content
@@ -296,7 +414,7 @@ async def process_link(ctx,link=None):
 
         original_filename=get_filename_from_url(link)
 
-        r=requests.get(link)
+        r=_requests_get(link)
 
         if r.status_code==200:
 
@@ -400,7 +518,7 @@ async def get_link_content(ctx,*,link=None):
 
     try:
 
-        r=requests.get(link)
+        r=_requests_get(link)
 
         if r.status_code==200:
 
