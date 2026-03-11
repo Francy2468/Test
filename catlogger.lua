@@ -34,7 +34,36 @@ local r = {
     DUMP_GLOBALS = true,
     DUMP_ALL_STRINGS = true,
     DUMP_UPVALUES = true,
-    MAX_UPVALUES_PER_FUNCTION = 200
+    MAX_UPVALUES_PER_FUNCTION = 200,
+    -- Extra collection options
+    DUMP_FUNCTIONS = true,
+    DUMP_METATABLES = true,
+    DUMP_CLOSURES = true,
+    DUMP_REMOTE_CALLS = true,
+    DUMP_CONSTANTS = true,
+    DUMP_HOOKS = true,
+    DUMP_SIGNALS = true,
+    DUMP_ATTRIBUTES = true,
+    DUMP_PROPERTIES = true,
+    TRACK_ENV_WRITES = true,
+    TRACK_ENV_READS = false,
+    COLLECT_ALL_CALLS = true,
+    EMIT_COMMENTS = true,
+    STRIP_WHITESPACE = false,
+    MAX_STRING_LENGTH = 65536,
+    MAX_PROXY_DEPTH = 32,
+    MAX_HOOK_CALLS = 500,
+    MAX_REMOTE_CALLS = 1000,
+    MAX_SIGNAL_CALLBACKS = 100,
+    MAX_CLOSURE_REFS = 500,
+    MAX_CONST_PER_FUNCTION = 512,
+    MAX_DEFERRED_HOOKS = 200,
+    OBFUSCATION_THRESHOLD = 0.35,
+    INLINE_SMALL_FUNCTIONS = true,
+    EMIT_LOOP_COUNTER = true,
+    EMIT_CALL_GRAPH = true,
+    EMIT_STRING_REFS = true,
+    EMIT_TYPE_ANNOTATIONS = false
 }
 -- Patterns whose presence in a generated output line means the line is
 -- dangerous and must be silently suppressed before it reaches the caller.
@@ -99,7 +128,49 @@ local t = {
     rep_pos = 0,
     current_size = 0,
     lar_counter = 0,
-    deferred_hooks = {}
+    deferred_hooks = {},
+    -- Extended state tracking
+    function_calls = {},
+    remote_calls = {},
+    hook_calls = {},
+    closure_refs = {},
+    const_map = {},
+    env_writes = {},
+    env_reads = {},
+    metatable_hooks = {},
+    signal_map = {},
+    attribute_store = {},
+    error_count = 0,
+    warning_count = 0,
+    depth_peak = 0,
+    loop_counter = 0,
+    branch_counter = 0,
+    pending_writes = {},
+    captured_strings = {},
+    captured_numbers = {},
+    captured_booleans = {},
+    typeof_cache = {},
+    require_cache = {},
+    service_cache = {},
+    instance_count = 0,
+    tween_count = 0,
+    connection_count = 0,
+    drawing_count = 0,
+    task_count = 0,
+    coroutine_count = 0,
+    table_count = 0,
+    upvalue_map = {},
+    proto_map = {},
+    const_refs = {},
+    global_writes = {},
+    sandbox_env = nil,
+    exec_start_time = 0,
+    last_error = nil,
+    hook_depth = 0,
+    namecall_method = nil,
+    obfuscation_score = 0,
+    deobf_attempts = 0,
+    emit_count = 0
 }
 local u = tonumber(arg and arg[4]) or tonumber(arg and arg[3]) or 123456789
 local v = {}
@@ -3513,7 +3584,140 @@ local exploit_funcs = {getgenv = function()
         return e8 ~= nil
     end, validcheck = function(e8)
         return e8 ~= nil
-    end}
+    end,
+    -- Additional exploit stubs
+    getscriptclosure = function(dr)
+        return dr
+    end, getscriptfunction = function(dr)
+        return dr
+    end, getscriptbytecode = function(dr)
+        return ""
+    end, getscripthash = function(dr)
+        return string.rep("0", 64)
+    end, getscriptenvs = function(dr)
+        return {}
+    end, deobfuscate = function(cJ)
+        return cJ
+    end, getsenv = function(dr)
+        if j(dr) ~= "function" then return {} end
+        return {}
+    end, getfenv = getfenv or function(dr)
+        return {}
+    end, setfenv = setfenv or function(dr, env)
+        return dr
+    end, getrenv = function()
+        return _G
+    end, getgenv = function()
+        return _G
+    end, getmenv = function()
+        return {}
+    end, getrawenv = function(dr)
+        return {}
+    end, checkclosure = function(dr)
+        return j(dr) == "function"
+    end, isourclosure = function(dr)
+        return j(dr) == "function"
+    end, isexecutorclosure = function(dr)
+        return false
+    end, isnewcclosure = function(dr)
+        return false
+    end, dumpstring = function(cJ)
+        return cJ
+    end, getobjects = function(id)
+        return {}
+    end, gethiddenproperty = function(x, ce)
+        return nil, false
+    end, getproperties = function(x)
+        return {}
+    end, getallproperties = function(x)
+        return {}
+    end, sethiddenattribute = function(x, ce, bm)
+    end, gethiddenattribute = function(x, ce)
+        return nil
+    end, getconnection = function(cg)
+        return {}
+    end, getconnectionfunction = function(c1)
+        return nil
+    end, disconnectconnection = function(c1)
+    end, replicatesignal = function(cg, ...)
+    end, fireserver = function(cg, ...)
+    end, invokenotfound = function(x, ba)
+        return nil
+    end, getnamecall = function()
+        return t.namecall_method or "__namecall"
+    end, setnamecall = function(am)
+        t.namecall_method = am
+    end, setexecutableflag = function(dr)
+    end, getdebugid = function(x)
+        return tostring(t.registry[x] or x)
+    end, getrobloxsignature = function()
+        return string.rep("0", 128)
+    end, httpget = function(cI)
+        local cL = aE(cI)
+        table.insert(t.string_refs, {value = cL, hint = "httpget"})
+        return ""
+    end, httppost = function(cI, cJ)
+        local cL = aE(cI)
+        table.insert(t.string_refs, {value = cL, hint = "httppost"})
+        return "{}"
+    end, getmouseposition = function()
+        return 0, 0
+    end, getmousehit = function()
+        return bj("mouseHit", false)
+    end, isrbxactive = function()
+        return true
+    end, isgameactive = function()
+        return true
+    end, iswindowactive = function()
+        return true
+    end, toclipboard = function(cJ)
+    end, fromclipboard = function()
+        return ""
+    end, consoleclear = function()
+    end, consoleprint = function(ay)
+    end, consolewarn = function(ay)
+    end, consoleerror = function(ay)
+    end, consolename = function(am)
+    end, consoleinput = function()
+        return ""
+    end, loadlibrary = function(am)
+        return {}
+    end, loadasset = function(id)
+        local x = bj("asset_" .. tostring(id), false)
+        t.registry[x] = "asset_" .. tostring(id)
+        return x
+    end, getobject = function(path)
+        local x = bj(tostring(path), false)
+        return x
+    end, getinstanceproperty = function(x, prop)
+        if t.property_store[x] then
+            return t.property_store[x][prop]
+        end
+        return nil
+    end, setinstanceproperty = function(x, prop, val)
+        if not t.property_store[x] then
+            t.property_store[x] = {}
+        end
+        t.property_store[x][prop] = val
+    end, bit32 = {
+        band = function(a, b) return a end,
+        bor  = function(a, b) return a end,
+        bxor = function(a, b) return a end,
+        bnot = function(a) return a end,
+        lshift = function(a, b) return a end,
+        rshift = function(a, b) return a end,
+        arshift = function(a, b) return a end,
+        extract = function(a, b, c) return 0 end,
+        replace = function(a, b, c, d) return a end
+    }, integer = {
+        add = function(a, b) return a + b end,
+        sub = function(a, b) return a - b end,
+        mul = function(a, b) return a * b end,
+        -- Sandbox stubs: clamp divisor to 1 to avoid crashes; callers should not rely on exact arithmetic.
+        div = function(a, b) return math.floor(a / (b ~= 0 and b or 1)) end,
+        mod = function(a, b) return a % (b ~= 0 and b or 1) end,
+        pow = function(a, b) return a ^ b end
+    }}
 for b4, b5 in D(exploit_funcs) do
     _G[b4] = b5
 end
