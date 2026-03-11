@@ -256,7 +256,7 @@ local function I(J)
             R:gsub(
             "0[xX]([%x_]+)",
             function(S)
-                local T = S:gsub("_", '"')
+                local T = S:gsub("_", "")
                 return "0x" .. T
             end
         )
