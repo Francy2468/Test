@@ -100,7 +100,7 @@ def sanitize_output(text: str):
     text = re.sub(r"/root/[^\s]+", "/root/REDACTED", text)
     text = re.sub(r"/etc/[^\s]+", "/etc/REDACTED", text)
 
-    text = re.sub(r"[A-Z]:\\\\[^\s]+", "C:\\REDACTED", text)
+    text = re.sub(r"[A-Z]:\\\\[^\s]+", r"C:\\REDACTED", text)
 
     text = re.sub(r"HOME=.*", "HOME=REDACTED", text)
     text = re.sub(r"USER=.*", "USER=REDACTED", text)
