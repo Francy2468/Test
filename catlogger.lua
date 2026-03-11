@@ -1,3 +1,4 @@
+#!/usr/bin/env lua5.3
 local a = debug
 local b = debug.sethook
 local c = debug.getinfo
@@ -8,6 +9,8 @@ local g = pcall
 local h = xpcall
 local i = error
 local j = type
+-- Lua 5.3 compat: unpack was moved to table.unpack
+local unpack = table.unpack or unpack
 local k = getmetatable
 local l = rawequal
 local m = tostring
@@ -32,6 +35,44 @@ local r = {
     DUMP_ALL_STRINGS = true,
     DUMP_UPVALUES = true,
     MAX_UPVALUES_PER_FUNCTION = 200
+}
+-- Patterns whose presence in a generated output line means the line is
+-- dangerous and must be silently suppressed before it reaches the caller.
+-- These cover OS command execution, filesystem enumeration and environment
+-- variable leaks that would put the bot owner at risk.
+local BLOCKED_OUTPUT_PATTERNS = {
+    "os%.execute",
+    "os%.getenv",
+    "os%.exit",
+    "os%.remove",
+    "os%.rename",
+    "os%.tmpname",
+    "io%.open",
+    "io%.popen",
+    "io%.lines",
+    "io%.read",
+    "io%.write",
+    -- shell-style directory / file listing indicators
+    "total %d",             -- output of `ls -l`
+    "^drwx", "^%-rwx",     -- Unix file-permission lines
+    "^[dD]irectory of ",   -- Windows `dir` header
+    "[Vv]olume in drive",  -- Windows `dir` header
+    -- absolute filesystem paths that might be leaked
+    "/etc/",
+    "/home/",
+    "/root/",
+    "/var/",
+    "/tmp/",
+    "/proc/",
+    "/sys/",
+    "C:\\[Uu]sers\\",
+    "C:\\[Ww]indows\\",
+    "C:\\[Pp]rogram",
+    -- environment-variable style leaks
+    "PATH=",
+    "HOME=",
+    "USER=",
+    "SHELL=",
 }
 local s = (arg and arg[3]) or "NoKey"
 if arg and arg[3] then
@@ -292,6 +333,12 @@ local function at(O, au)
     end
     local av = au and "" or string.rep("    ", t.indent)
     local aw = av .. m(O)
+    -- Security: suppress any line that matches a dangerous output pattern.
+    for _, pat in ipairs(BLOCKED_OUTPUT_PATTERNS) do
+        if aw:find(pat) then
+            return
+        end
+    end
     local ax = #aw + 1
     if t.current_size + ax > r.MAX_OUTPUT_SIZE then
         t.limit_reached = true
@@ -3693,9 +3740,18 @@ _G.ipairs = ipairs
 _G.math = math
 _G.table = table
 _G.string = string
-_G.os = os
+-- Expose only safe os functions; block execute, getenv, exit, tmpname, rename, remove
+_G.os = {
+    clock    = os.clock,
+    time     = os.time,
+    date     = os.date,
+    difftime = os.difftime,
+}
 _G.coroutine = coroutine
 _G.io = nil
+-- Block filesystem / module-loading globals that could expose host data
+_G.dofile = nil
+_G.package = nil
 _G.debug = exploit_funcs.debug
 _G.utf8 = utf8
 _G.pairs = pairs
