@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ---------------- CONFIG ----------------
-TOKEN = os.environ.get("TOKEN_BOT", "")
+TOKEN = os.environ.get("BOT_TOKEN", "")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 PREFIX = "."
 DUMPER_PATH = "catlogger.lua"
