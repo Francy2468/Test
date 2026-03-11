@@ -13,9 +13,12 @@ import functools
 import random
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ---------------- CONFIG ----------------
-TOKEN = os.environ.get("BOT_TOKEN", "")
+TOKEN = os.environ.get("TOKEN_BOT", "")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 PREFIX = "."
 DUMPER_PATH = "catlogger.lua"
@@ -444,8 +447,7 @@ async def process_link(ctx,link=None):
             ctx.author.id,
             str(ctx.author),
             "Input Threat",
-            pattern,
-            input_text
+            pattern
         )
 
         await status.edit(content="🚨 blocked security threat")
@@ -471,8 +473,7 @@ async def process_link(ctx,link=None):
             ctx.author.id,
             str(ctx.author),
             "Output Threat",
-            pattern,
-            dumped_text
+            pattern
         )
 
         await status.edit(content="🚨 dangerous output blocked")
