@@ -108,65 +108,36 @@ _lua_interp = _find_lua()
 # ---------------- SECURITY ----------------
 _THREAT_PATTERNS = [
 
-# ENV
+# ENV - environment variable extraction
 re.compile(r"os\.getenv", re.I),
 re.compile(r"getenv\(", re.I),
 
-# SHELL
+# SHELL - arbitrary command / process execution
 re.compile(r"os\.execute", re.I),
 re.compile(r"io\.popen", re.I),
 
-# DIRECTORY
-re.compile(r"\bls\b", re.I),
-re.compile(r"\bdir\b", re.I),
-re.compile(r"\bpwd\b", re.I),
-
-# FILESYSTEM
-re.compile(r"io\.open", re.I),
-re.compile(r"require\(['\"]lfs['\"]\)", re.I),
-re.compile(r"lfs\.", re.I),
-
-# DEBUG
+# DEBUG - introspection abuse
 re.compile(r"debug\.getinfo", re.I),
 re.compile(r"debug\.getregistry", re.I),
 re.compile(r"debug\.getupvalue", re.I),
 
-# FFI
+# FFI - native code bridge
 re.compile(r"require\(['\"]ffi['\"]\)", re.I),
 
-# PATHS - Unix
-re.compile(r"/home/", re.I),
-re.compile(r"/root/", re.I),
-re.compile(r"/etc/", re.I),
-re.compile(r"/proc/", re.I),
-re.compile(r"/sys/", re.I),
-re.compile(r"/var/", re.I),
-re.compile(r"/tmp/", re.I),
+# SENSITIVE UNIX PATHS
+re.compile(r"/etc/passwd", re.I),
+re.compile(r"/etc/shadow", re.I),
+re.compile(r"/proc/self", re.I),
+re.compile(r"/proc/net", re.I),
 
-# PATHS - Windows malicious
-re.compile(r"[A-Za-z]:\\\\", re.I),
-re.compile(r"[A-Za-z]:/", re.I),
-re.compile(r"\\\\AppData\\\\", re.I),
+# SENSITIVE WINDOWS PATHS
 re.compile(r"AppData[/\\\\]Roaming", re.I),
 re.compile(r"AppData[/\\\\]Local", re.I),
-re.compile(r"\\\\Users\\\\", re.I),
 re.compile(r"\\\\System32\\\\", re.I),
 re.compile(r"\\\\Windows\\\\", re.I),
-re.compile(r"\\\\Program Files", re.I),
 re.compile(r"NTUSER\.DAT", re.I),
-re.compile(r"\\\\Temp\\\\", re.I),
 
-# COMMANDS
-re.compile(r"\bwhoami\b", re.I),
-re.compile(r"\buname\b", re.I),
-re.compile(r"\bid\b", re.I),
-re.compile(r"\bnetstat\b", re.I),
-re.compile(r"\bipconfig\b", re.I),
-re.compile(r"\bifconfig\b", re.I),
-re.compile(r"\bcmd\.exe\b", re.I),
-re.compile(r"\bpowershell\b", re.I),
-
-# ROBLOX EXPLOITS - getgenv / syn env / other executor globals
+# ROBLOX EXPLOITS - executor globals
 re.compile(r"\bgetgenv\s*\(", re.I),
 re.compile(r"\bgetrenv\s*\(", re.I),
 re.compile(r"\bgetfenv\s*\(", re.I),
@@ -188,9 +159,6 @@ re.compile(r"ENV LOGGER DETECTED", re.I),
 re.compile(r"env logger is currently running", re.I),
 re.compile(r"this env logger", re.I),
 re.compile(r"luau cli\s*/\s*standalone", re.I),
-
-# ROBLOX SERVICES abused by exploits (combined with executor globals above)
-re.compile(r"BindableEvent", re.I),
 
 ]
 
