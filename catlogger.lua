@@ -5,6 +5,9 @@ local c = debug.getinfo
 local d = debug.traceback
 local e = load
 local f = loadstring or load
+-- Capture the native setfenv (Lua 5.1/5.2 only) before the exploit stubs
+-- installed later in this file overwrite _G.setfenv with a no-op.
+local _native_setfenv = rawget(_G, "setfenv")
 local g = pcall
 local h = xpcall
 local i = error
@@ -4594,8 +4597,29 @@ function q.dump_file(eN, eO)
             end},
         {__index = _G, __newindex = _G}
     )
-    if setfenv then
-        setfenv(R, eR)
+    -- Inject getfenv/getgenv stubs into the sandbox that return the sandbox itself.
+    -- catlogger's _G.getfenv is a stub returning {} (empty table), so calling it from
+    -- inside the script would give the obfuscated VM an empty environment with no
+    -- interceptors.  By inserting these into eR directly (bypassing __newindex so they
+    -- don't pollute the real _G), we ensure any Lua 5.1 / Luau-style VM that calls
+    -- `getfenv and getfenv() or _ENV` or `getgenv()` gets back our full sandbox.
+    rawset(eR, "getfenv", function() return eR end)
+    rawset(eR, "getgenv", function() return eR end)
+    if _native_setfenv then
+        -- Lua 5.1/5.2: native setfenv properly rebinds the chunk's environment.
+        _native_setfenv(R, eR)
+    else
+        -- Lua 5.3+: setfenv is gone; re-load the already-parsed chunk
+        -- with eR as the explicit _ENV upvalue so that every global access inside
+        -- the obfuscated script (including `_ENV` itself, which Luau-style VMs
+        -- capture via `getfenv and getfenv() or _ENV`) is routed through our
+        -- sandbox instead of the real _G.
+        local R2, eRloadErr = e(eP, "Obfuscated_Script", "t", eR)
+        if R2 then
+            R = R2
+        elseif eRloadErr then
+            B("[Dumper] Note: sandbox reload failed (" .. m(eRloadErr) .. "); running without environment rebinding")
+        end
     end
     -- Snapshot the REAL global table (eC, not the eD proxy) before execution,
     -- plus the sandbox keys, so we can detect what the script wrote afterwards.
@@ -4659,6 +4683,9 @@ function q.dump_file(eN, eO)
         end
     )
     b()
+    if not eo and eU then
+        B("[VM_ERROR] " .. eU)
+    end
     -- Post-execution: run deferred hooks first (more code captured), then supplemental data.
     q.run_deferred_hooks()
     q.dump_captured_globals(eR, _pre_exec_keys)
