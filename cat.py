@@ -40,24 +40,62 @@ _PROXY_SOURCES = [
     "https://raw.githubusercontent.com/mmpx12/proxy-list/master/https.txt",
     "https://raw.githubusercontent.com/almroot/proxylist/master/list.txt",
     "https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/https/https.txt",
+    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
+    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks4.txt",
+    "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/socks5.txt",
+    "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/socks4.txt",
+    "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt",
+    "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt",
+    "https://raw.githubusercontent.com/mmpx12/proxy-list/master/http.txt",
+    "https://raw.githubusercontent.com/mmpx12/proxy-list/master/socks4.txt",
+    "https://raw.githubusercontent.com/mmpx12/proxy-list/master/socks5.txt",
+    "https://raw.githubusercontent.com/B4RC0DE-TM/proxy-list/main/HTTP.txt",
+    "https://raw.githubusercontent.com/B4RC0DE-TM/proxy-list/main/SOCKS5.txt",
+    "https://raw.githubusercontent.com/Volodichev/proxy-list/main/http.txt",
+    "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/http.txt",
+    "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/socks4.txt",
+    "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/socks5.txt",
+    "https://raw.githubusercontent.com/UptimerBot/proxy-list/main/proxies/http.txt",
+    "https://raw.githubusercontent.com/UptimerBot/proxy-list/main/proxies/socks4.txt",
+    "https://raw.githubusercontent.com/UptimerBot/proxy-list/main/proxies/socks5.txt",
+    "https://raw.githubusercontent.com/saschazesiger/Free-Proxies/master/proxies/http.txt",
+    "https://raw.githubusercontent.com/saschazesiger/Free-Proxies/master/proxies/socks5.txt",
+    "https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/http.txt",
+    "https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/https.txt",
+    "https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/socks4.txt",
+    "https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/socks5.txt",
+    "https://raw.githubusercontent.com/rdavydov/proxy-list/main/proxies/http.txt",
+    "https://raw.githubusercontent.com/rdavydov/proxy-list/main/proxies/socks5.txt",
+    "https://raw.githubusercontent.com/prxchk/proxy-list/main/http.txt",
+    "https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt",
+    "https://raw.githubusercontent.com/ALIILAPRO/Proxy/main/http.txt",
+    "https://raw.githubusercontent.com/ALIILAPRO/Proxy/main/socks5.txt",
 ]
 
 _proxy_pool: list = []
 _proxy_lock = threading.Lock()
 
-def _load_proxies():
-    """Fetch proxies from multiple public sources and populate the pool."""
+def _fetch_one_source(url):
+    """Fetch proxies from a single source. Returns a set of valid IP:port strings."""
     found = set()
-    for url in _PROXY_SOURCES:
-        try:
-            r = requests.get(url, timeout=10)
-            if r.status_code == 200:
-                for line in r.text.splitlines():
-                    line = line.strip()
-                    if line and re.match(r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?):\d{1,5}$", line):
-                        found.add(line)
-        except Exception:
-            continue
+    try:
+        r = requests.get(url, timeout=6)
+        if r.status_code == 200:
+            for line in r.text.splitlines():
+                line = line.strip()
+                if line and re.match(r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?):\d{1,5}$", line):
+                    found.add(line)
+    except Exception:
+        pass
+    return found
+
+def _load_proxies():
+    """Fetch proxies from multiple public sources concurrently and populate the pool."""
+    with ThreadPoolExecutor(max_workers=20) as ex:
+        results = list(ex.map(_fetch_one_source, _PROXY_SOURCES))
+    found = set()
+    for s in results:
+        found.update(s)
     with _proxy_lock:
         _proxy_pool.clear()
         _proxy_pool.extend(list(found))
@@ -74,13 +112,14 @@ def _get_proxy_dict():
 
 def _requests_get(url, **kwargs):
     """requests.get with proxy rotation and automatic fallback."""
+    timeout = kwargs.pop("timeout", 8)
     proxies = _get_proxy_dict()
     if proxies:
         try:
-            return requests.get(url, proxies=proxies, timeout=kwargs.pop("timeout", 10), **kwargs)
+            return requests.get(url, proxies=proxies, timeout=timeout, **kwargs)
         except Exception:
             pass
-    return requests.get(url, timeout=kwargs.pop("timeout", 10), **kwargs)
+    return requests.get(url, timeout=timeout, **kwargs)
 
 # Load proxies in a background thread so startup is not blocked.
 threading.Thread(target=_load_proxies, daemon=True).start()
@@ -246,8 +285,7 @@ async def on_ready():
 @commands.is_owner()
 async def reload_proxies(ctx):
     msg = await ctx.send("⏳ Reloading proxy pool...")
-    loop = asyncio.get_event_loop()
-    count = await loop.run_in_executor(_executor, _load_proxies)
+    count = await asyncio.get_event_loop().run_in_executor(_executor, _load_proxies)
     await msg.edit(content=f"✅ Proxy pool refreshed — {count} proxies loaded.")
 
 # ---------------- COMMAND .l ----------------
@@ -257,6 +295,9 @@ async def process_link(ctx,link=None):
     content=None
     original_filename="file"
 
+    # Acknowledge the command immediately so the user sees activity right away
+    status=await ctx.send("⚙️ dumping")
+
     if ctx.message.attachments:
 
         att=ctx.message.attachments[0]
@@ -264,10 +305,11 @@ async def process_link(ctx,link=None):
         original_filename=att.filename
 
         if att.size>MAX_FILE_SIZE:
-            await ctx.send("❌ File too large")
+            await status.edit(content="❌ File too large")
             return
 
-        r=_requests_get(att.url)
+        loop=asyncio.get_event_loop()
+        r=await loop.run_in_executor(_executor,functools.partial(_requests_get,att.url))
 
         if r.status_code==200:
             content=r.content
@@ -276,25 +318,24 @@ async def process_link(ctx,link=None):
 
         original_filename=get_filename_from_url(link)
 
-        r=_requests_get(link)
+        loop=asyncio.get_event_loop()
+        r=await loop.run_in_executor(_executor,functools.partial(_requests_get,link))
 
         if r.status_code==200:
 
             if len(r.content)>MAX_FILE_SIZE:
-                await ctx.send("❌ File too large")
+                await status.edit(content="❌ File too large")
                 return
 
             content=r.content
 
     else:
-        await ctx.send("Provide a link or file.")
+        await status.edit(content="Provide a link or file.")
         return
 
     if not content:
-        await ctx.send("❌ Failed to get content.")
+        await status.edit(content="❌ Failed to get content.")
         return
-
-    status=await ctx.send("⚙️ dumping")
 
     dumped,exec_ms,loops,lines,error=await run_dumper(content)
 
@@ -304,7 +345,11 @@ async def process_link(ctx,link=None):
 
     dumped_text=dumped.decode("utf-8",errors="ignore")
 
-    paste,raw=upload_to_pastefy(dumped_text,title=original_filename)
+    loop=asyncio.get_event_loop()
+    paste,raw=await loop.run_in_executor(
+        _executor,
+        functools.partial(upload_to_pastefy,dumped_text,title=original_filename)
+    )
 
     preview="\n".join(dumped_text.splitlines()[:10])
 
@@ -344,7 +389,8 @@ async def get_link_content(ctx,*,link=None):
 
     try:
 
-        r=_requests_get(link)
+        loop=asyncio.get_event_loop()
+        r=await loop.run_in_executor(_executor,functools.partial(_requests_get,link))
 
         if r.status_code==200:
 
