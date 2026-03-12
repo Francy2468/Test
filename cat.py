@@ -178,6 +178,17 @@ def get_filename_from_url(url):
 
     return "script.lua"
 
+def _strip_loop_markers(code: str) -> str:
+    """Remove '-- Detected loops N' comment lines injected by the dumper.
+
+    These markers are diagnostic annotations that clutter the output and
+    prevent the script from being used cleanly.  Strip them so only
+    executable Lua code (and meaningful comments) remains.
+    """
+    _LOOP_MARKER_RE = re.compile(r"^\s*--\s*Detected loops\s+\d+\s*$")
+    cleaned = [line for line in code.splitlines() if not _LOOP_MARKER_RE.match(line)]
+    return "\n".join(cleaned)
+
 # ---------------- REFERENCE MESSAGE HELPER ----------------
 async def _fetch_reference_content(ctx):
     """Return (content_bytes, filename) from the message that ctx.message replies to.
@@ -399,6 +410,7 @@ async def process_link(ctx,link=None):
         return
 
     dumped_text=dumped.decode("utf-8",errors="ignore")
+    dumped_text=_strip_loop_markers(dumped_text)
 
     loop=asyncio.get_event_loop()
     paste,raw=await loop.run_in_executor(
@@ -425,7 +437,7 @@ async def process_link(ctx,link=None):
     await ctx.send(
         embed=embed,
         file=discord.File(
-            io.BytesIO(dumped),
+            io.BytesIO(dumped_text.encode("utf-8")),
             filename=original_filename+".txt"
         )
     )
