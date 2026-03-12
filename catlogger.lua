@@ -4423,13 +4423,13 @@ loadstring = function(al, eu)
         {pattern = "imperial",  name = "ImperialHub"},
         {pattern = "aimbot",    name = "Aimbot"},
         {pattern = "esp",       name = "ESP"},
-        {pattern = "triggerbot",name = "TriggerBot"},
+        {pattern = "triggerbot",name = "Triggerbot"},
         {pattern = "speedhack", name = "SpeedHack"},
         {pattern = "noclip",    name = "Noclip"},
         {pattern = "btools",    name = "BTools"},
         {pattern = "antigrav",  name = "AntiGrav"},
         {pattern = "flyhack",   name = "FlyHack"},
-        {pattern = "teleport",  name = "TeleportLib"},
+        {pattern = "teleport",  name = "Teleport"},
         {pattern = "scripthub", name = "ScriptHub"},
         {pattern = "loader",    name = "Loader"},
         {pattern = "autoparry", name = "AutoParry"},
@@ -4926,9 +4926,9 @@ local GEN_STRING_VARS = {
     -- Single letters a–z (excluding w, t, S already listed above)
     "a","b","c","d","e","f","g","h","i","j","k","l","m",
     "n","o","p","q","r","s","u","v","x","y","z",
-    -- Uppercase aliases
-    "V","W","T","N","A","B","C","D","E","F","G","H","I","J","K","L","M",
-    "O","P","Q","R","U","X","Y","Z",
+    -- Uppercase aliases (S, W, T already listed in the primary section above)
+    "V","N","A","B","C","D","E","F","G","H","I","J","K","L","M",
+    "O","P","Q","R","S","U","X","Y","Z","W","T",
     -- Descriptive names
     "data","payload","values","params","buffer",
     "container","pack","stack","env","tbl","arr","tab",

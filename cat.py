@@ -298,6 +298,77 @@ def _collapse_blank_lines(code: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", code)
 
 
+# The one comment line that must be kept verbatim at the top of every dump.
+_CATMIO_HEADER_RE = re.compile(
+    r"^--\s*generated with catmio\b.*$", re.IGNORECASE
+)
+
+# Long-bracket Lua comments: --[[ ... ]] or --[=[ ... ]=]  (inline fragments)
+_INLINE_LONG_COMMENT_RE = re.compile(r"--\[=*\[.*?\]=*\]", re.DOTALL)
+
+
+def _strip_inline_trailing_comment(line: str) -> str:
+    """Remove a trailing short ``-- ...`` comment from a Lua code line.
+
+    Skips ``--`` sequences that appear inside single- or double-quoted string
+    literals to avoid accidentally truncating string values like ``"foo -- bar"``.
+    Returns the line with the trailing comment and any preceding whitespace removed.
+    """
+    i = 0
+    n = len(line)
+    while i < n:
+        ch = line[i]
+        # Enter a quoted string — advance past it without touching its contents.
+        if ch in ('"', "'"):
+            quote = ch
+            i += 1
+            while i < n:
+                c2 = line[i]
+                if c2 == '\\':
+                    i += 2 if i + 1 < n else 1  # skip escape sequence (bounds-safe)
+                elif c2 == quote:
+                    i += 1
+                    break
+                else:
+                    i += 1
+        # Short comment start (not inside a string).
+        elif ch == '-' and i + 1 < n and line[i + 1] == '-':
+            return line[:i].rstrip()
+        else:
+            i += 1
+    return line
+
+
+def _strip_comments(code: str) -> str:
+    """Remove all Lua comments from *code* except the catmio/discord header line.
+
+    Handles:
+    * Whole-line comments: any line whose first non-whitespace characters are ``--``
+      is removed entirely (keeping only the catmio header).
+    * Inline long-bracket comments: ``--[[...]]`` fragments embedded inside a code
+      line are stripped, leaving the surrounding code intact.
+    * Short trailing inline comments: ``  -- remark`` at the end of a code line are
+      removed while respecting quoted string literals so that string values
+      containing ``--`` (e.g. ``"foo -- bar"``) are not corrupted.
+    """
+    result: list[str] = []
+    for line in code.splitlines():
+        stripped = line.lstrip()
+        # 1. Preserve the catmio/discord header exactly.
+        if _CATMIO_HEADER_RE.match(stripped):
+            result.append(line)
+            continue
+        # 2. Drop whole-line comments (lines whose entire content is a comment).
+        if stripped.startswith("--"):
+            continue
+        # 3. Remove long-bracket inline comments embedded in code lines.
+        line = _INLINE_LONG_COMMENT_RE.sub("", line)
+        # 4. Remove short trailing inline comments, respecting string literals.
+        line = _strip_inline_trailing_comment(line)
+        result.append(line)
+    return "\n".join(result)
+
+
 # Matches two adjacent double-quoted Lua string literals joined by ..
 # Handles backslash escapes inside both strings.
 _STR_CONCAT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"\s*\.\.\s*"((?:[^"\\]|\\.)*)"')
@@ -614,6 +685,7 @@ async def process_link(ctx,link=None):
     dumped_text=_collapse_loop_unrolls(dumped_text)
     dumped_text=_fold_string_concat(dumped_text)
     dumped_text=_inline_single_use_constants(dumped_text)
+    dumped_text=_strip_comments(dumped_text)
     dumped_text=_collapse_blank_lines(dumped_text)
     dumped_text=_remove_trailing_whitespace(dumped_text)
 
