@@ -205,12 +205,12 @@ textButton4.Font = Enum.Font.GothamBold
 textButton4.TextSize = 9
 local uICorner6 = Instance.new("UICorner", textButton4)
 local conn4 = textButton4.MouseButton1Click:Connect(function()
-    scrollingFrame4.Visible = false
-    textButton3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    textButton3.TextColor3 = Color3.fromRGB(180, 180, 180)
     scrollingFrame3.Visible = false
     textButton2.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     textButton2.TextColor3 = Color3.fromRGB(180, 180, 180)
+    scrollingFrame4.Visible = false
+    textButton3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    textButton3.TextColor3 = Color3.fromRGB(180, 180, 180)
     scrollingFrame2.Visible = false
     textButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     textButton.TextColor3 = Color3.fromRGB(180, 180, 180)
@@ -249,18 +249,9 @@ textButton5.Font = Enum.Font.GothamBold
 textButton5.TextSize = 9
 local uICorner7 = Instance.new("UICorner", textButton5)
 local conn5 = textButton5.MouseButton1Click:Connect(function()
-    scrollingFrame4.Visible = false
-    textButton3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    textButton3.TextColor3 = Color3.fromRGB(180, 180, 180)
-    scrollingFrame5.Visible = false
-    textButton4.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    textButton4.TextColor3 = Color3.fromRGB(180, 180, 180)
     scrollingFrame3.Visible = false
     textButton2.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     textButton2.TextColor3 = Color3.fromRGB(180, 180, 180)
-    scrollingFrame2.Visible = false
-    textButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    textButton.TextColor3 = Color3.fromRGB(180, 180, 180)
     scrollingFrame6.Visible = true
     textButton5.BackgroundColor3 = Color3.fromRGB(255, 220, 50)
     textButton5.TextColor3 = Color3.fromRGB(0, 0, 0)
@@ -14155,60 +14146,10 @@ local conn11 = textButton11.MouseButton1Click:Connect(function()
             task.wait(0.5)
             bridge:FireServer("General", "Rebirth", "Use")
             task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
-            bridge:FireServer("General", "Rebirth", "Use")
-            task.wait(0.5)
 
 
 
             rbDrop = scrollingFrame8
-            sellDrop = frame44
             specListFrame = frame236
+            sellDrop = frame44
             mutDrop = frame218

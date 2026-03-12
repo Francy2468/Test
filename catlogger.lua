@@ -28,7 +28,7 @@ local r = {
     OUTPUT_FILE = "dumped_output.lua",
     VERBOSE = false,
     TRACE_CALLBACKS = true,
-    TIMEOUT_SECONDS = 55,
+    TIMEOUT_SECONDS = 600,
     MAX_REPEATED_LINES = 25,
     MIN_DEOBF_LENGTH = 50,
     MAX_OUTPUT_SIZE = 200 * 1024 * 1024,
@@ -63,7 +63,7 @@ local r = {
     MAX_DEFERRED_HOOKS = 200,
     OBFUSCATION_THRESHOLD = 0.35,
     INLINE_SMALL_FUNCTIONS = true,
-    EMIT_LOOP_COUNTER = false,
+    EMIT_LOOP_COUNTER = true,
     EMIT_CALL_GRAPH = true,
     EMIT_STRING_REFS = true,
     EMIT_TYPE_ANNOTATIONS = false,
@@ -5249,6 +5249,7 @@ function q.dump_file(eN, eO)
         end
     end
     if _is_wad then
+        local _luau_compat_tick = 0
         b(
             function()
                 if p.clock() - eT > r.TIMEOUT_SECONDS then
@@ -5256,23 +5257,27 @@ function q.dump_file(eN, eO)
                     error("TIMEOUT_FORCED_BY_DUMPER", 0)
                 end
                 _loop_check()
-                for _level = 2, 4 do
-                    local _info = a.getinfo(_level, "f")
-                    if not _info then break end
-                    local _idx = 1
-                    while true do
-                        local _name, _val = a.getlocal(_level, _idx)
-                        if not _name then break end
-                        if j(_val) == "table" and not a.getmetatable(_val) then
-                            a.setmetatable(_val, _luau_iter_mt)
+                _luau_compat_tick = _luau_compat_tick + 1
+                if _luau_compat_tick >= 10 then
+                    _luau_compat_tick = 0
+                    for _level = 2, 4 do
+                        local _info = a.getinfo(_level, "f")
+                        if not _info then break end
+                        local _idx = 1
+                        while true do
+                            local _name, _val = a.getlocal(_level, _idx)
+                            if not _name then break end
+                            if j(_val) == "table" and not a.getmetatable(_val) then
+                                a.setmetatable(_val, _luau_iter_mt)
+                            end
+                            _idx = _idx + 1
+                            if _idx > 40 then break end
                         end
-                        _idx = _idx + 1
-                        if _idx > 40 then break end
                     end
                 end
             end,
             "",
-            30
+            300
         )
     else
         b(
