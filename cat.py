@@ -28,6 +28,21 @@ PREVIEW_MAX_CHARS = 900
 
 LUA_INTERPRETERS = ["luau", "lua5.4", "luajit", "lua"]
 
+DISCORD_RETRY_ATTEMPTS = 3
+DISCORD_RETRY_DELAY = 2.0  # seconds between retries on 503
+
+async def _send_with_retry(coro_factory):
+    """Call a coroutine that sends a Discord message, retrying up to
+    DISCORD_RETRY_ATTEMPTS times when a transient 503 DiscordServerError occurs."""
+    for attempt in range(DISCORD_RETRY_ATTEMPTS):
+        try:
+            return await coro_factory()
+        except discord.errors.DiscordServerError:
+            if attempt < DISCORD_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(DISCORD_RETRY_DELAY * (attempt + 1))
+            else:
+                raise
+
 def _requests_get(url, **kwargs):
     """Simple direct requests.get wrapper."""
     kwargs.setdefault("timeout", 8)
@@ -538,7 +553,11 @@ async def process_link(ctx,link=None):
     original_filename="file"
 
     # Acknowledge the command immediately so the user sees activity right away
-    status=await ctx.send("⚙️ dumping")
+    try:
+        status=await _send_with_retry(lambda: ctx.send("⚙️ dumping"))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send status message: {e}")
+        return
 
     if ctx.message.attachments:
 
@@ -626,13 +645,20 @@ async def process_link(ctx,link=None):
     except discord.errors.HTTPException as e:
         print(f"Warning: failed to delete status message: {e}")
 
-    await ctx.send(
-        embed=embed,
-        file=discord.File(
-            io.BytesIO(dumped_text.encode("utf-8")),
-            filename=original_filename+".txt"
-        )
-    )
+    try:
+        await _send_with_retry(lambda: ctx.send(
+            embed=embed,
+            file=discord.File(
+                io.BytesIO(dumped_text.encode("utf-8")),
+                filename=original_filename+".txt"
+            )
+        ))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send result: {e}")
+        try:
+            await status.edit(content=f"❌ Discord error, please retry: {e}")
+        except discord.errors.HTTPException:
+            pass
 
 # ---------------- BEAUTIFIER ----------------
 def _beautify_lua(code: str) -> str:
@@ -785,7 +811,11 @@ async def beautify(ctx, link=None):
     content = None
     original_filename = "script"
 
-    status = await ctx.send("✨ beautifying")
+    try:
+        status = await _send_with_retry(lambda: ctx.send("✨ beautifying"))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send status message: {e}")
+        return
 
     if ctx.message.attachments:
         att = ctx.message.attachments[0]
@@ -847,21 +877,35 @@ async def beautify(ctx, link=None):
         inline=False
     )
 
-    await status.delete()
+    try:
+        await status.delete()
+    except discord.errors.HTTPException as e:
+        print(f"Warning: failed to delete status message: {e}")
 
-    await ctx.send(
-        embed=embed,
-        file=discord.File(
-            io.BytesIO(beautified.encode("utf-8")),
-            filename=os.path.splitext(original_filename)[0] + "_bf.lua"
-        )
-    )
+    try:
+        await _send_with_retry(lambda: ctx.send(
+            embed=embed,
+            file=discord.File(
+                io.BytesIO(beautified.encode("utf-8")),
+                filename=os.path.splitext(original_filename)[0] + "_bf.lua"
+            )
+        ))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send beautified result: {e}")
+        try:
+            await status.edit(content=f"❌ Discord error, please retry: {e}")
+        except discord.errors.HTTPException:
+            pass
 
 # ---------------- COMMAND GET ----------------
 @bot.command(name="get")
 async def get_link_content(ctx,*,link=None):
 
-    status=await ctx.send("⬇️ downloading")
+    try:
+        status=await _send_with_retry(lambda: ctx.send("⬇️ downloading"))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send status message: {e}")
+        return
 
     try:
 
@@ -873,10 +917,10 @@ async def get_link_content(ctx,*,link=None):
                 if not fname.endswith(".txt"):
                     fname = os.path.splitext(fname)[0] + ".txt"
                 await status.delete()
-                await ctx.send(
+                await _send_with_retry(lambda: ctx.send(
                     content=f"✅ from reply",
                     file=discord.File(io.BytesIO(ref_content), filename=fname)
-                )
+                ))
                 return
             await status.edit(content="Usage: .get <link>  (or reply to a message with a file/link)")
             return
@@ -895,16 +939,25 @@ async def get_link_content(ctx,*,link=None):
 
             await status.delete()
 
-            await ctx.send(
+            await _send_with_retry(lambda: ctx.send(
                 content=f"✅ {link}",
                 file=discord.File(io.BytesIO(r.content),filename=filename)
-            )
+            ))
 
         else:
             await status.edit(content=f"❌ HTTP {r.status_code}")
 
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: Discord server error in get command: {e}")
+        try:
+            await status.edit(content=f"❌ Discord error, please retry: {e}")
+        except discord.errors.HTTPException:
+            pass
     except Exception as e:
-        await status.edit(content=f"❌ {e}")
+        try:
+            await status.edit(content=f"❌ {e}")
+        except discord.errors.HTTPException:
+            pass
 
 # ---------------- START ----------------
 if __name__=="__main__":
