@@ -24,11 +24,11 @@ PREFIX = "."
 DUMPER_PATH = "catlogger.lua"
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
-DUMP_TIMEOUT = 60
+DUMP_TIMEOUT = 35  # Must exceed catlogger.lua TIMEOUT_SECONDS (30) to allow proper cleanup
 PREVIEW_LINES = 10
 PREVIEW_MAX_CHARS = 900
 
-LUA_INTERPRETERS = ["luau", "lua5.4", "luajit", "lua"]
+LUA_INTERPRETERS = ["lua5.4", "luajit", "lua"]
 
 # ---------------- PROXY POOL ----------------
 _PROXY_SOURCES = [
