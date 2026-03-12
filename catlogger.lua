@@ -4712,8 +4712,8 @@ function q.dump_wad_strings()
     local pool = t.wad_string_pool
     if not pool.strings or #pool.strings == 0 then return end
     aA()
-    for idx, s in E(pool.strings) do
-        at(string.format("local _wad_%d = %s", idx, aH(s)))
+    for _, entry in E(pool.strings) do
+        at(string.format("local _wad_%d = %s", entry.idx, aH(entry.val)))
     end
 end
 
@@ -5181,7 +5181,11 @@ local function wad_extract_strings(source_code)
                     break
                 end
             end
-            if is_ascii and not WAD_FILTERED_STRINGS[s] then
+            -- Skip raw table/userdata address strings (e.g. "table: 0xdeadbeef")
+            -- that result from tostring() on a non-serialisable value and carry
+            -- no useful information for the caller.
+            local is_addr = s:match("^%a[%a ]*: 0x%x+$")
+            if is_ascii and not is_addr and not WAD_FILTERED_STRINGS[s] then
                 table.insert(results, {idx = idx, val = s})
                 lookup[s] = true
             end

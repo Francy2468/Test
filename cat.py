@@ -630,7 +630,7 @@ async def process_link(ctx,link=None):
 
     embed=discord.Embed(
         title=f"✅ Finished {exec_ms:.2f} ms",
-        description=f"Paste: {raw}",
+        description=f"Paste: {raw}" if raw else "⚠️ Paste upload failed",
         color=0x2b2d31
     )
 
