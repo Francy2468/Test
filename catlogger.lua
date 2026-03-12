@@ -4746,6 +4746,19 @@ function q.dump_k0lrot_strings()
     end
 end
 
+-- Emit the decoded Lightcate v2.0.0 string pool when available.
+function q.dump_lightcate_strings()
+    if not t.lightcate_string_pool then return end
+    local pool = t.lightcate_string_pool
+    if not pool.strings or #pool.strings == 0 then return end
+    aA()
+    at(string.format("-- Decoded string constants (Lightcate v2.0.0 obfuscation, var=%s)",
+        pool.var_name or "?"))
+    for _, entry in E(pool.strings) do
+        at(string.format("local _lc_%d = %s", entry.idx, aH(entry.val)))
+    end
+end
+
 -- Execute deferred hooks/callbacks that were registered via hookfunction/Connect etc.
 -- This greatly improves extraction completeness for scripts that register many hooks.
 -- NOTE: hooks list is cleared before processing to prevent infinite re-entrancy.
@@ -5196,6 +5209,71 @@ local function wad_extract_strings(source_code)
     return results, #w_tbl, lookup
 end
 
+-- Lightcate v2.0.0 obfuscation detector and string-table extractor.
+-- Detects scripts protected by Lightcate by looking for its marker string,
+-- then runs the decode preamble (before the inner VM function) to recover the
+-- plaintext string table.  The decoded strings are emitted as local variable
+-- declarations at the top of the dump so the caller can identify the original
+-- API names and other constants.
+--
+-- Lightcate v2.0.0 structure:
+--   return(function(...)
+--     local _0xXXXX = { "hex-encoded-strings", ... }   -- string table
+--     local function _0xXXXX(...) return _0xXXXX[...] end  -- accessor
+--     <array shuffle + decode loop>
+--     return(function(_0xXXXX, _0xXXXX, ...)            -- inner VM (boundary)
+--       ...
+--     end)(...)
+--   end)(...)
+local LIGHTCATE_DETECT_STR = "Lightcate"
+local LIGHTCATE_VM_BOUNDARY_PAT = "return%(function%(_0x[0-9a-f]+,_0x[0-9a-f]+"
+-- Minimum number of decoded strings required to treat the result as valid.
+-- Low counts are likely false positives on unrelated scripts that coincidentally
+-- contain the "Lightcate" string but lack its characteristic string table.
+local LIGHTCATE_MIN_STRING_COUNT = 3
+local function lightcate_extract_strings(source_code)
+    -- Quick early-out: must mention "Lightcate".
+    if not source_code:find(LIGHTCATE_DETECT_STR, 1, true) then
+        return nil
+    end
+    -- Find the inner VM function boundary (hex-named parameters).
+    local boundary = source_code:find(LIGHTCATE_VM_BOUNDARY_PAT)
+    if not boundary then
+        return nil
+    end
+    local preamble = source_code:sub(1, boundary - 1)
+    -- Extract the string table variable name: the first local assigned a
+    -- table literal with a hex-encoded name (e.g. `local _0x8876 = {...}`).
+    local var_name = preamble:match("local%s+(_0x[0-9a-f]+)%s*=%s*{")
+    if not var_name then
+        return nil
+    end
+    -- Build a patched chunk: execute the decode preamble, then return the
+    -- now-decoded string table.  The outer return(function(...) wrapper is
+    -- preserved so the chunk remains syntactically valid.
+    local patched = preamble .. "\nreturn " .. var_name .. "\nend)(...)\n"
+    local fn, _load_err = load(patched)
+    if not fn then
+        return nil
+    end
+    local ok, result = pcall(fn)
+    if not ok or type(result) ~= "table" then
+        return nil
+    end
+    -- Collect printable strings from the decoded table.
+    local results = {}
+    for idx = 1, #result do
+        local s = result[idx]
+        if type(s) == "string" and s:match("^[%g%s]+$") then
+            table.insert(results, {idx = idx, val = s})
+        end
+    end
+    if #results < LIGHTCATE_MIN_STRING_COUNT then
+        return nil
+    end
+    return results, #result, var_name
+end
+
 function q.dump_file(eN, eO)
     if not eN then return false end
     q.reset()
@@ -5237,6 +5315,16 @@ function q.dump_file(eN, eO)
         t.k0lrot_string_pool = { strings = gw_strings, var_name = gw_var, label = gw_label }
     else
         t.k0lrot_string_pool = nil
+    end
+    -- Lightcate v2.0.0 string extraction: decodes the XOR-shifted string table
+    -- embedded in scripts protected by Lightcate.
+    local lc_strings, lc_total, lc_var = lightcate_extract_strings(al)
+    if lc_strings and #lc_strings > 0 then
+        B(string.format("[Dumper] Lightcate obfuscation detected (var=%s) — %d/%d strings decoded",
+            lc_var or "?", #lc_strings, lc_total or 0))
+        t.lightcate_string_pool = { strings = lc_strings, var_name = lc_var }
+    else
+        t.lightcate_string_pool = nil
     end
     B("[Dumper] Sanitizing Luau and Binary Literals...")
     local eP = I(al)
@@ -5422,6 +5510,7 @@ function q.dump_file(eN, eO)
     q.dump_wad_strings()
     q.dump_xor_strings()
     q.dump_k0lrot_strings()
+    q.dump_lightcate_strings()
     return q.save(eO or r.OUTPUT_FILE)
 end
 function q.dump_string(al, eO)
