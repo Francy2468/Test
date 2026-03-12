@@ -581,7 +581,18 @@ def _run_dumper_blocking(lua_content):
 
             return dumped,exec_ms,loops,lines,None
 
-        return None,0,0,0,"Output not generated"
+        stderr=result.stderr.decode(errors="ignore").strip()
+        lua_err=re.search(r"\[LUA_LOAD_FAIL\][^\n]*",stdout)
+        if lua_err:
+            detail=lua_err.group(0).replace("[LUA_LOAD_FAIL] ","",1).strip()
+        elif stderr:
+            detail=stderr.splitlines()[-1].strip()
+        else:
+            detail=""
+        msg="Output not generated"
+        if detail:
+            msg=f"Output not generated: {detail}"
+        return None,0,0,0,msg
 
     except subprocess.TimeoutExpired:
 
