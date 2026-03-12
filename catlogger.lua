@@ -5025,9 +5025,11 @@ local function generic_wrapper_extract_strings(source_code)
                     -- are *call expressions*, not expressions; their return value is
                     -- discarded at the chunk level.  Prefixing with `return ` turns
                     -- the call into an expression whose value pcall() can capture.
+                    -- NOTE: use `e` (original load) so the custom loadstring's I()
+                    -- sanitizer cannot corrupt the decode preamble.
                     local prefix = outer_has_return and "" or "return "
                     local patched = prefix .. preamble .. "\nreturn " .. var_name .. " " .. closing .. "\n"
-                    local fn = load(patched)
+                    local fn = e(patched)
                     if fn then
                         local ok, result = pcall(fn)
                         if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
@@ -5173,8 +5175,10 @@ local function wad_extract_strings(source_code)
     end
     -- Inject "return w" right after "end end end" so we get the
     -- fully-decoded string table without running the VM itself.
+    -- NOTE: use `e` (original load) so the custom loadstring's I() sanitizer
+    -- cannot corrupt the WeAreDevs decode preamble.
     local patched = source_code:sub(1, boundary + WAD_DECODE_PREFIX_LEN) .. "\nreturn w\nend)()\n"
-    local fn, load_err = load(patched)
+    local fn, load_err = e(patched)
     if not fn then
         return nil
     end
@@ -5251,8 +5255,11 @@ local function lightcate_extract_strings(source_code)
     -- Build a patched chunk: execute the decode preamble, then return the
     -- now-decoded string table.  The outer return(function(...) wrapper is
     -- preserved so the chunk remains syntactically valid.
+    -- NOTE: use `e` (original load captured before the loadstring override at
+    -- line 4403) so that the custom loadstring's I() sanitizer cannot corrupt
+    -- the Lightcate decode preamble and cause a silent extraction failure.
     local patched = preamble .. "\nreturn " .. var_name .. "\nend)(...)\n"
-    local fn, _load_err = load(patched)
+    local fn, _load_err = e(patched)
     if not fn then
         return nil
     end
