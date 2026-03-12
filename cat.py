@@ -345,7 +345,7 @@ def _inline_single_use_constants(code: str) -> str:
     Note: pre-extracted string pools (_s_N, _xor_N, _wad_N) are intentional
     reference tables and are deliberately left untouched by this function.
     """
-    constants: dict = {}
+    constants: dict[str, str] = {}
     for m in _RUNTIME_CONST_RE.finditer(code):
         constants[m.group(1)] = m.group(2)
 

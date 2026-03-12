@@ -4250,12 +4250,17 @@ local _script_executing = false
 
 -- Intercept string.char so that strings reconstructed from character-code
 -- sequences (a very common obfuscation technique) end up in the string pool.
+-- Minimum captured-string length = 3: single-character and two-character
+-- results are nearly always noise (delimiter bytes, control chars, etc.).
+-- Multi-character results produced by the obfuscated script's decode loop
+-- are the meaningful payloads we want to surface.
+local _CHAR_HOOK_MIN_LEN = 3
 local _orig_string_char = string.char
 string.char = function(...)
     local result = _orig_string_char(...)
     if _script_executing
             and type(result) == "string"
-            and #result >= 3
+            and #result >= _CHAR_HOOK_MIN_LEN
             and result:match("^[%g%s]+$") then
         if not t.char_seen then t.char_seen = {} end
         if not t.char_seen[result] then
