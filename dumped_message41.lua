@@ -1,7 +1,7 @@
 -- generated with catmio | https://discord.gg/cq9GkRKX2V
 -- Detected loops 1
 
--- Decoded string constants (K0lrot/custom-VM obfuscation)
+-- Decoded string constants (K0lrot obfuscation, var=S)
 local _s_1 = "HttpGet"
 local _s_2 = "__metatable"
 local _s_3 = "protectTable"
