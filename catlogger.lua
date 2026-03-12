@@ -4242,7 +4242,37 @@ end
 string.pack = string.pack or function(fmt, ...) return "" end
 string.unpack = string.unpack or function(fmt, s_, pos) return nil, (pos or 1) end
 string.packsize = string.packsize or function(fmt) return 0 end
+
+-- ── string.char / table.concat interception ───────────────────────────────
+-- Guard flag: set to true only while the obfuscated script is executing so
+-- we do not pollute t.string_refs with our own internal sandbox calls.
+local _script_executing = false
+
+-- Intercept string.char so that strings reconstructed from character-code
+-- sequences (a very common obfuscation technique) end up in the string pool.
+-- Minimum captured-string length = 3: single-character and two-character
+-- results are nearly always noise (delimiter bytes, control chars, etc.).
+-- Multi-character results produced by the obfuscated script's decode loop
+-- are the meaningful payloads we want to surface.
+local _CHAR_HOOK_MIN_LEN = 3
+local _orig_string_char = string.char
+string.char = function(...)
+    local result = _orig_string_char(...)
+    if _script_executing
+            and type(result) == "string"
+            and #result >= _CHAR_HOOK_MIN_LEN
+            and result:match("^[%g%s]+$") then
+        if not t.char_seen then t.char_seen = {} end
+        if not t.char_seen[result] then
+            t.char_seen[result] = true
+            table.insert(t.string_refs, {value = result, hint = "char"})
+        end
+    end
+    return result
+end
+
 _G.string = string
+_G.table = table
 -- ── Luau buffer library stub ───────────────────────────────────────────────
 if not buffer then
     buffer = {
@@ -4386,12 +4416,38 @@ loadstring = function(al, eu)
         {pattern = "elysian", name = "Elysian"},
         {pattern = "uranium", name = "Uranium"},
         {pattern = "custom%-ui", name = "CustomUI"},
-        {pattern = "getObjects", name = "GetObjects"}
+        {pattern = "getObjects", name = "GetObjects"},
+        -- Additional common libraries / exploit scripts
+        {pattern = "aurora",    name = "Aurora"},
+        {pattern = "cemetery",  name = "Cemetery"},
+        {pattern = "imperial",  name = "ImperialHub"},
+        {pattern = "aimbot",    name = "Aimbot"},
+        {pattern = "esp",       name = "ESP"},
+        {pattern = "triggerbot",name = "Triggerbot"},
+        {pattern = "speedhack", name = "SpeedHack"},
+        {pattern = "noclip",    name = "Noclip"},
+        {pattern = "btools",    name = "BTools"},
+        {pattern = "antigrav",  name = "AntiGrav"},
+        {pattern = "flyhack",   name = "FlyHack"},
+        {pattern = "teleport",  name = "Teleport"},
+        {pattern = "scripthub", name = "ScriptHub"},
+        {pattern = "loader",    name = "Loader"},
+        {pattern = "autoparry", name = "AutoParry"},
+        {pattern = "autofarm",  name = "AutoFarm"},
+        {pattern = "farmbot",   name = "FarmBot"},
+        {pattern = "mspaint",   name = "MsPaint"},
+        {pattern = "topkek",    name = "TopKek"},
     }
-    for W, ey in ipairs(ex) do
-        if ew:find(ey.pattern) then
-            ev = ey.name
-            break
+    -- Library name detection only makes sense when cI is a URL (an HTTP-fetched
+    -- script path).  Applying these patterns to raw Lua code is incorrect and can
+    -- produce false positives (e.g. a script with "--Aimbot Made By ..." in a
+    -- comment would be mistaken for an Aimbot library loader).
+    if cI:match("^https?://") then
+        for W, ey in ipairs(ex) do
+            if ew:find(ey.pattern) then
+                ev = ey.name
+                break
+            end
         end
     end
     if ev then
@@ -4499,7 +4555,8 @@ function q.reset()
         loop_line_counts = {},
         loop_detected_lines = {},
         captured_constants = {},
-        deferred_hooks = {}
+        deferred_hooks = {},
+        char_seen = {}
     }
     aM = {}
     game = bj("game", true)
@@ -4806,9 +4863,14 @@ local GEN_OUTER_PATTERNS = {
     "return%(function%(%.%.%.%)",
     "%(%(function%(%.%.%.%)",
     "%(function%(%.%.%.%)",
+    -- local-function / do-block wrappers used by some obfuscators
+    "local%s+function%s+[%w_]+%s*%(%.%.%.%)",
+    -- Variants that omit the vararg and take explicit arg lists
+    "return%(function%([%a_][%w_]*%)",
+    "%(function%([%a_][%w_]*%)",
 }
 -- How many bytes from the start of the file to scan for the outer wrapper.
-local GEN_OUTER_HEADER_BYTES = 500
+local GEN_OUTER_HEADER_BYTES = 1024
 
 -- Known VM dispatcher entry-point signatures, ordered from most-specific
 -- (rarest / most reliable) to least-specific (most general).
@@ -4831,6 +4893,19 @@ local GEN_VM_BOUNDARIES = {
     "return%(function%(luraph,",
     -- Moonsec alternate
     "return%(function%(obc,",
+    -- Bytexor / LuaEncrypt style (uses `_` or `__` as string table)
+    "return%(function%(_,",
+    "return%(function%(__,",
+    -- Synapse X / custom executor obfuscators with named string table
+    "return%(function%(str,",
+    "return%(function%(strs,",
+    "return%(function%(strings,",
+    -- AI-generated or custom obfuscators using `consts` / `constants`
+    "return%(function%(consts,",
+    "return%(function%(constants,",
+    -- Obfuscators using `keys` / `vals` as the string table name
+    "return%(function%(keys,",
+    "return%(function%(vals,",
     -- Generic long-argument dispatcher heuristic: ≥8 consecutive single-letter
     -- comma-separated params suggests a VM dispatch table (built programmatically
     -- to avoid repetitive literals).
@@ -4851,11 +4926,13 @@ local GEN_STRING_VARS = {
     -- Single letters a–z (excluding w, t, S already listed above)
     "a","b","c","d","e","f","g","h","i","j","k","l","m",
     "n","o","p","q","r","s","u","v","x","y","z",
-    -- Uppercase aliases
-    "V","W","T","N","A",
+    -- Uppercase aliases (S, W, T already listed in the primary section above)
+    "V","N","A","B","C","D","E","F","G","H","I","J","K","L","M",
+    "O","P","Q","R","S","U","X","Y","Z","W","T",
     -- Descriptive names
     "data","payload","values","params","buffer",
     "container","pack","stack","env","tbl","arr","tab",
+    "str","strs","strings","consts","constants","keys","vals",
     -- Underscore variants
     "_","__","___","____","_____","______",
     -- Numbered variants
@@ -5290,12 +5367,15 @@ function q.dump_file(eN, eO)
     local eo, eU =
         h(
         function()
+            _script_executing = true
             R()
         end,
         function(ds)
+            _script_executing = false
             return tostring(ds)
         end
     )
+    _script_executing = false
     b()
     if not eo and eU then
         B("[VM_ERROR] " .. eU)
@@ -5349,9 +5429,16 @@ function q.dump_string(al, eO)
         end
     end, "", 50)
     local eo2, eU2 = h(
-        function() R() end,
-        function(ds) return tostring(ds) end
+        function()
+            _script_executing = true
+            R()
+        end,
+        function(ds)
+            _script_executing = false
+            return tostring(ds)
+        end
     )
+    _script_executing = false
     b()
     q.run_deferred_hooks()
     q.dump_captured_upvalues()

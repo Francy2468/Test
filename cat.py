@@ -287,6 +287,179 @@ def _collapse_loop_unrolls(code: str, max_reps: int = _MAX_UNROLLED_REPS) -> str
 
     return "\n".join(result)
 
+
+def _remove_trailing_whitespace(code: str) -> str:
+    """Strip trailing whitespace from every line of *code*."""
+    return "\n".join(line.rstrip() for line in code.splitlines())
+
+
+def _collapse_blank_lines(code: str) -> str:
+    """Replace three or more consecutive blank lines with at most two blank lines."""
+    return re.sub(r"\n{3,}", "\n\n", code)
+
+
+# The one comment line that must be kept verbatim at the top of every dump.
+_CATMIO_HEADER_RE = re.compile(
+    r"^--\s*generated with catmio\b.*$", re.IGNORECASE
+)
+
+# Long-bracket Lua comments: --[[ ... ]] or --[=[ ... ]=]  (inline fragments)
+_INLINE_LONG_COMMENT_RE = re.compile(r"--\[=*\[.*?\]=*\]", re.DOTALL)
+
+
+def _strip_inline_trailing_comment(line: str) -> str:
+    """Remove a trailing short ``-- ...`` comment from a Lua code line.
+
+    Skips ``--`` sequences that appear inside single- or double-quoted string
+    literals to avoid accidentally truncating string values like ``"foo -- bar"``.
+    Returns the line with the trailing comment and any preceding whitespace removed.
+    """
+    i = 0
+    n = len(line)
+    while i < n:
+        ch = line[i]
+        # Enter a quoted string — advance past it without touching its contents.
+        if ch in ('"', "'"):
+            quote = ch
+            i += 1
+            while i < n:
+                c2 = line[i]
+                if c2 == '\\':
+                    i += 2 if i + 1 < n else 1  # skip escape sequence (bounds-safe)
+                elif c2 == quote:
+                    i += 1
+                    break
+                else:
+                    i += 1
+        # Short comment start (not inside a string).
+        elif ch == '-' and i + 1 < n and line[i + 1] == '-':
+            return line[:i].rstrip()
+        else:
+            i += 1
+    return line
+
+
+def _strip_comments(code: str) -> str:
+    """Remove all Lua comments from *code* except the catmio/discord header line.
+
+    Handles:
+    * Whole-line comments: any line whose first non-whitespace characters are ``--``
+      is removed entirely (keeping only the catmio header).
+    * Inline long-bracket comments: ``--[[...]]`` fragments embedded inside a code
+      line are stripped, leaving the surrounding code intact.
+    * Short trailing inline comments: ``  -- remark`` at the end of a code line are
+      removed while respecting quoted string literals so that string values
+      containing ``--`` (e.g. ``"foo -- bar"``) are not corrupted.
+    """
+    result: list[str] = []
+    for line in code.splitlines():
+        stripped = line.lstrip()
+        # 1. Preserve the catmio/discord header exactly.
+        if _CATMIO_HEADER_RE.match(stripped):
+            result.append(line)
+            continue
+        # 2. Drop whole-line comments (lines whose entire content is a comment).
+        if stripped.startswith("--"):
+            continue
+        # 3. Remove long-bracket inline comments embedded in code lines.
+        line = _INLINE_LONG_COMMENT_RE.sub("", line)
+        # 4. Remove short trailing inline comments, respecting string literals.
+        line = _strip_inline_trailing_comment(line)
+        result.append(line)
+    return "\n".join(result)
+
+
+# Matches two adjacent double-quoted Lua string literals joined by ..
+# Handles backslash escapes inside both strings.
+_STR_CONCAT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"\s*\.\.\s*"((?:[^"\\]|\\.)*)"')
+
+
+def _fold_string_concat(code: str) -> str:
+    """Fold adjacent double-quoted string-literal concatenations.
+
+    Repeatedly replaces ``"foo" .. "bar"`` with ``"foobar"`` until no further
+    folds are possible.  Only simple double-quoted literals are handled; long
+    strings and single-quoted strings are left untouched to stay safe.
+    """
+    prev = None
+    while prev != code:
+        prev = code
+        code = _STR_CONCAT_RE.sub(lambda m: '"' + m.group(1) + m.group(2) + '"', code)
+    return code
+
+
+# Constants that are runtime-captured (not pre-extracted string pools).
+# _ref_N / _url_N / _webhook_N come from actual execution and may be referenced
+# in the VM output above them; _s_N / _xor_N / _wad_N are pre-extracted pools
+# that are intentional reference tables and should be preserved as-is.
+_RUNTIME_CONST_RE = re.compile(
+    r"^[ \t]*local\s+(_ref_\d+|_url_\d+|_webhook_\d+)\s*=\s*(\"(?:[^\"\\]|\\.)*\")\s*$",
+    re.MULTILINE,
+)
+
+
+def _inline_single_use_constants(code: str) -> str:
+    """Inline or remove runtime-captured string constants used ≤ 1 time.
+
+    The catlogger emits runtime-captured string references as declarations::
+
+        local _ref_1  = "some-captured-value"
+        local _url_2  = "https://example.com"
+        local _webhook_3 = "https://discord.com/api/webhooks/..."
+
+    * A constant referenced **zero** times is dead code and is silently removed.
+    * A constant referenced **exactly once** is inlined (the literal value
+      replaces the identifier and the declaration is deleted), making it
+      immediately clear what the value is without a separate lookup.
+    * Constants referenced **two or more** times are kept as-is.
+
+    Note: pre-extracted string pools (_s_N, _xor_N, _wad_N) are intentional
+    reference tables and are deliberately left untouched by this function.
+    """
+    constants: dict[str, str] = {}
+    for m in _RUNTIME_CONST_RE.finditer(code):
+        constants[m.group(1)] = m.group(2)
+
+    if not constants:
+        return code
+
+    result = code
+
+    for name, value in constants.items():
+        pat = re.compile(r"\b" + re.escape(name) + r"\b")
+        total = len(pat.findall(result))
+        uses = total - 1  # subtract the declaration itself
+
+        if uses == 0:
+            # Dead constant – remove the declaration line.
+            result = re.sub(
+                r"^[ \t]*local\s+" + re.escape(name) + r"\s*=\s*" + _LUA_STR_VAL + r"[ \t]*\n?",
+                "",
+                result,
+                flags=re.MULTILINE,
+            )
+        elif uses == 1:
+            # Single use – inline the literal and remove the declaration.
+            decl_re = re.compile(
+                r"^[ \t]*local\s+" + re.escape(name) + r"\s*=\s*(" + _LUA_STR_VAL + r")[ \t]*$",
+                re.MULTILINE,
+            )
+            decl_m = decl_re.search(result)
+            if decl_m:
+                after = result[decl_m.end():]
+                repl = value
+                after = pat.sub(lambda _: repl, after, count=1)
+                result = result[: decl_m.end()] + after
+            result = re.sub(
+                r"^[ \t]*local\s+" + re.escape(name) + r"\s*=\s*" + _LUA_STR_VAL + r"[ \t]*\n?",
+                "",
+                result,
+                flags=re.MULTILINE,
+            )
+
+    return result
+
+
 # ---------------- REFERENCE MESSAGE HELPER ----------------
 async def _fetch_reference_content(ctx):
     """Return (content_bytes, filename) from the message that ctx.message replies to.
@@ -510,6 +683,11 @@ async def process_link(ctx,link=None):
     dumped_text=dumped.decode("utf-8",errors="ignore")
     dumped_text=_strip_loop_markers(dumped_text)
     dumped_text=_collapse_loop_unrolls(dumped_text)
+    dumped_text=_fold_string_concat(dumped_text)
+    dumped_text=_inline_single_use_constants(dumped_text)
+    dumped_text=_strip_comments(dumped_text)
+    dumped_text=_collapse_blank_lines(dumped_text)
+    dumped_text=_remove_trailing_whitespace(dumped_text)
 
     loop=asyncio.get_event_loop()
     paste,raw=await loop.run_in_executor(
