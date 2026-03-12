@@ -287,6 +287,108 @@ def _collapse_loop_unrolls(code: str, max_reps: int = _MAX_UNROLLED_REPS) -> str
 
     return "\n".join(result)
 
+
+def _remove_trailing_whitespace(code: str) -> str:
+    """Strip trailing whitespace from every line of *code*."""
+    return "\n".join(line.rstrip() for line in code.splitlines())
+
+
+def _collapse_blank_lines(code: str) -> str:
+    """Replace three or more consecutive blank lines with at most two blank lines."""
+    return re.sub(r"\n{3,}", "\n\n", code)
+
+
+# Matches two adjacent double-quoted Lua string literals joined by ..
+# Handles backslash escapes inside both strings.
+_STR_CONCAT_RE = re.compile(r'"((?:[^"\\]|\\.)*)"\s*\.\.\s*"((?:[^"\\]|\\.)*)"')
+
+
+def _fold_string_concat(code: str) -> str:
+    """Fold adjacent double-quoted string-literal concatenations.
+
+    Repeatedly replaces ``"foo" .. "bar"`` with ``"foobar"`` until no further
+    folds are possible.  Only simple double-quoted literals are handled; long
+    strings and single-quoted strings are left untouched to stay safe.
+    """
+    prev = None
+    while prev != code:
+        prev = code
+        code = _STR_CONCAT_RE.sub(lambda m: '"' + m.group(1) + m.group(2) + '"', code)
+    return code
+
+
+# Constants that are runtime-captured (not pre-extracted string pools).
+# _ref_N / _url_N / _webhook_N come from actual execution and may be referenced
+# in the VM output above them; _s_N / _xor_N / _wad_N are pre-extracted pools
+# that are intentional reference tables and should be preserved as-is.
+_RUNTIME_CONST_RE = re.compile(
+    r"^[ \t]*local\s+(_ref_\d+|_url_\d+|_webhook_\d+)\s*=\s*(\"(?:[^\"\\]|\\.)*\")\s*$",
+    re.MULTILINE,
+)
+
+
+def _inline_single_use_constants(code: str) -> str:
+    """Inline or remove runtime-captured string constants used ≤ 1 time.
+
+    The catlogger emits runtime-captured string references as declarations::
+
+        local _ref_1  = "some-captured-value"
+        local _url_2  = "https://example.com"
+        local _webhook_3 = "https://discord.com/api/webhooks/..."
+
+    * A constant referenced **zero** times is dead code and is silently removed.
+    * A constant referenced **exactly once** is inlined (the literal value
+      replaces the identifier and the declaration is deleted), making it
+      immediately clear what the value is without a separate lookup.
+    * Constants referenced **two or more** times are kept as-is.
+
+    Note: pre-extracted string pools (_s_N, _xor_N, _wad_N) are intentional
+    reference tables and are deliberately left untouched by this function.
+    """
+    constants: dict = {}
+    for m in _RUNTIME_CONST_RE.finditer(code):
+        constants[m.group(1)] = m.group(2)
+
+    if not constants:
+        return code
+
+    result = code
+
+    for name, value in constants.items():
+        pat = re.compile(r"\b" + re.escape(name) + r"\b")
+        total = len(pat.findall(result))
+        uses = total - 1  # subtract the declaration itself
+
+        if uses == 0:
+            # Dead constant – remove the declaration line.
+            result = re.sub(
+                r"^[ \t]*local\s+" + re.escape(name) + r"\s*=\s*" + _LUA_STR_VAL + r"[ \t]*\n?",
+                "",
+                result,
+                flags=re.MULTILINE,
+            )
+        elif uses == 1:
+            # Single use – inline the literal and remove the declaration.
+            decl_re = re.compile(
+                r"^[ \t]*local\s+" + re.escape(name) + r"\s*=\s*(" + _LUA_STR_VAL + r")[ \t]*$",
+                re.MULTILINE,
+            )
+            decl_m = decl_re.search(result)
+            if decl_m:
+                after = result[decl_m.end():]
+                repl = value
+                after = pat.sub(lambda _: repl, after, count=1)
+                result = result[: decl_m.end()] + after
+            result = re.sub(
+                r"^[ \t]*local\s+" + re.escape(name) + r"\s*=\s*" + _LUA_STR_VAL + r"[ \t]*\n?",
+                "",
+                result,
+                flags=re.MULTILINE,
+            )
+
+    return result
+
+
 # ---------------- REFERENCE MESSAGE HELPER ----------------
 async def _fetch_reference_content(ctx):
     """Return (content_bytes, filename) from the message that ctx.message replies to.
@@ -510,6 +612,10 @@ async def process_link(ctx,link=None):
     dumped_text=dumped.decode("utf-8",errors="ignore")
     dumped_text=_strip_loop_markers(dumped_text)
     dumped_text=_collapse_loop_unrolls(dumped_text)
+    dumped_text=_fold_string_concat(dumped_text)
+    dumped_text=_inline_single_use_constants(dumped_text)
+    dumped_text=_collapse_blank_lines(dumped_text)
+    dumped_text=_remove_trailing_whitespace(dumped_text)
 
     loop=asyncio.get_event_loop()
     paste,raw=await loop.run_in_executor(
