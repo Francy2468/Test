@@ -36,6 +36,7 @@ local r = {
     INSTRUMENT_LOGIC = true,
     DUMP_GLOBALS = true,
     DUMP_ALL_STRINGS = true,
+    DUMP_DECODED_STRINGS = false,
     DUMP_UPVALUES = true,
     MAX_UPVALUES_PER_FUNCTION = 200,
     -- Extra collection options
@@ -4713,6 +4714,7 @@ end
 
 -- Emit the decoded generic-wrapper string pool when available.
 function q.dump_k0lrot_strings()
+    if not r.DUMP_DECODED_STRINGS then return end
     if not t.k0lrot_string_pool then return end
     local pool = t.k0lrot_string_pool
     if not pool.strings or #pool.strings == 0 then return end
@@ -4939,6 +4941,12 @@ local GEN_STRING_VARS = {
     "v1","v2","v3","v4","v5","v6","v7","v8","v9","v10",
 }
 
+-- Strings explicitly excluded from the decoded generic-wrapper pool output.
+-- Add entries here to suppress specific values that produce noisy or
+-- misleading lines in the dump (e.g. common stdlib names that are not
+-- meaningful as decoded obfuscation artefacts).
+local GEN_FILTERED_STRINGS = { ["remove"] = true }
+
 -- Minimum number of successfully decoded strings required to accept
 -- a candidate result.  Low values cause false positives on small tables.
 local GEN_MIN_STRING_COUNT = 3
@@ -4998,7 +5006,10 @@ local function generic_wrapper_extract_strings(source_code)
                             for idx = 1, #result do
                                 local s = result[idx]
                                 if type(s) == "string" and #s >= 1
-                                        and s:match("^[%g%s]+$") then
+                                        and s:match("^[%g%s]+$")
+                                        -- Skip strings that are explicitly excluded
+                                        -- from the output (see GEN_FILTERED_STRINGS).
+                                        and not GEN_FILTERED_STRINGS[s] then
                                     table.insert(results, {idx = idx, val = s})
                                 end
                             end
