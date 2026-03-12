@@ -3409,6 +3409,11 @@ local exploit_funcs = {getgenv = function()
     end, gethiddenui = function()
         return exploit_funcs.gethui()
     end, protectgui = function(dQ)
+    end, protectTable = function(tbl)
+        return tbl
+    end, protectFunction = function(dr)
+        return dr
+    end, protectGlobals = function()
     end, iswindowactive = function()
         return true
     end, isrbxactive = function()
@@ -4595,6 +4600,18 @@ function q.dump_xor_strings()
     end
 end
 
+-- Emit the decoded K0lrot/custom-VM string pool when available.
+function q.dump_k0lrot_strings()
+    if not t.k0lrot_string_pool then return end
+    local pool = t.k0lrot_string_pool
+    if not pool.strings or #pool.strings == 0 then return end
+    aA()
+    at("-- Decoded string constants (K0lrot/custom-VM obfuscation)")
+    for _, entry in E(pool.strings) do
+        at(string.format("local _s_%d = %s", entry.idx, aH(entry.val)))
+    end
+end
+
 -- Execute deferred hooks/callbacks that were registered via hookfunction/Connect etc.
 -- This greatly improves extraction completeness for scripts that register many hooks.
 -- NOTE: hooks list is cleared before processing to prevent infinite re-entrancy.
@@ -4700,6 +4717,59 @@ function eE:process_statement(eF)
         return table.concat(b9, "; ")
     end
     return self:process_expr(eF) or ""
+end
+
+-- K0lrot/custom-VM string extractor.
+-- Handles scripts that use a `return(function(...) local S={...} end)(...)` outer
+-- wrapper with an inner VM function starting with `return(function(S,n,f,B,d,l,M,`.
+-- The decode phase (base64-like) populates S before the VM runs.  We patch the
+-- source to stop execution just before the VM and return S so we can read the
+-- decoded string pool without running the obfuscated VM.
+--
+-- K0LROT_OUTER_PATTERN matches the literal text: return(function(...)
+-- K0LROT_VM_BOUNDARY   matches the literal text: return(function(S,n,f,B,d,l,M,
+local K0LROT_OUTER_PATTERN  = "return%(function%(%.%.%.%)"
+local K0LROT_VM_BOUNDARY    = "return%(function%(S,n,f,B,d,l,M,"
+-- How many bytes from the start of the file to check for the outer wrapper.
+local K0LROT_HEADER_CHECK_SIZE = 300
+local function k0lrot_extract_strings(source_code)
+    -- Quick early-out: outer wrapper `return(function(...)` must appear near the top.
+    if not source_code:sub(1, K0LROT_HEADER_CHECK_SIZE):find(K0LROT_OUTER_PATTERN) then
+        return nil
+    end
+    local boundary = source_code:find(K0LROT_VM_BOUNDARY)
+    if not boundary then
+        return nil
+    end
+    -- Patch: replace everything from the VM boundary onward with `return S end)(...)`.
+    -- `return S` captures the decoded string table just after the decode phase ends;
+    -- `end` closes the outer `function(...)` body; `(...)` calls it (with empty args
+    -- since the chunk itself receives none), running only the decode phase, not the VM.
+    local patched = source_code:sub(1, boundary - 1) .. "\nreturn S end)(...)\n"
+    local fn, load_err = load(patched)
+    if not fn then
+        B("[K0lrot] Patch load failed: " .. tostring(load_err))
+        return nil
+    end
+    local ok, S_tbl = pcall(fn)
+    if not ok then
+        B("[K0lrot] Decode execution failed: " .. tostring(S_tbl))
+        return nil
+    end
+    if type(S_tbl) ~= "table" then
+        return nil
+    end
+    local results = {}
+    for idx = 1, #S_tbl do
+        local s = S_tbl[idx]
+        if type(s) == "string" and #s >= 1 then
+            -- Keep only printable ASCII strings; skip binary blobs.
+            if s:match("^[%g%s]+$") then
+                table.insert(results, {idx = idx, val = s})
+            end
+        end
+    end
+    return results, #S_tbl
 end
 
 -- XOR-encrypted string extractor for Catmio-style obfuscation.
@@ -4865,6 +4935,14 @@ function q.dump_file(eN, eO)
         t.xor_string_pool = { strings = xor_strings }
     else
         t.xor_string_pool = nil
+    end
+    -- K0lrot/custom-VM string extraction (base64-encoded S array, return(function(...) wrapper).
+    local k0lrot_strings, k0lrot_total = k0lrot_extract_strings(al)
+    if k0lrot_strings and #k0lrot_strings > 0 then
+        B(string.format("[Dumper] K0lrot/custom-VM obfuscation detected — %d/%d strings decoded", #k0lrot_strings, k0lrot_total or 0))
+        t.k0lrot_string_pool = { strings = k0lrot_strings }
+    else
+        t.k0lrot_string_pool = nil
     end
     B("[Dumper] Sanitizing Luau and Binary Literals...")
     local eP = I(al)
@@ -5044,6 +5122,7 @@ function q.dump_file(eN, eO)
     q.dump_string_constants()
     q.dump_wad_strings()
     q.dump_xor_strings()
+    q.dump_k0lrot_strings()
     return q.save(eO or r.OUTPUT_FILE)
 end
 function q.dump_string(al, eO)

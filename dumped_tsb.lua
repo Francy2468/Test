@@ -26,21 +26,21 @@ local CoreGui3 = game:GetService("CoreGui")
 screenGui.Parent = CoreGui3
 local frame = Instance.new("Frame")
 frame.Name = "Backdrop"
-frame.BackgroundColor3 = Color3.fromRGB(5, 5, 12)
-frame.BackgroundTransparency = 0.2
 frame.Size = UDim2.new(1, 0, 1, 0)
-frame.Position = UDim2.new(0, 0, 0, 0)
+frame.BackgroundTransparency = 0.2
 frame.BorderSizePixel = 0
 frame.ZIndex = 1
+frame.BackgroundColor3 = Color3.fromRGB(5, 5, 12)
+frame.Position = UDim2.new(0, 0, 0, 0)
 frame.Parent = screenGui
 local frame2 = Instance.new("Frame")
 frame2.Name = "ScanBeam"
-frame2.BackgroundColor3 = Color3.fromRGB(0, 255, 140)
-frame2.BackgroundTransparency = 0.95
 frame2.Size = UDim2.new(1, 0, 0, 60)
-frame2.Position = UDim2.new(0, 0, -0.1, 0)
+frame2.BackgroundTransparency = 0.95
 frame2.BorderSizePixel = 0
 frame2.ZIndex = 2
+frame2.BackgroundColor3 = Color3.fromRGB(0, 255, 140)
+frame2.Position = UDim2.new(0, 0, -0.1, 0)
 frame2.Parent = frame
 task.spawn(function()
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -111,21 +111,21 @@ task.spawn(function()
     tween11:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 7
     local tween12 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween12:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 7
 -- Detected loops 8
--- Detected loops 9
     local tween13 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween13:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 9
     local tween14 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -150,8 +150,8 @@ task.spawn(function()
     })
     tween17:Play()
     task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 11
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween18 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -188,68 +188,68 @@ task.spawn(function()
     tween23:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 12
     local tween24 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween24:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 13
     local tween25 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween25:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 12
     local tween26 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween26:Play()
     task.wait(5)
+-- Detected loops 13
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 14
--- Detected loops 15
     local tween27 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween27:Play()
     task.wait(5)
--- Detected loops 16
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween28 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween28:Play()
     task.wait(5)
+-- Detected loops 14
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 17
+-- Detected loops 15
     local tween29 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween29:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 18
+-- Detected loops 16
     local tween30 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween30:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 19
     local tween31 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween31:Play()
     task.wait(5)
+-- Detected loops 17
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 18
     local tween32 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween32:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 19
 -- Detected loops 20
     local tween33 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -263,13 +263,13 @@ task.spawn(function()
     })
     tween34:Play()
     task.wait(5)
--- Detected loops 22
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween35 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween35:Play()
     task.wait(5)
+-- Detected loops 22
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 23
     local tween36 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
@@ -288,64 +288,63 @@ task.spawn(function()
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween38:Play()
--- Detected loops 24
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 24
     local tween39 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 25
     tween39:Play()
+-- Detected loops 25
     task.wait(5)
 -- Detected loops 26
--- Detected loops 27
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 28
     local tween40 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween40:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 29
+-- Detected loops 27
+-- Detected loops 28
     local tween41 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 29
     tween41:Play()
     task.wait(5)
+-- Detected loops 30
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 31
+-- Detected loops 32
     local tween42 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween42:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 30
     local tween43 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween43:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 31
--- Detected loops 32
     local tween44 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 33
     tween44:Play()
     task.wait(5)
+-- Detected loops 33
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 34
     local tween45 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween45:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 34
 -- Detected loops 35
 -- Detected loops 36
--- Detected loops 37
     local tween46 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -357,15 +356,14 @@ task.spawn(function()
     })
     tween47:Play()
     task.wait(5)
--- Detected loops 38
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 39
     local tween48 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween48:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 37
     local tween49 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -378,11 +376,13 @@ task.spawn(function()
     tween50:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 38
     local tween51 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween51:Play()
     task.wait(5)
+-- Detected loops 39
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween52 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -402,23 +402,21 @@ task.spawn(function()
     })
     tween54:Play()
     task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 41
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween55 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 42
     tween55:Play()
     task.wait(5)
--- Detected loops 43
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween56 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween56:Play()
     task.wait(5)
--- Detected loops 44
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 42
     local tween57 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -435,16 +433,18 @@ task.spawn(function()
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween59:Play()
+-- Detected loops 43
+-- Detected loops 44
     task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 45
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 46
     local tween60 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween60:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 46
     local tween61 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -454,22 +454,21 @@ task.spawn(function()
     local tween62 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 47
     tween62:Play()
     task.wait(5)
--- Detected loops 48
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween63 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween63:Play()
+-- Detected loops 47
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween64 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween64:Play()
--- Detected loops 49
+-- Detected loops 48
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween65 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
@@ -496,20 +495,20 @@ task.spawn(function()
     tween68:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 50
     local tween69 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween69:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 51
+-- Detected loops 49
     local tween70 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween70:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 50
     local tween71 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -522,27 +521,26 @@ task.spawn(function()
     tween72:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 52
+-- Detected loops 51
     local tween73 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween73:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 53
--- Detected loops 54
     local tween74 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween74:Play()
--- Detected loops 55
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 56
+-- Detected loops 52
+-- Detected loops 53
     local tween75 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween75:Play()
+-- Detected loops 54
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween76 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
@@ -560,6 +558,7 @@ task.spawn(function()
     local tween78 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 55
     tween78:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -569,15 +568,15 @@ task.spawn(function()
     tween79:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 56
+-- Detected loops 57
     local tween80 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween80:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 57
 -- Detected loops 58
--- Detected loops 59
     local tween81 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -590,44 +589,45 @@ task.spawn(function()
     tween82:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 60
     local tween83 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween83:Play()
+-- Detected loops 59
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 61
     local tween84 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween84:Play()
+-- Detected loops 60
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween85 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 61
     tween85:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 62
     local tween86 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 63
     tween86:Play()
     task.wait(5)
+-- Detected loops 62
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 63
     local tween87 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween87:Play()
     task.wait(5)
+-- Detected loops 64
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween88 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 64
     tween88:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -638,6 +638,7 @@ task.spawn(function()
     tween89:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 66
     local tween90 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -650,28 +651,27 @@ task.spawn(function()
     tween91:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 67
     local tween92 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 66
     tween92:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 68
     local tween93 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween93:Play()
     task.wait(5)
--- Detected loops 67
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween94 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 69
     tween94:Play()
     task.wait(5)
--- Detected loops 68
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 69
     local tween95 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -690,21 +690,20 @@ task.spawn(function()
     tween97:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 70
--- Detected loops 71
     local tween98 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween98:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 70
+-- Detected loops 71
     local tween99 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween99:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 72
     local tween100 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -735,7 +734,6 @@ task.spawn(function()
     tween104:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 73
     local tween105 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -748,12 +746,14 @@ task.spawn(function()
     tween106:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 72
     local tween107 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween107:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 73
     local tween108 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -765,8 +765,8 @@ task.spawn(function()
     })
     tween109:Play()
     task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 74
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween110 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -774,12 +774,14 @@ task.spawn(function()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 75
+-- Detected loops 76
     local tween111 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween111:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 77
     local tween112 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -791,38 +793,39 @@ task.spawn(function()
     })
     tween113:Play()
     task.wait(5)
--- Detected loops 76
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 77
+-- Detected loops 78
+-- Detected loops 79
     local tween114 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween114:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 78
--- Detected loops 79
+-- Detected loops 80
+-- Detected loops 81
     local tween115 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween115:Play()
     task.wait(5)
--- Detected loops 80
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 81
+-- Detected loops 82
     local tween116 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween116:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 82
+-- Detected loops 83
+-- Detected loops 84
     local tween117 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween117:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 85
     local tween118 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -840,6 +843,7 @@ task.spawn(function()
     })
     tween120:Play()
     task.wait(5)
+-- Detected loops 86
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween121 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -847,50 +851,49 @@ task.spawn(function()
     tween121:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 83
--- Detected loops 84
+-- Detected loops 87
+-- Detected loops 88
     local tween122 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween122:Play()
     task.wait(5)
--- Detected loops 85
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 86
     local tween123 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween123:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 87
+-- Detected loops 89
     local tween124 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween124:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 90
     local tween125 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween125:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 91
     local tween126 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween126:Play()
     task.wait(5)
--- Detected loops 88
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 89
+-- Detected loops 92
     local tween127 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween127:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 90
+-- Detected loops 93
     local tween128 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -903,20 +906,23 @@ task.spawn(function()
     tween129:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 91
+-- Detected loops 94
+-- Detected loops 95
+-- Detected loops 96
     local tween130 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween130:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 97
     local tween131 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween131:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 92
+-- Detected loops 98
     local tween132 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -941,27 +947,30 @@ task.spawn(function()
     tween135:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 93
+-- Detected loops 99
     local tween136 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween136:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 94
--- Detected loops 95
     local tween137 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween137:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 100
+-- Detected loops 101
+-- Detected loops 102
     local tween138 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween138:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 103
+-- Detected loops 104
     local tween139 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -974,25 +983,19 @@ task.spawn(function()
     tween140:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 96
     local tween141 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween141:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 97
--- Detected loops 98
--- Detected loops 99
+-- Detected loops 105
     local tween142 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween142:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 100
--- Detected loops 101
--- Detected loops 102
     local tween143 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1005,58 +1008,40 @@ task.spawn(function()
     tween144:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 103
     local tween145 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween145:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 104
+-- Detected loops 106
+-- Detected loops 107
     local tween146 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween146:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 105
--- Detected loops 106
--- Detected loops 107
     local tween147 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 108
     tween147:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 109
--- Detected loops 110
--- Detected loops 111
--- Detected loops 112
--- Detected loops 113
--- Detected loops 114
     local tween148 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween148:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 115
+-- Detected loops 108
     local tween149 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween149:Play()
     task.wait(5)
+-- Detected loops 109
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 116
--- Detected loops 117
--- Detected loops 118
--- Detected loops 119
--- Detected loops 120
--- Detected loops 121
--- Detected loops 122
--- Detected loops 123
--- Detected loops 124
     local tween150 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1075,26 +1060,34 @@ task.spawn(function()
     tween152:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 110
     local tween153 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween153:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 125
     local tween154 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween154:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 111
     local tween155 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween155:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 126
+-- Detected loops 112
+-- Detected loops 113
+-- Detected loops 114
+-- Detected loops 115
+-- Detected loops 116
+-- Detected loops 117
+-- Detected loops 118
+-- Detected loops 119
     local tween156 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1107,48 +1100,25 @@ task.spawn(function()
     tween157:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 127
     local tween158 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween158:Play()
     task.wait(5)
--- Detected loops 128
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 129
--- Detected loops 130
--- Detected loops 131
     local tween159 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween159:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 132
--- Detected loops 133
--- Detected loops 134
--- Detected loops 135
--- Detected loops 136
--- Detected loops 137
--- Detected loops 138
--- Detected loops 139
--- Detected loops 140
--- Detected loops 141
--- Detected loops 142
+-- Detected loops 120
     local tween160 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween160:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 143
--- Detected loops 144
--- Detected loops 145
--- Detected loops 146
--- Detected loops 147
--- Detected loops 148
--- Detected loops 149
--- Detected loops 150
     local tween161 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1161,6 +1131,7 @@ task.spawn(function()
     tween162:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 121
     local tween163 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1179,15 +1150,18 @@ task.spawn(function()
     tween165:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 122
     local tween166 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween166:Play()
     task.wait(5)
+-- Detected loops 123
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween167 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 124
     tween167:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -1196,30 +1170,56 @@ task.spawn(function()
     })
     tween168:Play()
     task.wait(5)
+-- Detected loops 125
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 126
+-- Detected loops 127
+-- Detected loops 128
+-- Detected loops 129
+-- Detected loops 130
+-- Detected loops 131
+-- Detected loops 132
+-- Detected loops 133
+-- Detected loops 134
+-- Detected loops 135
+-- Detected loops 136
+-- Detected loops 137
     local tween169 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween169:Play()
+-- Detected loops 138
     task.wait(5)
--- Detected loops 151
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 152
+-- Detected loops 139
+-- Detected loops 140
+-- Detected loops 141
+-- Detected loops 142
+-- Detected loops 143
+-- Detected loops 144
+-- Detected loops 145
+-- Detected loops 146
     local tween170 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween170:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 147
+-- Detected loops 148
+-- Detected loops 149
+-- Detected loops 150
+-- Detected loops 151
+-- Detected loops 152
 -- Detected loops 153
--- Detected loops 154
     local tween171 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween171:Play()
     task.wait(5)
--- Detected loops 155
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 154
+-- Detected loops 155
 -- Detected loops 156
 -- Detected loops 157
 -- Detected loops 158
@@ -1229,21 +1229,27 @@ task.spawn(function()
 -- Detected loops 162
 -- Detected loops 163
 -- Detected loops 164
--- Detected loops 165
--- Detected loops 166
     local tween172 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween172:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 167
+-- Detected loops 165
     local tween173 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween173:Play()
     task.wait(5)
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 166
+-- Detected loops 167
 -- Detected loops 168
+    local tween174 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 1.1, 0)
+    })
+    tween174:Play()
+    task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 169
 -- Detected loops 170
@@ -1261,24 +1267,20 @@ task.spawn(function()
 -- Detected loops 182
 -- Detected loops 183
 -- Detected loops 184
-    local tween174 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween174:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 185
 -- Detected loops 186
 -- Detected loops 187
 -- Detected loops 188
+-- Detected loops 189
     local tween175 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 189
     tween175:Play()
     task.wait(5)
--- Detected loops 190
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 190
+-- Detected loops 191
+-- Detected loops 192
     local tween176 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1291,14 +1293,6 @@ task.spawn(function()
     tween177:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween178 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween178:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 191
--- Detected loops 192
 -- Detected loops 193
 -- Detected loops 194
 -- Detected loops 195
@@ -1307,27 +1301,21 @@ task.spawn(function()
 -- Detected loops 198
 -- Detected loops 199
 -- Detected loops 200
-    local tween179 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween179:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 201
 -- Detected loops 202
 -- Detected loops 203
 -- Detected loops 204
+    local tween178 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 1.1, 0)
+    })
+    tween178:Play()
+    task.wait(5)
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 205
 -- Detected loops 206
 -- Detected loops 207
 -- Detected loops 208
 -- Detected loops 209
-    local tween180 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween180:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 210
 -- Detected loops 211
 -- Detected loops 212
@@ -1335,6 +1323,12 @@ task.spawn(function()
 -- Detected loops 214
 -- Detected loops 215
 -- Detected loops 216
+    local tween179 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 1.1, 0)
+    })
+    tween179:Play()
+    task.wait(5)
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 217
 -- Detected loops 218
 -- Detected loops 219
@@ -1349,10 +1343,10 @@ task.spawn(function()
 -- Detected loops 228
 -- Detected loops 229
 -- Detected loops 230
-    local tween181 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+    local tween180 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
-    tween181:Play()
+    tween180:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 231
@@ -1367,40 +1361,55 @@ task.spawn(function()
 -- Detected loops 240
 -- Detected loops 241
 -- Detected loops 242
-    local tween182 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween182:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 243
 -- Detected loops 244
+    local tween181 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 1.1, 0)
+    })
+    tween181:Play()
+    task.wait(5)
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 245
 -- Detected loops 246
 -- Detected loops 247
 -- Detected loops 248
 -- Detected loops 249
 -- Detected loops 250
-    local tween183 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+    local tween182 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
-    tween183:Play()
+    tween182:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 251
 -- Detected loops 252
 -- Detected loops 253
 -- Detected loops 254
+    local tween183 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 1.1, 0)
+    })
+    tween183:Play()
+    task.wait(5)
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 255
+-- Detected loops 256
+-- Detected loops 257
+-- Detected loops 258
+-- Detected loops 259
+-- Detected loops 260
+-- Detected loops 261
     local tween184 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween184:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 262
+-- Detected loops 263
+-- Detected loops 264
     local tween185 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 255
     tween185:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -1410,47 +1419,46 @@ task.spawn(function()
     tween186:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 256
+-- Detected loops 265
     local tween187 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 266
     tween187:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 257
--- Detected loops 258
--- Detected loops 259
--- Detected loops 260
     local tween188 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween188:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 261
--- Detected loops 262
--- Detected loops 263
     local tween189 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 267
     tween189:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 268
+-- Detected loops 269
     local tween190 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween190:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 264
--- Detected loops 265
--- Detected loops 266
+-- Detected loops 270
+-- Detected loops 271
+-- Detected loops 272
     local tween191 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween191:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 273
+-- Detected loops 274
     local tween192 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1475,6 +1483,7 @@ task.spawn(function()
     tween195:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 275
     local tween196 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1487,10 +1496,10 @@ task.spawn(function()
     tween197:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 276
     local tween198 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 267
     tween198:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -1500,14 +1509,17 @@ task.spawn(function()
     tween199:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 268
+-- Detected loops 277
+-- Detected loops 278
+-- Detected loops 279
+-- Detected loops 280
     local tween200 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween200:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 269
+-- Detected loops 281
     local tween201 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1520,13 +1532,12 @@ task.spawn(function()
     tween202:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 270
--- Detected loops 271
     local tween203 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween203:Play()
     task.wait(5)
+-- Detected loops 282
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween204 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -1540,32 +1551,27 @@ task.spawn(function()
     tween205:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 272
--- Detected loops 273
     local tween206 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween206:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 274
+-- Detected loops 283
     local tween207 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween207:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 284
+-- Detected loops 285
     local tween208 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween208:Play()
--- Detected loops 275
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 276
--- Detected loops 277
--- Detected loops 278
--- Detected loops 279
     local tween209 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1614,6 +1620,7 @@ task.spawn(function()
     tween216:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 286
     local tween217 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1626,31 +1633,27 @@ task.spawn(function()
     tween218:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 280
+-- Detected loops 287
     local tween219 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween219:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 281
+-- Detected loops 288
     local tween220 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween220:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 282
--- Detected loops 283
--- Detected loops 284
--- Detected loops 285
--- Detected loops 286
     local tween221 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween221:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 289
     local tween222 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1669,12 +1672,14 @@ task.spawn(function()
     tween224:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 290
     local tween225 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween225:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 291
     local tween226 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1705,6 +1710,7 @@ task.spawn(function()
     tween230:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 292
     local tween231 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1717,35 +1723,35 @@ task.spawn(function()
     tween232:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 293
     local tween233 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween233:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 294
     local tween234 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween234:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 295
     local tween235 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween235:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 287
--- Detected loops 288
--- Detected loops 289
--- Detected loops 290
--- Detected loops 291
+-- Detected loops 296
     local tween236 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween236:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 297
     local tween237 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1764,20 +1770,19 @@ task.spawn(function()
     tween239:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 292
     local tween240 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween240:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 293
     local tween241 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween241:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 298
     local tween242 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1790,6 +1795,9 @@ task.spawn(function()
     tween243:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 299
+-- Detected loops 300
+-- Detected loops 301
     local tween244 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1801,7 +1809,11 @@ task.spawn(function()
     })
     tween245:Play()
     task.wait(5)
+-- Detected loops 302
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 303
+-- Detected loops 304
+-- Detected loops 305
     local tween246 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1826,54 +1838,43 @@ task.spawn(function()
     tween249:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 294
     local tween250 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween250:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 295
     local tween251 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween251:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 296
+-- Detected loops 306
     local tween252 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween252:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 297
     local tween253 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween253:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 298
--- Detected loops 299
     local tween254 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween254:Play()
     task.wait(5)
--- Detected loops 300
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 301
--- Detected loops 302
--- Detected loops 303
--- Detected loops 304
     local tween255 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween255:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 305
     local tween256 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1885,26 +1886,20 @@ task.spawn(function()
     })
     tween257:Play()
     task.wait(5)
--- Detected loops 306
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 307
--- Detected loops 308
--- Detected loops 309
--- Detected loops 310
     local tween258 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween258:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 311
     local tween259 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween259:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 312
+-- Detected loops 307
     local tween260 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1926,7 +1921,6 @@ task.spawn(function()
     local tween263 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 313
     tween263:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -1948,6 +1942,12 @@ task.spawn(function()
     tween266:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 308
+-- Detected loops 309
+-- Detected loops 310
+-- Detected loops 311
+-- Detected loops 312
+-- Detected loops 313
     local tween267 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1957,10 +1957,10 @@ task.spawn(function()
     local tween268 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 314
     tween268:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 314
     local tween269 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1971,16 +1971,16 @@ task.spawn(function()
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween270:Play()
+-- Detected loops 315
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 315
     local tween271 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween271:Play()
     task.wait(5)
--- Detected loops 316
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 316
     local tween272 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -1993,19 +1993,20 @@ task.spawn(function()
     tween273:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 317
     local tween274 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween274:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 317
     local tween275 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween275:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 318
     local tween276 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2018,7 +2019,6 @@ task.spawn(function()
     tween277:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 318
     local tween278 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2036,7 +2036,6 @@ task.spawn(function()
     })
     tween280:Play()
     task.wait(5)
--- Detected loops 319
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween281 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -2044,8 +2043,6 @@ task.spawn(function()
     tween281:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 320
--- Detected loops 321
     local tween282 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2064,7 +2061,7 @@ task.spawn(function()
     tween284:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 322
+-- Detected loops 319
     local tween285 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2080,18 +2077,17 @@ task.spawn(function()
     local tween287 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 320
     tween287:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 323
     local tween288 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween288:Play()
     task.wait(5)
+-- Detected loops 321
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 324
--- Detected loops 325
     local tween289 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2116,6 +2112,11 @@ task.spawn(function()
     tween292:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 322
+-- Detected loops 323
+-- Detected loops 324
+-- Detected loops 325
+-- Detected loops 326
     local tween293 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2145,15 +2146,14 @@ task.spawn(function()
     })
     tween297:Play()
     task.wait(5)
+-- Detected loops 327
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween298 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 326
     tween298:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 327
     local tween299 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2166,8 +2166,6 @@ task.spawn(function()
     tween300:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 328
--- Detected loops 329
     local tween301 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2192,7 +2190,14 @@ task.spawn(function()
     tween304:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 328
+-- Detected loops 329
 -- Detected loops 330
+-- Detected loops 331
+-- Detected loops 332
+-- Detected loops 333
+-- Detected loops 334
+-- Detected loops 335
     local tween305 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2204,7 +2209,6 @@ task.spawn(function()
     })
     tween306:Play()
     task.wait(5)
--- Detected loops 331
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween307 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -2218,14 +2222,14 @@ task.spawn(function()
     tween308:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 332
     local tween309 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween309:Play()
     task.wait(5)
--- Detected loops 333
+-- Detected loops 336
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 337
     local tween310 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2241,33 +2245,23 @@ task.spawn(function()
     local tween312 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 334
     tween312:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 335
--- Detected loops 336
--- Detected loops 337
 -- Detected loops 338
--- Detected loops 339
--- Detected loops 340
--- Detected loops 341
--- Detected loops 342
--- Detected loops 343
     local tween313 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween313:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 344
--- Detected loops 345
     local tween314 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween314:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 339
     local tween315 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2280,8 +2274,6 @@ task.spawn(function()
     tween316:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 346
--- Detected loops 347
     local tween317 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2294,14 +2286,12 @@ task.spawn(function()
     tween318:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 348
     local tween319 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween319:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 349
     local tween320 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2320,6 +2310,7 @@ task.spawn(function()
     tween322:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 340
     local tween323 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2344,6 +2335,7 @@ task.spawn(function()
     tween326:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 341
     local tween327 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2356,18 +2348,21 @@ task.spawn(function()
     tween328:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 342
     local tween329 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween329:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 343
     local tween330 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween330:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 344
     local tween331 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2379,6 +2374,7 @@ task.spawn(function()
     })
     tween332:Play()
     task.wait(5)
+-- Detected loops 345
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween333 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -2397,8 +2393,8 @@ task.spawn(function()
     })
     tween335:Play()
     task.wait(5)
--- Detected loops 350
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 346
     local tween336 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2411,34 +2407,37 @@ task.spawn(function()
     tween337:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 351
--- Detected loops 352
+-- Detected loops 347
     local tween338 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween338:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 348
+-- Detected loops 349
+-- Detected loops 350
+-- Detected loops 351
     local tween339 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween339:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 353
+-- Detected loops 352
     local tween340 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween340:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 353
     local tween341 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween341:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 354
     local tween342 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2456,7 +2455,6 @@ task.spawn(function()
     })
     tween344:Play()
     task.wait(5)
--- Detected loops 355
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween345 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -2467,6 +2465,7 @@ task.spawn(function()
     local tween346 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 354
     tween346:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -2488,12 +2487,14 @@ task.spawn(function()
     tween349:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 355
     local tween350 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween350:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 356
     local tween351 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2542,13 +2543,14 @@ task.spawn(function()
     tween358:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 356
+-- Detected loops 357
     local tween359 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween359:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 358
     local tween360 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2561,7 +2563,6 @@ task.spawn(function()
     tween361:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 357
     local tween362 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2589,7 +2590,6 @@ task.spawn(function()
     local tween366 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 358
     tween366:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -2635,7 +2635,6 @@ task.spawn(function()
     tween373:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 359
     local tween374 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2657,16 +2656,17 @@ task.spawn(function()
     local tween377 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 359
     tween377:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 360
     local tween378 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween378:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 360
     local tween379 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2696,6 +2696,7 @@ task.spawn(function()
     })
     tween383:Play()
     task.wait(5)
+-- Detected loops 361
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween384 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -2715,14 +2716,12 @@ task.spawn(function()
     tween386:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 361
     local tween387 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween387:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 362
     local tween388 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2741,6 +2740,7 @@ task.spawn(function()
     tween390:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 362
     local tween391 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2794,8 +2794,8 @@ task.spawn(function()
     })
     tween399:Play()
     task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
 -- Detected loops 363
+    frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween400 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2814,11 +2814,12 @@ task.spawn(function()
     })
     tween402:Play()
     task.wait(5)
--- Detected loops 365
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 365
     local tween403 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 366
     tween403:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -2840,13 +2841,13 @@ task.spawn(function()
     tween406:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 367
     local tween407 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween407:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 366
     local tween408 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2882,14 +2883,15 @@ task.spawn(function()
     })
     tween413:Play()
     task.wait(5)
+-- Detected loops 368
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 367
     local tween414 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween414:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 369
     local tween415 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2901,22 +2903,20 @@ task.spawn(function()
     })
     tween416:Play()
     task.wait(5)
--- Detected loops 368
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 369
     local tween417 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween417:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 370
     local tween418 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween418:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 370
 -- Detected loops 371
     local tween419 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -2924,6 +2924,7 @@ task.spawn(function()
     tween419:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 372
     local tween420 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2936,15 +2937,14 @@ task.spawn(function()
     tween421:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 373
+-- Detected loops 374
     local tween422 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween422:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 372
--- Detected loops 373
--- Detected loops 374
     local tween423 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -2994,12 +2994,14 @@ task.spawn(function()
     tween430:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 376
     local tween431 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween431:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 377
     local tween432 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3018,13 +3020,11 @@ task.spawn(function()
     tween434:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 376
     local tween435 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween435:Play()
     task.wait(5)
--- Detected loops 377
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween436 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -3032,6 +3032,7 @@ task.spawn(function()
     tween436:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 378
     local tween437 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3074,21 +3075,19 @@ task.spawn(function()
     tween443:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 378
     local tween444 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween444:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 379
     local tween445 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween445:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 379
--- Detected loops 380
     local tween446 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3113,7 +3112,6 @@ task.spawn(function()
     tween449:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 381
     local tween450 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3132,7 +3130,6 @@ task.spawn(function()
     tween452:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 382
     local tween453 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3151,25 +3148,26 @@ task.spawn(function()
     tween455:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 380
     local tween456 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween456:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 381
     local tween457 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween457:Play()
     task.wait(5)
--- Detected loops 383
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 384
     local tween458 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween458:Play()
     task.wait(5)
+-- Detected loops 382
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween459 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -3207,6 +3205,7 @@ task.spawn(function()
     tween464:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 383
     local tween465 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3225,18 +3224,22 @@ task.spawn(function()
     tween467:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 384
+-- Detected loops 385
     local tween468 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween468:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 386
     local tween469 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween469:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 387
     local tween470 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3255,9 +3258,6 @@ task.spawn(function()
     tween472:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 385
--- Detected loops 386
--- Detected loops 387
     local tween473 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3270,6 +3270,7 @@ task.spawn(function()
     tween474:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 388
     local tween475 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3287,7 +3288,6 @@ task.spawn(function()
     })
     tween477:Play()
     task.wait(5)
--- Detected loops 388
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween478 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -3301,13 +3301,13 @@ task.spawn(function()
     tween479:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 389
     local tween480 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween480:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 389
     local tween481 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3320,20 +3320,19 @@ task.spawn(function()
     tween482:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 390
     local tween483 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween483:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 391
     local tween484 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween484:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 390
     local tween485 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3352,19 +3351,20 @@ task.spawn(function()
     tween487:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 391
     local tween488 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween488:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 392
     local tween489 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween489:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 392
 -- Detected loops 393
     local tween490 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -3372,12 +3372,14 @@ task.spawn(function()
     tween490:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 394
     local tween491 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween491:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 395
     local tween492 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3438,7 +3440,6 @@ task.spawn(function()
     tween501:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 394
     local tween502 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3451,69 +3452,66 @@ task.spawn(function()
     tween503:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 395
     local tween504 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween504:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 396
     local tween505 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween505:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 396
     local tween506 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween506:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 397
     local tween507 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween507:Play()
     task.wait(5)
+-- Detected loops 398
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween508 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween508:Play()
     task.wait(5)
--- Detected loops 397
--- Detected loops 398
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 399
+-- Detected loops 400
     local tween509 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween509:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 399
     local tween510 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween510:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 400
--- Detected loops 401
     local tween511 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween511:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 402
+-- Detected loops 401
     local tween512 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween512:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 403
     local tween513 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3526,6 +3524,8 @@ task.spawn(function()
     tween514:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 402
+-- Detected loops 403
     local tween515 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3556,13 +3556,13 @@ task.spawn(function()
     tween519:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 404
     local tween520 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween520:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 404
     local tween521 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3580,9 +3580,7 @@ task.spawn(function()
     })
     tween523:Play()
     task.wait(5)
--- Detected loops 405
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 406
     local tween524 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3613,7 +3611,6 @@ task.spawn(function()
     tween528:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 407
     local tween529 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3632,13 +3629,14 @@ task.spawn(function()
     tween531:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 405
     local tween532 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween532:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 408
+-- Detected loops 406
     local tween533 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3651,14 +3649,15 @@ task.spawn(function()
     tween534:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 409
--- Detected loops 410
+-- Detected loops 407
     local tween535 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 408
     tween535:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 409
     local tween536 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3671,10 +3670,7 @@ task.spawn(function()
     tween537:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 411
--- Detected loops 412
--- Detected loops 413
--- Detected loops 414
+-- Detected loops 410
     local tween538 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3711,6 +3707,7 @@ task.spawn(function()
     tween543:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 411
     local tween544 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3723,21 +3720,19 @@ task.spawn(function()
     tween545:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 412
     local tween546 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween546:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 415
     local tween547 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween547:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 416
--- Detected loops 417
     local tween548 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3750,6 +3745,8 @@ task.spawn(function()
     tween549:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 413
+-- Detected loops 414
     local tween550 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3780,6 +3777,7 @@ task.spawn(function()
     tween554:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 415
     local tween555 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3798,6 +3796,7 @@ task.spawn(function()
     tween557:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 416
     local tween558 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3810,13 +3809,13 @@ task.spawn(function()
     tween559:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 417
     local tween560 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween560:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 418
     local tween561 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3877,14 +3876,12 @@ task.spawn(function()
     tween570:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 419
     local tween571 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween571:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 420
     local tween572 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3921,29 +3918,26 @@ task.spawn(function()
     tween577:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 421
+-- Detected loops 418
     local tween578 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween578:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 422
--- Detected loops 423
+-- Detected loops 419
     local tween579 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween579:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 424
     local tween580 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween580:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 425
     local tween581 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3968,7 +3962,7 @@ task.spawn(function()
     tween584:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 426
+-- Detected loops 420
     local tween585 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -3981,13 +3975,13 @@ task.spawn(function()
     tween586:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 421
     local tween587 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween587:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 427
     local tween588 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4024,7 +4018,6 @@ task.spawn(function()
     tween593:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 428
     local tween594 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4037,13 +4030,13 @@ task.spawn(function()
     tween595:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 422
     local tween596 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween596:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 429
     local tween597 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4056,13 +4049,13 @@ task.spawn(function()
     tween598:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 423
     local tween599 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween599:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 430
     local tween600 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4080,6 +4073,7 @@ task.spawn(function()
     })
     tween602:Play()
     task.wait(5)
+-- Detected loops 424
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween603 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -4087,7 +4081,6 @@ task.spawn(function()
     tween603:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 431
     local tween604 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4112,6 +4105,8 @@ task.spawn(function()
     tween607:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 425
+-- Detected loops 426
     local tween608 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4124,7 +4119,6 @@ task.spawn(function()
     tween609:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 432
     local tween610 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4155,19 +4149,22 @@ task.spawn(function()
     tween614:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 427
+-- Detected loops 428
     local tween615 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween615:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 429
+-- Detected loops 430
     local tween616 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween616:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 433
     local tween617 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4179,16 +4176,13 @@ task.spawn(function()
     })
     tween618:Play()
     task.wait(5)
--- Detected loops 434
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 435
     local tween619 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween619:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 436
     local tween620 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4207,18 +4201,21 @@ task.spawn(function()
     tween622:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 431
     local tween623 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween623:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 432
     local tween624 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween624:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 433
     local tween625 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4237,13 +4234,11 @@ task.spawn(function()
     tween627:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 437
     local tween628 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween628:Play()
     task.wait(5)
--- Detected loops 438
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween629 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -4263,6 +4258,7 @@ task.spawn(function()
     tween631:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 434
     local tween632 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4275,6 +4271,7 @@ task.spawn(function()
     tween633:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 435
     local tween634 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4305,20 +4302,20 @@ task.spawn(function()
     tween638:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 436
     local tween639 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween639:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 439
+-- Detected loops 437
     local tween640 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween640:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 440
     local tween641 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4355,13 +4352,13 @@ task.spawn(function()
     tween646:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 438
     local tween647 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween647:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 441
     local tween648 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4386,6 +4383,7 @@ task.spawn(function()
     tween651:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 439
     local tween652 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4398,12 +4396,16 @@ task.spawn(function()
     tween653:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 440
+-- Detected loops 441
+-- Detected loops 442
     local tween654 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween654:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 443
     local tween655 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4416,28 +4418,25 @@ task.spawn(function()
     tween656:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 444
     local tween657 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween657:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 442
--- Detected loops 443
     local tween658 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween658:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 444
     local tween659 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween659:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 445
     local tween660 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4450,7 +4449,6 @@ task.spawn(function()
     tween661:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 446
     local tween662 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4463,22 +4461,19 @@ task.spawn(function()
     tween663:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 445
     local tween664 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween664:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 447
     local tween665 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween665:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 448
--- Detected loops 449
--- Detected loops 450
     local tween666 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4521,6 +4516,7 @@ task.spawn(function()
     tween672:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 446
     local tween673 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4539,13 +4535,12 @@ task.spawn(function()
     tween675:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 451
--- Detected loops 452
     local tween676 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween676:Play()
     task.wait(5)
+-- Detected loops 447
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween677 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -4577,6 +4572,7 @@ task.spawn(function()
     tween681:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 448
     local tween682 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4643,12 +4639,14 @@ task.spawn(function()
     tween692:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 449
     local tween693 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween693:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 450
     local tween694 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4667,8 +4665,6 @@ task.spawn(function()
     tween696:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 453
--- Detected loops 454
     local tween697 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4681,15 +4677,12 @@ task.spawn(function()
     tween698:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 455
     local tween699 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween699:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 456
--- Detected loops 457
     local tween700 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4750,7 +4743,7 @@ task.spawn(function()
     tween709:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 458
+-- Detected loops 451
     local tween710 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4823,18 +4816,21 @@ task.spawn(function()
     tween721:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 452
     local tween722 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween722:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 453
     local tween723 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween723:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 454
     local tween724 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4847,6 +4843,8 @@ task.spawn(function()
     tween725:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 455
+-- Detected loops 456
     local tween726 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4859,7 +4857,6 @@ task.spawn(function()
     tween727:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 459
     local tween728 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4884,7 +4881,6 @@ task.spawn(function()
     tween731:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 460
     local tween732 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4896,9 +4892,7 @@ task.spawn(function()
     })
     tween733:Play()
     task.wait(5)
--- Detected loops 461
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 462
     local tween734 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4911,28 +4905,25 @@ task.spawn(function()
     tween735:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 463
     local tween736 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween736:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 464
     local tween737 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween737:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 465
     local tween738 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween738:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 466
+-- Detected loops 457
     local tween739 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4963,6 +4954,8 @@ task.spawn(function()
     tween743:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 458
+-- Detected loops 459
     local tween744 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -4999,6 +4992,7 @@ task.spawn(function()
     tween749:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 460
     local tween750 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5023,6 +5017,7 @@ task.spawn(function()
     tween753:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 461
     local tween754 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5047,13 +5042,13 @@ task.spawn(function()
     tween757:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 462
     local tween758 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween758:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 467
     local tween759 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5072,14 +5067,14 @@ task.spawn(function()
     tween761:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 468
--- Detected loops 469
     local tween762 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween762:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 463
+-- Detected loops 464
     local tween763 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5092,20 +5087,19 @@ task.spawn(function()
     tween764:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 465
     local tween765 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween765:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 470
     local tween766 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween766:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 471
     local tween767 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5124,6 +5118,8 @@ task.spawn(function()
     tween769:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 466
+-- Detected loops 467
     local tween770 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5166,12 +5162,14 @@ task.spawn(function()
     tween776:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 468
     local tween777 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween777:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 469
     local tween778 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5184,6 +5182,7 @@ task.spawn(function()
     tween779:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 470
     local tween780 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5196,30 +5195,24 @@ task.spawn(function()
     tween781:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 472
     local tween782 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween782:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 473
     local tween783 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween783:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 474
--- Detected loops 475
     local tween784 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween784:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 476
--- Detected loops 477
     local tween785 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5232,23 +5225,19 @@ task.spawn(function()
     tween786:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 478
+-- Detected loops 471
     local tween787 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween787:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 479
     local tween788 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween788:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 480
--- Detected loops 481
--- Detected loops 482
     local tween789 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5260,7 +5249,6 @@ task.spawn(function()
     })
     tween790:Play()
     task.wait(5)
--- Detected loops 483
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween791 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -5304,15 +5292,12 @@ task.spawn(function()
     tween797:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 484
--- Detected loops 485
     local tween798 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween798:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 486
     local tween799 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5337,19 +5322,20 @@ task.spawn(function()
     tween802:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 487
     local tween803 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween803:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 472
     local tween804 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween804:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 473
     local tween805 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5362,6 +5348,7 @@ task.spawn(function()
     tween806:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 474
     local tween807 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5374,7 +5361,6 @@ task.spawn(function()
     tween808:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 488
     local tween809 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5399,6 +5385,7 @@ task.spawn(function()
     tween812:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 475
     local tween813 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5417,6 +5404,7 @@ task.spawn(function()
     tween815:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 476
     local tween816 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5441,19 +5429,20 @@ task.spawn(function()
     tween819:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 477
     local tween820 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween820:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 478
     local tween821 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween821:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 489
     local tween822 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5466,6 +5455,8 @@ task.spawn(function()
     tween823:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 479
+-- Detected loops 480
     local tween824 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5490,6 +5481,7 @@ task.spawn(function()
     tween827:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 481
     local tween828 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5520,12 +5512,14 @@ task.spawn(function()
     tween832:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 482
     local tween833 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween833:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 483
     local tween834 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5562,20 +5556,19 @@ task.spawn(function()
     tween839:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 490
     local tween840 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween840:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 491
     local tween841 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween841:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 484
     local tween842 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5660,7 +5653,6 @@ task.spawn(function()
     tween855:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 492
     local tween856 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5733,6 +5725,7 @@ task.spawn(function()
     tween867:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 485
     local tween868 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5745,27 +5738,29 @@ task.spawn(function()
     tween869:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 486
     local tween870 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween870:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 487
+-- Detected loops 488
+-- Detected loops 489
     local tween871 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween871:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 493
     local tween872 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween872:Play()
--- Detected loops 494
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 495
+-- Detected loops 490
     local tween873 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5784,14 +5779,12 @@ task.spawn(function()
     tween875:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 496
     local tween876 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween876:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 497
     local tween877 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5804,12 +5797,15 @@ task.spawn(function()
     tween878:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 491
     local tween879 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween879:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 492
+-- Detected loops 493
     local tween880 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5828,7 +5824,6 @@ task.spawn(function()
     tween882:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 498
     local tween883 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5889,7 +5884,6 @@ task.spawn(function()
     tween892:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 499
     local tween893 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5908,6 +5902,7 @@ task.spawn(function()
     tween895:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 494
     local tween896 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5926,8 +5921,7 @@ task.spawn(function()
     tween898:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 500
--- Detected loops 501
+-- Detected loops 495
     local tween899 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5976,6 +5970,7 @@ task.spawn(function()
     tween906:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 496
     local tween907 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -5988,12 +5983,14 @@ task.spawn(function()
     tween908:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 497
     local tween909 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween909:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 498
     local tween910 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6006,8 +6003,6 @@ task.spawn(function()
     tween911:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 502
--- Detected loops 503
     local tween912 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6026,8 +6021,6 @@ task.spawn(function()
     tween914:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 504
--- Detected loops 505
     local tween915 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6064,14 +6057,14 @@ task.spawn(function()
     tween920:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 506
+-- Detected loops 499
+-- Detected loops 500
     local tween921 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween921:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 507
     local tween922 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6096,13 +6089,14 @@ task.spawn(function()
     tween925:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 508
+-- Detected loops 501
     local tween926 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween926:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 502
     local tween927 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6115,6 +6109,7 @@ task.spawn(function()
     tween928:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 503
     local tween929 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6127,14 +6122,13 @@ task.spawn(function()
     tween930:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 509
     local tween931 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween931:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 510
+-- Detected loops 504
     local tween932 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6153,6 +6147,7 @@ task.spawn(function()
     tween934:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 505
     local tween935 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6177,7 +6172,6 @@ task.spawn(function()
     tween938:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 511
     local tween939 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6190,6 +6184,7 @@ task.spawn(function()
     tween940:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 506
     local tween941 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6238,7 +6233,6 @@ task.spawn(function()
     tween948:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 512
     local tween949 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6251,14 +6245,12 @@ task.spawn(function()
     tween950:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 513
     local tween951 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween951:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 514
     local tween952 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6301,7 +6293,6 @@ task.spawn(function()
     tween958:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 515
     local tween959 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6320,7 +6311,6 @@ task.spawn(function()
     tween961:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 516
     local tween962 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6338,8 +6328,8 @@ task.spawn(function()
     })
     tween964:Play()
     task.wait(5)
+-- Detected loops 507
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 517
     local tween965 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6376,8 +6366,6 @@ task.spawn(function()
     tween970:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 518
--- Detected loops 519
     local tween971 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6432,7 +6420,6 @@ task.spawn(function()
     tween979:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 520
     local tween980 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6445,7 +6432,6 @@ task.spawn(function()
     tween981:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 521
     local tween982 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6517,7 +6503,6 @@ task.spawn(function()
     })
     tween993:Play()
     task.wait(5)
--- Detected loops 522
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween994 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -6801,6 +6786,7 @@ task.spawn(function()
     tween1040:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 508
     local tween1041 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6897,6 +6883,7 @@ task.spawn(function()
     tween1056:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 509
     local tween1057 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6909,6 +6896,9 @@ task.spawn(function()
     tween1058:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 510
+-- Detected loops 511
+-- Detected loops 512
     local tween1059 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6927,6 +6917,7 @@ task.spawn(function()
     tween1061:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 513
     local tween1062 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6957,6 +6948,7 @@ task.spawn(function()
     tween1066:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 514
     local tween1067 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -6987,6 +6979,8 @@ task.spawn(function()
     tween1071:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 515
+-- Detected loops 516
     local tween1072 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7065,14 +7059,13 @@ task.spawn(function()
     tween1084:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 523
+-- Detected loops 517
     local tween1085 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1085:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 524
     local tween1086 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7139,7 +7132,6 @@ task.spawn(function()
     tween1096:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 525
     local tween1097 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7182,6 +7174,7 @@ task.spawn(function()
     tween1103:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 518
     local tween1104 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7206,6 +7199,7 @@ task.spawn(function()
     tween1107:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 519
     local tween1108 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7350,7 +7344,6 @@ task.spawn(function()
     tween1131:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 526
     local tween1132 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7423,6 +7416,7 @@ task.spawn(function()
     tween1143:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 520
     local tween1144 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7465,6 +7459,7 @@ task.spawn(function()
     tween1150:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 521
     local tween1151 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7494,6 +7489,7 @@ task.spawn(function()
     })
     tween1155:Play()
     task.wait(5)
+-- Detected loops 522
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
     local tween1156 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
@@ -7501,6 +7497,7 @@ task.spawn(function()
     tween1156:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 523
     local tween1157 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7609,6 +7606,7 @@ task.spawn(function()
     tween1174:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 524
     local tween1175 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7621,14 +7619,13 @@ task.spawn(function()
     tween1176:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 525
     local tween1177 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1177:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 527
--- Detected loops 528
     local tween1178 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7647,7 +7644,6 @@ task.spawn(function()
     tween1180:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 529
     local tween1181 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7660,7 +7656,6 @@ task.spawn(function()
     tween1182:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 530
     local tween1183 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7679,7 +7674,6 @@ task.spawn(function()
     tween1185:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 531
     local tween1186 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7710,15 +7704,12 @@ task.spawn(function()
     tween1190:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 532
--- Detected loops 533
     local tween1191 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1191:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 534
     local tween1192 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7785,7 +7776,6 @@ task.spawn(function()
     tween1202:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 535
     local tween1203 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -7804,7 +7794,6 @@ task.spawn(function()
     tween1205:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 536
     local tween1206 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8096,6 +8085,7 @@ task.spawn(function()
     local tween1254 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
+-- Detected loops 526
     tween1254:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -8117,7 +8107,6 @@ task.spawn(function()
     tween1257:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 537
     local tween1258 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8130,8 +8119,6 @@ task.spawn(function()
     tween1259:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 538
--- Detected loops 539
     local tween1260 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8192,7 +8179,6 @@ task.spawn(function()
     tween1269:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 540
     local tween1270 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8211,6 +8197,7 @@ task.spawn(function()
     tween1272:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 527
     local tween1273 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8247,7 +8234,6 @@ task.spawn(function()
     tween1278:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 541
     local tween1279 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8284,7 +8270,6 @@ task.spawn(function()
     tween1284:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 542
     local tween1285 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8297,22 +8282,19 @@ task.spawn(function()
     tween1286:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 543
--- Detected loops 544
     local tween1287 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1287:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 545
--- Detected loops 546
     local tween1288 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1288:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 528
     local tween1289 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8379,7 +8361,6 @@ task.spawn(function()
     tween1299:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 547
     local tween1300 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8422,20 +8403,19 @@ task.spawn(function()
     tween1306:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 529
     local tween1307 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1307:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 548
     local tween1308 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1308:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 549
     local tween1309 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8532,8 +8512,6 @@ task.spawn(function()
     tween1324:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 550
--- Detected loops 551
     local tween1325 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8642,6 +8620,8 @@ task.spawn(function()
     tween1342:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 530
+-- Detected loops 531
     local tween1343 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8678,6 +8658,7 @@ task.spawn(function()
     tween1348:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 532
     local tween1349 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8714,8 +8695,7 @@ task.spawn(function()
     tween1354:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 552
--- Detected loops 553
+-- Detected loops 533
     local tween1355 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8728,13 +8708,13 @@ task.spawn(function()
     tween1356:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 554
     local tween1357 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1357:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 534
     local tween1358 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8795,6 +8775,7 @@ task.spawn(function()
     tween1367:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 535
     local tween1368 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8819,7 +8800,6 @@ task.spawn(function()
     tween1371:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 555
     local tween1372 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -8904,7 +8884,6 @@ task.spawn(function()
     tween1385:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 556
     local tween1386 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9001,7 +8980,6 @@ task.spawn(function()
     tween1401:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 557
     local tween1402 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9080,6 +9058,7 @@ task.spawn(function()
     tween1414:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 536
     local tween1415 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9122,6 +9101,7 @@ task.spawn(function()
     tween1421:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 537
     local tween1422 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9140,7 +9120,6 @@ task.spawn(function()
     tween1424:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 558
     local tween1425 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9159,6 +9138,7 @@ task.spawn(function()
     tween1427:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 538
     local tween1428 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9207,7 +9187,6 @@ task.spawn(function()
     tween1435:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 559
     local tween1436 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9226,6 +9205,7 @@ task.spawn(function()
     tween1438:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 539
     local tween1439 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9286,7 +9266,6 @@ task.spawn(function()
     tween1448:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 560
     local tween1449 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9317,6 +9296,7 @@ task.spawn(function()
     tween1453:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 540
     local tween1454 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9479,6 +9459,8 @@ task.spawn(function()
     tween1480:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 541
+-- Detected loops 542
     local tween1481 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9635,7 +9617,6 @@ task.spawn(function()
     tween1506:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 561
     local tween1507 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9708,6 +9689,7 @@ task.spawn(function()
     tween1518:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 543
     local tween1519 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9744,7 +9726,6 @@ task.spawn(function()
     tween1524:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 562
     local tween1525 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9769,6 +9750,7 @@ task.spawn(function()
     tween1528:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 544
     local tween1529 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9913,7 +9895,6 @@ task.spawn(function()
     tween1552:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 563
     local tween1553 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9926,7 +9907,6 @@ task.spawn(function()
     tween1554:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 564
     local tween1555 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -9951,21 +9931,18 @@ task.spawn(function()
     tween1558:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 565
     local tween1559 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1559:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 566
     local tween1560 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1560:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 567
     local tween1561 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10110,6 +10087,7 @@ task.spawn(function()
     tween1584:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 545
     local tween1585 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10182,7 +10160,6 @@ task.spawn(function()
     tween1596:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 568
     local tween1597 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10249,14 +10226,12 @@ task.spawn(function()
     tween1607:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 569
     local tween1608 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1608:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 570
     local tween1609 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10335,6 +10310,7 @@ task.spawn(function()
     tween1621:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 546
     local tween1622 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10365,8 +10341,6 @@ task.spawn(function()
     tween1626:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 571
--- Detected loops 572
     local tween1627 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10451,7 +10425,6 @@ task.spawn(function()
     tween1640:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 573
     local tween1641 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10476,7 +10449,6 @@ task.spawn(function()
     tween1644:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 574
     local tween1645 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10519,7 +10491,6 @@ task.spawn(function()
     tween1651:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 575
     local tween1652 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10712,13 +10683,13 @@ task.spawn(function()
     tween1683:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 576
     local tween1684 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1684:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 547
     local tween1685 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10839,6 +10810,7 @@ task.spawn(function()
     tween1704:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 548
     local tween1705 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10857,6 +10829,7 @@ task.spawn(function()
     tween1707:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 549
     local tween1708 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10869,6 +10842,7 @@ task.spawn(function()
     tween1709:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 550
     local tween1710 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -10989,13 +10963,13 @@ task.spawn(function()
     tween1729:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 551
     local tween1730 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween1730:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 577
     local tween1731 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11014,6 +10988,7 @@ task.spawn(function()
     tween1733:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 552
     local tween1734 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11122,7 +11097,6 @@ task.spawn(function()
     tween1751:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 578
     local tween1752 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11165,6 +11139,11 @@ task.spawn(function()
     tween1758:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 553
+-- Detected loops 554
+-- Detected loops 555
+-- Detected loops 556
+-- Detected loops 557
     local tween1759 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11177,6 +11156,7 @@ task.spawn(function()
     tween1760:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 558
     local tween1761 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11201,6 +11181,7 @@ task.spawn(function()
     tween1764:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 559
     local tween1765 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11405,6 +11386,7 @@ task.spawn(function()
     tween1798:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 560
     local tween1799 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11483,7 +11465,6 @@ task.spawn(function()
     tween1811:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 579
     local tween1812 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11496,7 +11477,6 @@ task.spawn(function()
     tween1813:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 580
     local tween1814 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11653,7 +11633,6 @@ task.spawn(function()
     tween1839:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 581
     local tween1840 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11708,6 +11687,7 @@ task.spawn(function()
     tween1848:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 561
     local tween1849 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11774,6 +11754,7 @@ task.spawn(function()
     tween1859:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 562
     local tween1860 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11810,7 +11791,6 @@ task.spawn(function()
     tween1865:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 582
     local tween1866 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -11931,6 +11911,7 @@ task.spawn(function()
     tween1885:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 563
     local tween1886 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -12003,7 +11984,6 @@ task.spawn(function()
     tween1897:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 583
     local tween1898 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -12112,6 +12092,7 @@ task.spawn(function()
     tween1915:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 564
     local tween1916 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -12196,7 +12177,6 @@ task.spawn(function()
     tween1929:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 584
     local tween1930 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -12215,6 +12195,7 @@ task.spawn(function()
     tween1932:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 565
     local tween1933 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -12407,6 +12388,7 @@ task.spawn(function()
     tween1964:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 566
     local tween1965 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -12443,6 +12425,8 @@ task.spawn(function()
     tween1970:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 567
+-- Detected loops 568
     local tween1971 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -12743,6 +12727,7 @@ task.spawn(function()
     tween2020:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 569
     local tween2021 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -12809,7 +12794,6 @@ task.spawn(function()
     tween2031:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 585
     local tween2032 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -13062,7 +13046,6 @@ task.spawn(function()
     tween2073:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 586
     local tween2074 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -13105,6 +13088,8 @@ task.spawn(function()
     tween2080:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 570
+-- Detected loops 571
     local tween2081 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -13555,6 +13540,7 @@ task.spawn(function()
     tween2155:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 572
     local tween2156 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -13573,6 +13559,7 @@ task.spawn(function()
     tween2158:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 573
     local tween2159 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -13705,7 +13692,6 @@ task.spawn(function()
     tween2180:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 587
     local tween2181 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -13760,6 +13746,7 @@ task.spawn(function()
     tween2189:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 574
     local tween2190 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14078,7 +14065,6 @@ task.spawn(function()
     tween2242:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 588
     local tween2243 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14097,6 +14083,7 @@ task.spawn(function()
     tween2245:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 575
     local tween2246 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14115,6 +14102,7 @@ task.spawn(function()
     tween2248:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 576
     local tween2249 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14259,8 +14247,6 @@ task.spawn(function()
     tween2272:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 589
--- Detected loops 590
     local tween2273 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14357,7 +14343,6 @@ task.spawn(function()
     tween2288:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 591
     local tween2289 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14442,6 +14427,8 @@ task.spawn(function()
     tween2302:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 577
+-- Detected loops 578
     local tween2303 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14466,8 +14453,6 @@ task.spawn(function()
     tween2306:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 592
--- Detected loops 593
     local tween2307 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14534,6 +14519,7 @@ task.spawn(function()
     tween2317:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 579
     local tween2318 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14570,6 +14556,7 @@ task.spawn(function()
     tween2323:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 580
     local tween2324 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -14882,6 +14869,7 @@ task.spawn(function()
     tween2375:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 581
     local tween2376 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -15632,6 +15620,7 @@ task.spawn(function()
     tween2500:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 582
     local tween2501 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -15644,8 +15633,6 @@ task.spawn(function()
     tween2502:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 594
--- Detected loops 595
     local tween2503 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -15682,7 +15669,6 @@ task.spawn(function()
     tween2508:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 596
     local tween2509 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -15713,7 +15699,6 @@ task.spawn(function()
     tween2513:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 597
     local tween2514 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -15759,7 +15744,6 @@ task.spawn(function()
     local tween2521 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
--- Detected loops 598
     tween2521:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
@@ -15889,8 +15873,6 @@ task.spawn(function()
     tween2542:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 599
--- Detected loops 600
     local tween2543 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -16137,7 +16119,6 @@ task.spawn(function()
     tween2583:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 601
     local tween2584 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -16150,7 +16131,6 @@ task.spawn(function()
     tween2585:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 602
     local tween2586 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -16679,6 +16659,7 @@ task.spawn(function()
     tween2673:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 583
     local tween2674 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -16871,7 +16852,6 @@ task.spawn(function()
     tween2705:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 603
     local tween2706 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -17052,7 +17032,6 @@ task.spawn(function()
     tween2735:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 604
     local tween2736 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -17503,7 +17482,6 @@ task.spawn(function()
     tween2810:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 605
     local tween2811 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -18416,6 +18394,7 @@ task.spawn(function()
     tween2962:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 584
     local tween2963 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -18452,6 +18431,7 @@ task.spawn(function()
     tween2968:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 585
     local tween2969 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -18506,6 +18486,7 @@ task.spawn(function()
     tween2977:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 586
     local tween2978 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -18542,6 +18523,7 @@ task.spawn(function()
     tween2983:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 587
     local tween2984 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -18596,6 +18578,7 @@ task.spawn(function()
     tween2992:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 588
     local tween2993 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -18662,8 +18645,6 @@ task.spawn(function()
     tween3003:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
--- Detected loops 606
--- Detected loops 607
     local tween3004 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -19246,6 +19227,8 @@ task.spawn(function()
     tween3100:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
+-- Detected loops 589
+-- Detected loops 590
     local tween3101 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 1.1, 0)
     })
@@ -37652,552 +37635,6 @@ task.spawn(function()
         Position = UDim2.new(0, 0, 1.1, 0)
     })
     tween6168:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6169 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6169:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6170 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6170:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6171 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6171:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6172 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6172:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6173 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6173:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6174 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6174:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6175 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6175:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6176 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6176:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6177 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6177:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6178 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6178:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6179 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6179:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6180 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6180:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6181 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6181:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6182 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6182:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6183 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6183:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6184 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6184:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6185 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6185:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6186 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6186:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6187 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6187:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6188 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6188:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6189 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6189:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6190 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6190:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6191 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6191:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6192 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6192:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6193 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6193:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6194 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6194:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6195 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6195:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6196 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6196:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6197 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6197:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6198 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6198:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6199 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6199:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6200 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6200:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6201 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6201:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6202 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6202:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6203 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6203:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6204 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6204:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6205 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6205:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6206 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6206:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6207 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6207:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6208 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6208:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6209 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6209:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6210 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6210:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6211 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6211:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6212 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6212:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6213 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6213:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6214 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6214:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6215 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6215:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6216 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6216:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6217 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6217:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6218 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6218:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6219 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6219:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6220 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6220:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6221 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6221:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6222 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6222:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6223 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6223:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6224 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6224:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6225 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6225:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6226 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6226:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6227 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6227:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6228 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6228:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6229 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6229:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6230 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6230:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6231 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6231:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6232 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6232:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6233 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6233:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6234 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6234:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6235 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6235:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6236 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6236:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6237 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6237:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6238 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6238:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6239 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6239:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6240 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6240:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6241 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6241:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6242 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6242:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6243 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6243:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6244 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6244:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6245 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6245:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6246 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6246:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6247 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6247:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6248 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6248:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6249 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6249:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6250 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6250:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6251 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6251:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6252 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6252:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6253 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6253:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6254 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6254:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6255 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6255:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6256 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6256:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6257 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6257:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6258 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6258:Play()
-    task.wait(5)
-    frame2.Position = UDim2.new(0, 0, -0.1, 0)
-    local tween6259 = TweenService:Create(frame2, TweenInfo.new(4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0, 0, 1.1, 0)
-    })
-    tween6259:Play()
     task.wait(5)
     frame2.Position = UDim2.new(0, 0, -0.1, 0)
 
