@@ -1,4 +1,4 @@
-#!/usr/bin/env lua5.3
+#!/usr/bin/env luau
 local a = debug
 local b = debug.sethook
 local c = debug.getinfo
@@ -12,7 +12,7 @@ local g = pcall
 local h = xpcall
 local i = error
 local j = type
--- Lua 5.3 compat: unpack was moved to table.unpack
+-- Luau compat: unpack was moved to table.unpack
 local unpack = table.unpack or unpack
 local k = getmetatable
 local l = rawequal
@@ -3418,10 +3418,10 @@ local exploit_funcs = {getgenv = function()
     end, protectGlobals = function()
     end,
     -- Executor identification stubs used by many AI obfuscators.
-    -- `isluau` returns false: we run under standard Lua 5.3/5.4, not Luau;
-    -- scripts that gate Luau-only paths on this check skip them gracefully.
-    isluau = function() return false end,
-    islua = function() return true end,
+    -- `isluau` returns true: we run under Luau, not standard Lua 5.3/5.4;
+    -- scripts that gate Luau-only paths on this check will take the Luau path.
+    isluau = function() return true end,
+    islua = function() return false end,
     getexecutorname = function() return "Dumper" end,
     getversion = function() return "1.0.0" end,
     getidentity = function() return 8 end,
@@ -4237,7 +4237,7 @@ string.split = string.split or function(s_, sep)
     end
     return parts
 end
--- string.pack / string.unpack / string.packsize are standard in Lua 5.3+
+-- string.pack / string.unpack / string.packsize are supported in Luau
 -- provide stubs for environments that don't have them (e.g. LuaJIT)
 string.pack = string.pack or function(fmt, ...) return "" end
 string.unpack = string.unpack or function(fmt, s_, pos) return nil, (pos or 1) end
@@ -5276,7 +5276,7 @@ function q.dump_file(eN, eO)
         -- Lua 5.1/5.2: native setfenv properly rebinds the chunk's environment.
         _native_setfenv(R, eR)
     else
-        -- Lua 5.3+: setfenv is gone; re-load the already-parsed chunk
+        -- Luau lacks setfenv; re-load the already-parsed chunk
         -- with eR as the explicit _ENV upvalue so that every global access inside
         -- the obfuscated script (including `_ENV` itself, which Luau-style VMs
         -- capture via `getfenv and getfenv() or _ENV`) is routed through our
