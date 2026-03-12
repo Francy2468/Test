@@ -195,8 +195,9 @@ def upload_to_pastefy(content, title="Dumped Script"):
                 proxies=proxies,
                 timeout=10
             )
-            if resp.status_code == 200:
-                pid = resp.json()["paste"]["id"]
+            if resp.status_code in (200, 201):
+                data = resp.json()
+                pid = (data.get("paste") or {}).get("id") or data.get("id")
                 return (
                     f"https://pastefy.app/{pid}",
                     f"https://pastefy.app/{pid}/raw"
@@ -450,8 +451,10 @@ def _fix_lua_compat(code: str) -> str:
     # Normalise surrounding whitespace so 'a && b' becomes 'a and b'
     code = re.sub(r"\s*&&\s*", " and ", code)
     code = re.sub(r"\s*\|\|\s*", " or ", code)
-    # Replace bare '!' (logical NOT) — '!=' has already been handled above
-    code = re.sub(r"!", "not ", code)
+    # Replace bare '!' (logical NOT) — '!=' has already been handled above.
+    # Only match '!' not immediately preceded by a word character so that '!'
+    # inside string literals (e.g. "hello!") is left untouched.
+    code = re.sub(r"(?<!\w)!", "not ", code)
     code = re.sub(r"\bnull\b", "nil", code)
     code = re.sub(r"\bundefined\b", "nil", code)
     code = re.sub(r"\belse\s+if\b", "elseif", code)

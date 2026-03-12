@@ -1898,19 +1898,19 @@ bj = function(aQ, bO, bw)
     end
     -- Play/Pause/Cancel/Stop/Resume work for Tween, Sound, and AnimationTrack
     bP.Play = function(self)
-        local bS = t.registry[bh] or "object"
+        local bS = t.registry[bh] or "tween"
         at(string.format("%s:Play()", bS))
     end
     bP.Pause = function(self)
-        local bS = t.registry[bh] or "object"
+        local bS = t.registry[bh] or "tween"
         at(string.format("%s:Pause()", bS))
     end
     bP.Cancel = function(self)
-        local bS = t.registry[bh] or "object"
+        local bS = t.registry[bh] or "tween"
         at(string.format("%s:Cancel()", bS))
     end
     bP.Stop = function(self)
-        local bS = t.registry[bh] or "object"
+        local bS = t.registry[bh] or "tween"
         at(string.format("%s:Stop()", bS))
     end
     bP.Resume = function(self)
