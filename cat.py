@@ -531,7 +531,10 @@ async def process_link(ctx,link=None):
         inline=False
     )
 
-    await status.delete()
+    try:
+        await status.delete()
+    except discord.errors.HTTPException as e:
+        print(f"Warning: failed to delete status message: {e}")
 
     await ctx.send(
         embed=embed,
