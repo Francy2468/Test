@@ -28,7 +28,9 @@ local r = {
     OUTPUT_FILE = "dumped_output.lua",
     VERBOSE = false,
     TRACE_CALLBACKS = true,
-    TIMEOUT_SECONDS = 55,
+    -- Increased from 55 s to 300 s so that large/complex obfuscated scripts
+    -- are given enough time to fully execute and be captured.
+    TIMEOUT_SECONDS = 300,
     MAX_REPEATED_LINES = 25,
     MIN_DEOBF_LENGTH = 50,
     MAX_OUTPUT_SIZE = 200 * 1024 * 1024,
@@ -55,11 +57,11 @@ local r = {
     STRIP_WHITESPACE = false,
     MAX_STRING_LENGTH = 65536,
     MAX_PROXY_DEPTH = 32,
-    MAX_HOOK_CALLS = 500,
-    MAX_REMOTE_CALLS = 1000,
-    MAX_SIGNAL_CALLBACKS = 100,
-    MAX_CLOSURE_REFS = 500,
-    MAX_CONST_PER_FUNCTION = 512,
+    MAX_HOOK_CALLS = 5000,
+    MAX_REMOTE_CALLS = 5000,
+    MAX_SIGNAL_CALLBACKS = 500,
+    MAX_CLOSURE_REFS = 5000,
+    MAX_CONST_PER_FUNCTION = 2048,
     MAX_DEFERRED_HOOKS = 200,
     OBFUSCATION_THRESHOLD = 0.35,
     INLINE_SMALL_FUNCTIONS = true,
@@ -4660,7 +4662,7 @@ function q.dump_file(eN, eO)
                 end
             end,
             "",
-            30
+            300
         )
     else
         b(
@@ -4670,7 +4672,7 @@ function q.dump_file(eN, eO)
                 end
             end,
             "",
-            50
+            500
         )
     end
     local eo, eU =
@@ -4715,7 +4717,7 @@ function q.dump_string(al, eO)
         if p.clock() - eT2 > r.TIMEOUT_SECONDS then
             error("TIMEOUT_FORCED_BY_DUMPER", 0)
         end
-    end, "", 50)
+    end, "", 500)
     local eo2, eU2 = h(
         function() R() end,
         function(ds) return tostring(ds) end

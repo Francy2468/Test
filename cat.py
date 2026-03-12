@@ -24,7 +24,9 @@ PREFIX = "."
 DUMPER_PATH = "catlogger.lua"
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
-DUMP_TIMEOUT = 60
+# Must be larger than catlogger.lua's TIMEOUT_SECONDS (300) to let the Lua-side
+# timeout fire first and emit a clean error instead of a hard process kill.
+DUMP_TIMEOUT = 360
 
 LUA_INTERPRETERS = ["lua5.3", "lua5.4", "luajit", "lua"]
 
