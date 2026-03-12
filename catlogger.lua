@@ -4326,14 +4326,57 @@ end
 -- table) and emits every key/value pair written by the script.
 function q.dump_captured_globals(env_table, baseline_keys)
     if not r.DUMP_GLOBALS then return end
+    local new_globals = {}
+    local seen_keys = {}
+    -- Check both the sandbox env table and the real _G (eC) for new writes
+    local sources = {env_table, eC}
+    for _, src in E(sources) do
+        if src then
+            for k, v in D(src) do
+                if j(k) == "string" and not (baseline_keys and baseline_keys[k]) and not seen_keys[k] then
+                    seen_keys[k] = true
+                    table.insert(new_globals, {key = k, value = v})
+                end
+            end
+        end
+    end
+    if #new_globals == 0 then return end
     aA()
+    az("[Globals written by script]")
+    for _, g in E(new_globals) do
+        local vtype = j(g.value)
+        local vstr = aZ(g.value)
+        if vtype ~= "function" and vtype ~= "table" then
+            at(string.format("%s = %s", g.key, vstr))
+        else
+            az(string.format("%s = %s", g.key, vstr))
+        end
+    end
 end
 
 -- Extract and emit all upvalues from every function captured in the registry.
 function q.dump_captured_upvalues()
     if not r.DUMP_UPVALUES then return end
     if not a or not a.getupvalue then return end
-    aA()
+    local emitted = false
+    for obj, name in D(t.registry) do
+        if j(obj) == "function" then
+            local idx = 1
+            while idx <= r.MAX_UPVALUES_PER_FUNCTION do
+                local uname, uval = a.getupvalue(obj, idx)
+                if not uname then break end
+                if uname ~= "_ENV" and uname ~= "" then
+                    if not emitted then
+                        aA()
+                        az("[Upvalues from captured functions]")
+                        emitted = true
+                    end
+                    az(string.format("%s upvalue[%d] %s = %s", name, idx, uname, aZ(uval)))
+                end
+                idx = idx + 1
+            end
+        end
+    end
 end
 
 -- Emit a summary of all string constants collected during execution.
@@ -4341,6 +4384,26 @@ function q.dump_string_constants()
     if not r.DUMP_ALL_STRINGS then return end
     if #t.string_refs == 0 then return end
     aA()
+    az("[String references / URLs collected during execution]")
+    local seen = {}
+    local seen_vals = {}
+    for _, ref in E(t.string_refs) do
+        local val = ref.value or ""
+        local key = (ref.hint or "") .. "|" .. val
+        -- Deduplicate by value for URLs/webhooks to avoid duplicate lines
+        local is_url = val:find("^https?://") ~= nil
+        local dedup_key = is_url and val or key
+        if not seen[dedup_key] then
+            seen[dedup_key] = true
+            local hint = ref.hint and ("[" .. ref.hint .. "] ") or ""
+            -- Highlight Discord webhook URLs (both discord.com and discordapp.com)
+            if val:find("discord[%a]*%.com/api/webhooks/") ~= nil then
+                az(string.format("[WEBHOOK] %s", val))
+            else
+                az(string.format("%s%s", hint, val))
+            end
+        end
+    end
 end
 
 -- Emit the decoded WeAreDevs string pool when available.
@@ -4349,6 +4412,10 @@ function q.dump_wad_strings()
     local pool = t.wad_string_pool
     if not pool.strings or #pool.strings == 0 then return end
     aA()
+    az("[WeAreDevs string pool]")
+    for idx, s in E(pool.strings) do
+        az(string.format("pool[%d]: %s", idx, aH(s)))
+    end
 end
 
 -- Execute deferred hooks/callbacks that were registered via hookfunction/Connect etc.
