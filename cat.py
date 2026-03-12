@@ -25,6 +25,8 @@ DUMPER_PATH = "catlogger.lua"
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
 DUMP_TIMEOUT = 60
+PREVIEW_LINES = 10
+PREVIEW_MAX_CHARS = 900
 
 LUA_INTERPRETERS = ["lua5.3", "lua5.4", "luajit", "lua"]
 
@@ -372,6 +374,182 @@ async def process_link(ctx,link=None):
         file=discord.File(
             io.BytesIO(dumped),
             filename=original_filename+".txt"
+        )
+    )
+
+# ---------------- BEAUTIFIER ----------------
+def _beautify_lua(code: str) -> str:
+    """Normalize indentation of Lua source code.
+    Tries lua-format / luafmt first, then falls back to a built-in normalizer."""
+
+    for cmd in (["lua-format", "--stdin"], ["luafmt", "-"]):
+        try:
+            proc = subprocess.run(
+                cmd, input=code.encode(),
+                capture_output=True, timeout=15
+            )
+            if proc.returncode == 0 and proc.stdout.strip():
+                return proc.stdout.decode("utf-8", errors="ignore")
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
+    # Built-in indentation normalizer
+    output = []
+    indent = 0
+
+    for raw_line in code.splitlines():
+        line = raw_line.strip()
+
+        if not line:
+            output.append("")
+            continue
+
+        m = re.match(r"^(\w+)", line)
+        first_kw = m.group(1) if m else ""
+
+        # Decrease before printing closers
+        if first_kw in ("end", "until"):
+            indent = max(0, indent - 1)
+        elif first_kw in ("else", "elseif"):
+            indent = max(0, indent - 1)
+
+        output.append("    " * indent + line)
+
+        # Increase after the line
+        if first_kw in ("else", "elseif"):
+            indent += 1
+        elif first_kw in ("function", "do", "repeat"):
+            indent += 1
+        elif first_kw in ("if", "for", "while"):
+            # Heuristic: increase if the line ends with 'then' or 'do' (may not handle multi-line conditions)
+            if re.search(r"\b(then|do)\s*(?:--.*)?$", line):
+                indent += 1
+        elif first_kw == "then":
+            indent += 1
+        elif re.search(r"\bfunction\b", line) and not re.search(r"\bend\b\s*(?:--.*)?$", line):
+            # Handles "local function", "local x = function()", etc.
+            indent += 1
+
+    return "\n".join(output)
+
+# ---------------- COMMAND .rename ----------------
+@bot.command(name="rename")
+async def rename_file(ctx, *, args=None):
+
+    if not args:
+        await ctx.send("Usage: `.rename <new_name>` (attach file) or `.rename <link> <new_name>`")
+        return
+
+    content = None
+    new_name = None
+
+    if ctx.message.attachments:
+        new_name = args.strip()
+        att = ctx.message.attachments[0]
+        if att.size > MAX_FILE_SIZE:
+            await ctx.send("❌ File too large")
+            return
+        loop = asyncio.get_event_loop()
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
+        if r.status_code == 200:
+            content = r.content
+    else:
+        parts = args.split(None, 1)
+        if len(parts) < 2:
+            await ctx.send("Usage: `.rename <new_name>` (attach file) or `.rename <link> <new_name>`")
+            return
+        link, new_name = parts[0], parts[1].strip()
+        loop = asyncio.get_event_loop()
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
+        if r.status_code == 200:
+            if len(r.content) > MAX_FILE_SIZE:
+                await ctx.send("❌ File too large")
+                return
+            content = r.content
+
+    if not content:
+        await ctx.send("❌ Failed to get content.")
+        return
+
+    if "." not in new_name:
+        new_name = new_name + ".lua"
+
+    await ctx.send(
+        content=f"✅ Renamed to `{new_name}`",
+        file=discord.File(io.BytesIO(content), filename=new_name)
+    )
+
+# ---------------- COMMAND .bf ----------------
+@bot.command(name="bf")
+async def beautify(ctx, link=None):
+
+    content = None
+    original_filename = "script"
+
+    status = await ctx.send("✨ beautifying")
+
+    if ctx.message.attachments:
+        att = ctx.message.attachments[0]
+        original_filename = att.filename
+        if att.size > MAX_FILE_SIZE:
+            await status.edit(content="❌ File too large")
+            return
+        loop = asyncio.get_event_loop()
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
+        if r.status_code == 200:
+            content = r.content
+
+    elif link:
+        original_filename = get_filename_from_url(link)
+        loop = asyncio.get_event_loop()
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
+        if r.status_code == 200:
+            if len(r.content) > MAX_FILE_SIZE:
+                await status.edit(content="❌ File too large")
+                return
+            content = r.content
+
+    else:
+        await status.edit(content="Provide a link or file.")
+        return
+
+    if not content:
+        await status.edit(content="❌ Failed to get content.")
+        return
+
+    lua_text = content.decode("utf-8", errors="ignore")
+
+    loop = asyncio.get_event_loop()
+    beautified = await loop.run_in_executor(
+        _executor,
+        functools.partial(_beautify_lua, lua_text)
+    )
+
+    paste, raw = await loop.run_in_executor(
+        _executor,
+        functools.partial(upload_to_pastefy, beautified, title=f"[BF] {original_filename}")
+    )
+
+    preview = "\n".join(beautified.splitlines()[:PREVIEW_LINES])
+
+    embed = discord.Embed(
+        title="✨ Beautified",
+        description=f"Paste: {raw}" if raw else "⚠️ Paste upload failed",
+        color=0x2b2d31
+    )
+    embed.add_field(
+        name="Preview",
+        value=f"```lua\n{preview[:PREVIEW_MAX_CHARS]}\n```",
+        inline=False
+    )
+
+    await status.delete()
+
+    await ctx.send(
+        embed=embed,
+        file=discord.File(
+            io.BytesIO(beautified.encode("utf-8")),
+            filename=os.path.splitext(original_filename)[0] + "_bf.lua"
         )
     )
 
