@@ -3409,7 +3409,64 @@ local exploit_funcs = {getgenv = function()
     end, gethiddenui = function()
         return exploit_funcs.gethui()
     end, protectgui = function(dQ)
-    end, iswindowactive = function()
+    end, protectTable = function(tbl)
+        return tbl
+    end, protectFunction = function(dr)
+        return dr
+    end, protectGlobals = function()
+    end,
+    -- Executor identification stubs used by many AI obfuscators.
+    -- `isluau` returns false: we run under standard Lua 5.3/5.4, not Luau;
+    -- scripts that gate Luau-only paths on this check skip them gracefully.
+    isluau = function() return false end,
+    islua = function() return true end,
+    getexecutorname = function() return "Dumper" end,
+    getversion = function() return "1.0.0" end,
+    getidentity = function() return 8 end,
+    setidentity = function() end,
+    getthreadidentity = function() return 8 end,
+    setthreadidentity = function() end,
+    -- Environment query stubs
+    isscript = function(x) return false end,
+    ismodule = function(x) return false end,
+    islocalscript = function(x) return false end,
+    -- Cache / reference stubs
+    cache = {
+        invalidate = function(x) end,
+        replace = function(x, y) end,
+        iscached = function(x) return false end,
+    },
+    -- Misc stubs used by AI-generated obfuscators
+    getinfo = function() return {} end,
+    getupvalues = function(dr)
+        if type(dr) ~= "function" then return {} end
+        local r = {}
+        local i = 1
+        while true do
+            local n, v = debug.getupvalue(dr, i)
+            if not n then break end
+            r[n] = v
+            i = i + 1
+        end
+        return r
+    end,
+    setupvalue = function(dr, name, val)
+        if type(dr) ~= "function" then return end
+        local i = 1
+        while true do
+            local n = debug.getupvalue(dr, i)
+            if not n then break end
+            if n == name then debug.setupvalue(dr, i, val); return end
+            i = i + 1
+        end
+    end,
+    getupvalue = function(dr, idx)
+        if type(dr) ~= "function" then return nil end
+        local n, v = debug.getupvalue(dr, idx)
+        return v
+    end,
+    -- iswindowactive = already defined below
+    iswindowactive = function()
         return true
     end, isrbxactive = function()
         return true
@@ -4595,6 +4652,20 @@ function q.dump_xor_strings()
     end
 end
 
+-- Emit the decoded generic-wrapper string pool when available.
+function q.dump_k0lrot_strings()
+    if not t.k0lrot_string_pool then return end
+    local pool = t.k0lrot_string_pool
+    if not pool.strings or #pool.strings == 0 then return end
+    aA()
+    local label = pool.label or "generic-wrapper"
+    at(string.format("-- Decoded string constants (%s obfuscation, var=%s)",
+        label, pool.var_name or "?"))
+    for _, entry in E(pool.strings) do
+        at(string.format("local _s_%d = %s", entry.idx, aH(entry.val)))
+    end
+end
+
 -- Execute deferred hooks/callbacks that were registered via hookfunction/Connect etc.
 -- This greatly improves extraction completeness for scripts that register many hooks.
 -- NOTE: hooks list is cleared before processing to prevent infinite re-entrancy.
@@ -4700,6 +4771,182 @@ function eE:process_statement(eF)
         return table.concat(b9, "; ")
     end
     return self:process_expr(eF) or ""
+end
+
+-- ================================================================
+-- GENERIC WRAPPER STRING EXTRACTOR
+-- ================================================================
+-- Handles scripts that use any of the common outer wrapper patterns:
+--
+--   return(function(...) ... end)(...)        single-paren, return
+--   return((function(...) ... end))(...)      double-paren, return
+--   (function(...) ... end)(...)              single-paren, no return
+--   ((function(...) ... end))(...)            double-paren, no return
+--   return(function(...)return(function(...)  nested (up to 4 deep)
+--
+-- The inner preamble may populate a string table variable via a
+-- base64/custom decode loop before handing off to the VM dispatcher.
+-- We detect the VM dispatcher boundary, patch the source to stop before
+-- it, and run only the decode phase to recover the decoded string table.
+-- The variable name and nesting depth are discovered automatically so
+-- this works for K0lrot, Iron Brew, Moonsec, WeAreDevs, Luraph, and
+-- many AI-generated obfuscators.
+-- ================================================================
+
+-- All outer wrapper patterns checked near the start of the file.
+-- These match the literal texts (Lua patterns with %(%) escaping).
+--   "return(("     → return%(%(function%(%.%.%.%)
+--   "return("      → return%(function%(%.%.%.%)
+--   "(("           → %(%(function%(%.%.%.%)
+--   "("            → %(function%(%.%.%.%)
+local GEN_OUTER_PATTERNS = {
+    "return%(%(function%(%.%.%.%)",
+    "return%(function%(%.%.%.%)",
+    "%(%(function%(%.%.%.%)",
+    "%(function%(%.%.%.%)",
+}
+-- How many bytes from the start of the file to scan for the outer wrapper.
+local GEN_OUTER_HEADER_BYTES = 500
+
+-- Known VM dispatcher entry-point signatures, ordered from most-specific
+-- (rarest / most reliable) to least-specific (most general).
+-- When the boundary is found, everything from here onward is the VM body;
+-- we stop execution before it to capture the pre-decoded string table.
+local GEN_VM_BOUNDARIES = {
+    -- K0lrot full signature
+    "return%(function%(S,n,f,B,d,l,M,i,r,R,Z,b,t,Y,C,F,A,z,x,K,L,P,X,E%)",
+    -- K0lrot short signature (common variant)
+    "return%(function%(S,n,f,B,d,l,M,",
+    -- K0lrot alternate short
+    "return%(function%(S,N,",
+    -- WeAreDevs v1.0.0 (often `w` is the string table)
+    "return%(function%(w,j,e,",
+    -- Iron Brew / generic (K0, K1, K2 named constants)
+    "return%(function%(K0,K1,K2,",
+    -- Prometheus obfuscator
+    "return%(function%(env,fenv,",
+    -- Moonsec v2/v3
+    "return%(function%(luraph,",
+    -- Moonsec alternate
+    "return%(function%(obc,",
+    -- Generic long-argument dispatcher heuristic: ≥8 consecutive single-letter
+    -- comma-separated params suggests a VM dispatch table (built programmatically
+    -- to avoid repetitive literals).
+    (function()
+        local seg = "[A-Za-z_%d]+,"
+        return "return%(function%(" .. seg:rep(8)
+    end)(),
+}
+
+-- String table variable names used by various obfuscators, ordered by
+-- prevalence.  We try each one until one produces a non-empty table.
+local GEN_STRING_VARS = {
+    -- Primary (most common)
+    "S",    -- K0lrot
+    "w",    -- WeAreDevs
+    "t",    -- generic / Iron Brew
+    "args",
+    -- Single letters a–z (excluding w, t, S already listed above)
+    "a","b","c","d","e","f","g","h","i","j","k","l","m",
+    "n","o","p","q","r","s","u","v","x","y","z",
+    -- Uppercase aliases
+    "V","W","T","N","A",
+    -- Descriptive names
+    "data","payload","values","params","buffer",
+    "container","pack","stack","env","tbl","arr","tab",
+    -- Underscore variants
+    "_","__","___","____","_____","______",
+    -- Numbered variants
+    "v1","v2","v3","v4","v5","v6","v7","v8","v9","v10",
+}
+
+-- Minimum number of successfully decoded strings required to accept
+-- a candidate result.  Low values cause false positives on small tables.
+local GEN_MIN_STRING_COUNT = 3
+
+-- Maximum wrapper nesting depth to try (1 = K0lrot standard, up to 4 deep).
+local GEN_MAX_NEST_DEPTH = 4
+
+local function generic_wrapper_extract_strings(source_code)
+    -- 1. Quick early-out: detect outer wrapper near the start of the file.
+    local header = source_code:sub(1, GEN_OUTER_HEADER_BYTES)
+    local found_outer = false
+    -- Also remember whether the outer starts with 'return' or is a bare call.
+    -- Bare calls like `(function(...)...end)(...)` have their return value
+    -- discarded by the chunk, so the patched form must be prefixed with
+    -- `return ` so pcall can capture the string table.
+    local outer_has_return = false
+    for _, pat in ipairs(GEN_OUTER_PATTERNS) do
+        if header:find(pat) then
+            found_outer = true
+            -- Patterns that start with `return` keep the return value visible.
+            if pat:find("^return") then
+                outer_has_return = true
+            end
+            break
+        end
+    end
+    if not found_outer then
+        return nil
+    end
+
+    -- 2. Try each known VM boundary in priority order.
+    for _, vm_pat in ipairs(GEN_VM_BOUNDARIES) do
+        local boundary = source_code:find(vm_pat)
+        if boundary then
+            local preamble = source_code:sub(1, boundary - 1)
+            -- 3. For each candidate string table variable name …
+            for _, var_name in ipairs(GEN_STRING_VARS) do
+                -- 4. … try each nesting depth (1 = standard, 2-4 = nested wrappers).
+                --    The closing suffix `end)(...)` must be repeated once per open
+                --    wrapper level so that the patched chunk is syntactically valid.
+                for depth = 1, GEN_MAX_NEST_DEPTH do
+                    local closing = string.rep("end)(...)", depth)
+                    -- Bare `(function(...)...end)(...)` wrappers (no leading `return`)
+                    -- are *call expressions*, not expressions; their return value is
+                    -- discarded at the chunk level.  Prefixing with `return ` turns
+                    -- the call into an expression whose value pcall() can capture.
+                    local prefix = outer_has_return and "" or "return "
+                    local patched = prefix .. preamble .. "\nreturn " .. var_name .. " " .. closing .. "\n"
+                    local fn = load(patched)
+                    if fn then
+                        local ok, result = pcall(fn)
+                        if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
+                            -- Collect only printable-ASCII strings; binary blobs
+                            -- (non-printable bytes) are skipped.  `%g` matches any
+                            -- printable non-space character; `%s` matches whitespace.
+                            local results = {}
+                            for idx = 1, #result do
+                                local s = result[idx]
+                                if type(s) == "string" and #s >= 1
+                                        and s:match("^[%g%s]+$") then
+                                    table.insert(results, {idx = idx, val = s})
+                                end
+                            end
+                            if #results >= GEN_MIN_STRING_COUNT then
+                                -- Identify the obfuscator from the VM boundary used.
+                                local label = "generic-wrapper"
+                                if vm_pat:find("S,n,f,B,d,l,M,") then
+                                    label = "K0lrot"
+                                elseif vm_pat:find("w,j,e,") then
+                                    label = "WeAreDevs"
+                                elseif vm_pat:find("K0,K1,K2,") then
+                                    label = "IronBrew"
+                                elseif vm_pat:find("env,fenv,") then
+                                    label = "Prometheus"
+                                elseif vm_pat:find("luraph,") or vm_pat:find("obc,") then
+                                    label = "Moonsec"
+                                end
+                                return results, #result, var_name, label
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return nil
 end
 
 -- XOR-encrypted string extractor for Catmio-style obfuscation.
@@ -4865,6 +5112,18 @@ function q.dump_file(eN, eO)
         t.xor_string_pool = { strings = xor_strings }
     else
         t.xor_string_pool = nil
+    end
+    -- Generic wrapper string extraction: handles K0lrot, WeAreDevs, Iron Brew,
+    -- Prometheus, Moonsec, Luraph, and AI-generated obfuscators that use any of:
+    --   return(function(...) ... end)(...)   (function(...) ... end)(...)
+    --   return((function(...) ... end))(...)  and nested variants up to 4 levels deep.
+    local gw_strings, gw_total, gw_var, gw_label = generic_wrapper_extract_strings(al)
+    if gw_strings and #gw_strings > 0 then
+        B(string.format("[Dumper] %s wrapper detected (var=%s) — %d/%d strings decoded",
+            gw_label or "generic", gw_var or "?", #gw_strings, gw_total or 0))
+        t.k0lrot_string_pool = { strings = gw_strings, var_name = gw_var, label = gw_label }
+    else
+        t.k0lrot_string_pool = nil
     end
     B("[Dumper] Sanitizing Luau and Binary Literals...")
     local eP = I(al)
@@ -5044,6 +5303,7 @@ function q.dump_file(eN, eO)
     q.dump_string_constants()
     q.dump_wad_strings()
     q.dump_xor_strings()
+    q.dump_k0lrot_strings()
     return q.save(eO or r.OUTPUT_FILE)
 end
 function q.dump_string(al, eO)
