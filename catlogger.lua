@@ -4342,14 +4342,12 @@ function q.dump_captured_globals(env_table, baseline_keys)
     end
     if #new_globals == 0 then return end
     aA()
-    az("[Globals written by script]")
     for _, g in E(new_globals) do
         local vtype = j(g.value)
-        local vstr = aZ(g.value)
-        if vtype ~= "function" and vtype ~= "table" then
+        -- Only emit if it's a valid Lua identifier and not a function
+        if vtype ~= "function" and g.key:match("^[%a_][%w_]*$") then
+            local vstr = aZ(g.value)
             at(string.format("%s = %s", g.key, vstr))
-        else
-            az(string.format("%s = %s", g.key, vstr))
         end
     end
 end
@@ -4365,13 +4363,15 @@ function q.dump_captured_upvalues()
             while idx <= r.MAX_UPVALUES_PER_FUNCTION do
                 local uname, uval = a.getupvalue(obj, idx)
                 if not uname then break end
-                if uname ~= "_ENV" and uname ~= "" then
+                local utype = j(uval)
+                -- Only emit valid Lua identifiers; skip functions and _ENV
+                if uname ~= "_ENV" and uname ~= "" and utype ~= "function"
+                        and uname:match("^[%a_][%w_]*$") then
                     if not emitted then
                         aA()
-                        az("[Upvalues from captured functions]")
                         emitted = true
                     end
-                    az(string.format("%s upvalue[%d] %s = %s", name, idx, uname, aZ(uval)))
+                    at(string.format("local %s = %s", uname, aZ(uval)))
                 end
                 idx = idx + 1
             end
@@ -4384,23 +4384,22 @@ function q.dump_string_constants()
     if not r.DUMP_ALL_STRINGS then return end
     if #t.string_refs == 0 then return end
     aA()
-    az("[String references / URLs collected during execution]")
     local seen = {}
-    local seen_vals = {}
+    local ref_idx = 0
     for _, ref in E(t.string_refs) do
         local val = ref.value or ""
-        local key = (ref.hint or "") .. "|" .. val
-        -- Deduplicate by value for URLs/webhooks to avoid duplicate lines
-        local is_url = val:find("^https?://") ~= nil
-        local dedup_key = is_url and val or key
-        if not seen[dedup_key] then
-            seen[dedup_key] = true
-            local hint = ref.hint and ("[" .. ref.hint .. "] ") or ""
-            -- Highlight Discord webhook URLs (both discord.com and discordapp.com)
+        -- Deduplicate by value for URLs/webhooks
+        if not seen[val] then
+            seen[val] = true
+            ref_idx = ref_idx + 1
+            -- Use aH() for proper escaping of all special characters
+            -- Emit Discord webhook URLs as a named local variable for easy identification
             if val:find("discord[%a]*%.com/api/webhooks/") ~= nil then
-                az(string.format("[WEBHOOK] %s", val))
+                at(string.format("local _webhook_%d = %s", ref_idx, aH(val)))
+            elseif val:find("^https?://") ~= nil then
+                at(string.format("local _url_%d = %s", ref_idx, aH(val)))
             else
-                az(string.format("%s%s", hint, val))
+                at(string.format("local _ref_%d = %s", ref_idx, aH(val)))
             end
         end
     end
@@ -4412,9 +4411,8 @@ function q.dump_wad_strings()
     local pool = t.wad_string_pool
     if not pool.strings or #pool.strings == 0 then return end
     aA()
-    az("[WeAreDevs string pool]")
     for idx, s in E(pool.strings) do
-        az(string.format("pool[%d]: %s", idx, aH(s)))
+        at(string.format("local _wad_%d = %s", idx, aH(s)))
     end
 end
 
