@@ -4326,14 +4326,57 @@ end
 -- table) and emits every key/value pair written by the script.
 function q.dump_captured_globals(env_table, baseline_keys)
     if not r.DUMP_GLOBALS then return end
+    local new_globals = {}
+    local seen_keys = {}
+    -- Check both the sandbox env table and the real _G (eC) for new writes
+    local sources = {env_table, eC}
+    for _, src in E(sources) do
+        if src then
+            for k, v in D(src) do
+                if j(k) == "string" and not (baseline_keys and baseline_keys[k]) and not seen_keys[k] then
+                    seen_keys[k] = true
+                    table.insert(new_globals, {key = k, value = v})
+                end
+            end
+        end
+    end
+    if #new_globals == 0 then return end
     aA()
+    for _, g in E(new_globals) do
+        local vtype = j(g.value)
+        -- Only emit if it's a valid Lua identifier and not a function
+        if vtype ~= "function" and g.key:match("^[%a_][%w_]*$") then
+            local vstr = aZ(g.value)
+            at(string.format("%s = %s", g.key, vstr))
+        end
+    end
 end
 
 -- Extract and emit all upvalues from every function captured in the registry.
 function q.dump_captured_upvalues()
     if not r.DUMP_UPVALUES then return end
     if not a or not a.getupvalue then return end
-    aA()
+    local emitted = false
+    for obj, name in D(t.registry) do
+        if j(obj) == "function" then
+            local idx = 1
+            while idx <= r.MAX_UPVALUES_PER_FUNCTION do
+                local uname, uval = a.getupvalue(obj, idx)
+                if not uname then break end
+                local utype = j(uval)
+                -- Only emit valid Lua identifiers; skip functions and _ENV
+                if uname ~= "_ENV" and uname ~= "" and utype ~= "function"
+                        and uname:match("^[%a_][%w_]*$") then
+                    if not emitted then
+                        aA()
+                        emitted = true
+                    end
+                    at(string.format("local %s = %s", uname, aZ(uval)))
+                end
+                idx = idx + 1
+            end
+        end
+    end
 end
 
 -- Emit a summary of all string constants collected during execution.
@@ -4341,6 +4384,25 @@ function q.dump_string_constants()
     if not r.DUMP_ALL_STRINGS then return end
     if #t.string_refs == 0 then return end
     aA()
+    local seen = {}
+    local ref_idx = 0
+    for _, ref in E(t.string_refs) do
+        local val = ref.value or ""
+        -- Deduplicate by value for URLs/webhooks
+        if not seen[val] then
+            seen[val] = true
+            ref_idx = ref_idx + 1
+            -- Use aH() for proper escaping of all special characters
+            -- Emit Discord webhook URLs as a named local variable for easy identification
+            if val:find("discord[%a]*%.com/api/webhooks/") ~= nil then
+                at(string.format("local _webhook_%d = %s", ref_idx, aH(val)))
+            elseif val:find("^https?://") ~= nil then
+                at(string.format("local _url_%d = %s", ref_idx, aH(val)))
+            else
+                at(string.format("local _ref_%d = %s", ref_idx, aH(val)))
+            end
+        end
+    end
 end
 
 -- Emit the decoded WeAreDevs string pool when available.
@@ -4349,6 +4411,9 @@ function q.dump_wad_strings()
     local pool = t.wad_string_pool
     if not pool.strings or #pool.strings == 0 then return end
     aA()
+    for idx, s in E(pool.strings) do
+        at(string.format("local _wad_%d = %s", idx, aH(s)))
+    end
 end
 
 -- Execute deferred hooks/callbacks that were registered via hookfunction/Connect etc.
