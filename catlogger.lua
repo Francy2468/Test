@@ -35,7 +35,7 @@ local r = {
     CONSTANT_COLLECTION = true,
     INSTRUMENT_LOGIC = true,
     DUMP_GLOBALS = true,
-    DUMP_ALL_STRINGS = true,
+    DUMP_ALL_STRINGS = false,
     DUMP_DECODED_STRINGS = false,
     DUMP_UPVALUES = true,
     MAX_UPVALUES_PER_FUNCTION = 200,
@@ -332,6 +332,7 @@ local function I(J)
         elseif aa == 45 and L + 1 <= M and J:byte(L + 1) == 45 then
             table.insert(K, Q(J:sub(a9, L - 1)))
             local ae = L
+            local longcomment = false
             if L + 2 <= M and J:byte(L + 2) == 91 then
                 local a5, ab = a0(L + 3)
                 if ab <= M and J:byte(ab) == 91 then
@@ -340,16 +341,19 @@ local function I(J)
                     L = ad
                     a9 = L + 1
                     L = L + 1
+                    longcomment = true
                 end
             end
-            local af = J:find("\n", L + 2, true)
-            if af then
-                L = af
-            else
-                L = M
+            if not longcomment then
+                local af = J:find("\n", L + 2, true)
+                if af then
+                    L = af
+                else
+                    L = M
+                end
+                table.insert(K, J:sub(ae, L))
+                a9 = L + 1
             end
-            table.insert(K, J:sub(ae, L))
-            a9 = L + 1
         elseif aa == 34 or aa == 39 or aa == 96 then
             table.insert(K, Q(J:sub(a9, L - 1)))
             local ag = aa
@@ -367,7 +371,16 @@ local function I(J)
             local ai = J:sub(ac + 1, L - 1)
             ai = N(ai)
             if ag == 96 then
-                table.insert(K, '"' .. ai:gsub('"', '\\\\"') .. '"')
+                -- Escape bare " but leave already-escaped \" alone.
+                -- Count preceding backslashes: even count means " is unescaped; odd means it is already escaped.
+                ai = ai:gsub('(\\*)"', function(bs)
+                    if #bs % 2 == 0 then
+                        return bs .. '\\"'
+                    else
+                        return bs .. '"'
+                    end
+                end)
+                table.insert(K, '"' .. ai .. '"')
             else
                 local aj = string.char(ag)
                 table.insert(K, aj .. ai .. aj)
