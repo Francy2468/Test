@@ -66,7 +66,10 @@ local r = {
     EMIT_LOOP_COUNTER = true,
     EMIT_CALL_GRAPH = true,
     EMIT_STRING_REFS = true,
-    EMIT_TYPE_ANNOTATIONS = false
+    EMIT_TYPE_ANNOTATIONS = false,
+    -- Loop detection threshold: how many times the same source line must be
+    -- hit (via the count hook) before a "-- Detected loops N" marker is emitted.
+    LOOP_DETECT_THRESHOLD = 100
 }
 -- Patterns whose presence in a generated output line means the line is
 -- dangerous and must be silently suppressed before it reaches the caller.
@@ -173,7 +176,10 @@ local t = {
     namecall_method = nil,
     obfuscation_score = 0,
     deobf_attempts = 0,
-    emit_count = 0
+    emit_count = 0,
+    -- Loop detection: map of "source:line" → hit count and seen flags
+    loop_line_counts = {},
+    loop_detected_lines = {}
 }
 local u = tonumber(arg and arg[4]) or tonumber(arg and arg[3]) or 123456789
 local v = {}
@@ -444,9 +450,10 @@ local function at(O, au)
             end
             if t.rep_full > r.MAX_REPEATED_LINES then
                 suppressed = true
-                -- Emit a single notice at the start of the first suppressed repetition.
+                -- Emit a single "Detected loops" notice at the start of the first suppressed repetition.
                 if t.rep_full == r.MAX_REPEATED_LINES + 1 and t.rep_pos == 0 then
-                    local ay = av .. string.format("-- [%d-line cycle suppressed ...]", n)
+                    t.loop_counter = t.loop_counter + 1
+                    local ay = av .. string.format("-- Detected loops %d", t.loop_counter)
                     table.insert(t.output, ay)
                     t.current_size = t.current_size + #ay + 1
                 end
@@ -3285,41 +3292,90 @@ local exploit_funcs = {getgenv = function()
             return dK
         end
         local orig_name = t.registry[dK] or "unknown_fn"
+        -- Emit a comment documenting the hook so the dump shows what was hooked
+        at(string.format("-- hookfunction: hooked %s", orig_name))
         -- Store hook for deferred execution after main VM run (captures hooks never called by script)
-        table.insert(t.deferred_hooks, {name = orig_name, fn = dL})
-        -- Return the hook so when the "original" is called, the hook runs
-        return dL
+        table.insert(t.deferred_hooks, {name = orig_name, fn = dL, args = {}})
+        -- Track hook in hook_calls for statistics
+        table.insert(t.hook_calls, {target = orig_name, kind = "hookfunction"})
+        -- Return a wrapper that logs calls to the hook and falls through to the hook fn
+        return function(...)
+            local _args = {...}
+            if #t.hook_calls <= r.MAX_HOOK_CALLS then
+                table.insert(t.hook_calls, {target = orig_name, kind = "call", args = _args})
+            end
+            return dL(...)
+        end
     end, hookmetamethod = function(x, dM, dN)
         if j(dN) ~= "function" then
             return function() end
         end
         local obj_name = t.registry[x] or "object"
         local method_str = aE(dM)
-        table.insert(t.deferred_hooks, {name = obj_name .. "." .. method_str, fn = dN})
+        -- Emit a comment documenting the metamethod hook
+        at(string.format("-- hookmetamethod: hooked %s.%s", obj_name, method_str))
+        table.insert(t.deferred_hooks, {name = obj_name .. "." .. method_str, fn = dN, args = {}})
+        table.insert(t.hook_calls, {target = obj_name .. "." .. method_str, kind = "hookmetamethod"})
         return dN
     end, replaceclosure = function(dK, dL)
         if j(dK) ~= "function" or j(dL) ~= "function" then
             return dK
         end
         local orig_name = t.registry[dK] or "unknown_fn"
-        table.insert(t.deferred_hooks, {name = orig_name .. " (replaceclosure)", fn = dL})
+        at(string.format("-- replaceclosure: replaced %s", orig_name))
+        table.insert(t.deferred_hooks, {name = orig_name .. " (replaceclosure)", fn = dL, args = {}})
+        table.insert(t.hook_calls, {target = orig_name, kind = "replaceclosure"})
+        return dL
+    end, detourfn = function(dK, dL)
+        -- detourfn is an alias for hookfunction used by some exploits
+        if j(dK) ~= "function" or j(dL) ~= "function" then
+            return dK
+        end
+        local orig_name = t.registry[dK] or "unknown_fn"
+        at(string.format("-- detourfn: detoured %s", orig_name))
+        table.insert(t.deferred_hooks, {name = orig_name .. " (detourfn)", fn = dL, args = {}})
+        table.insert(t.hook_calls, {target = orig_name, kind = "detourfn"})
         return dL
     end, getrawmetatable = function(x)
         if G(x) then
             return a.getmetatable(x)
         end
-        return {}
+        return k(x) or {}
     end, setrawmetatable = function(x, dd)
+        if j(x) == "table" and j(dd) == "table" then
+            a.setmetatable(x, dd)
+        end
         return x
     end, getnamecallmethod = function()
-        return "__namecall"
+        return t.namecall_method or "__namecall"
     end, setnamecallmethod = function(dM)
+        t.namecall_method = aE(dM)
     end, checkcaller = function()
         return true
     end, islclosure = function(dr)
         return j(dr) == "function"
     end, iscclosure = function(dr)
         return false
+    end, isnewcclosure = function(dr)
+        return false
+    end, cloneref = function(x)
+        return x
+    end, compareinstances = function(x, y)
+        return l(x, y)
+    end, getscriptenv = function(sc)
+        -- Returns the environment of a script (stub: returns _G)
+        return _G
+    end, getmenv = function()
+        -- Lua 5.1 module environment stub
+        return _G
+    end, firehook = function(dK, ...)
+        -- Manually fire a hook with given arguments
+        if j(dK) == "function" then
+            local ok, err = g(dK, ...)
+            if not ok then
+                at(string.format("-- firehook error: %s", m(err)))
+            end
+        end
     end, newcclosure = function(dr)
         -- newcclosure wraps a Lua function as a C closure; return as-is
         return dr
@@ -4064,6 +4120,113 @@ _G.CatalogSearchParams = CatalogSearchParams
 _G.DateTime = DateTime
 _G.Random = Random
 _G.Instance = Instance
+-- ── Standard Lua globals that scripts may rely on ──────────────────────────
+_G._VERSION = "Luau"
+_G.collectgarbage = function(opt)
+    -- Stub: Luau/Roblox does not expose GC control to scripts
+    if opt == "count" then return 0, 0 end
+    return 0
+end
+_G.gcinfo = function() return 0 end  -- Lua 5.1 compat
+-- ── Luau table extensions ───────────────────────────────────────────────────
+table.clear = table.clear or function(t_)
+    for k_ in D(t_) do t_[k_] = nil end
+end
+table.clone = table.clone or function(t_)
+    local c_ = {}
+    for k_, v_ in D(t_) do c_[k_] = v_ end
+    return c_
+end
+table.create = table.create or function(n_, v_)
+    local c_ = {}
+    for _i = 1, n_ do c_[_i] = v_ end
+    return c_
+end
+table.find = table.find or function(t_, val, init)
+    for _i = init or 1, #t_ do
+        if t_[_i] == val then return _i end
+    end
+    return nil
+end
+table.freeze = table.freeze or function(t_) return t_ end  -- no-op stub
+table.isfrozen = table.isfrozen or function(t_) return false end
+_G.table = table
+-- ── Luau math extensions ───────────────────────────────────────────────────
+math.clamp = math.clamp or function(n_, min_, max_)
+    if n_ < min_ then return min_ end
+    if n_ > max_ then return max_ end
+    return n_
+end
+math.round = math.round or function(n_) return math.floor(n_ + 0.5) end
+math.sign  = math.sign  or function(n_)
+    if n_ > 0 then return 1 elseif n_ < 0 then return -1 else return 0 end
+end
+math.noise = math.noise or function(x_, y_, z_)
+    -- Deterministic pseudo-random noise stub (returns 0 to ~0.999 range)
+    local _h = math.floor((x_ or 0) * 127 + (y_ or 0) * 311 + (z_ or 0) * 73) % 1000
+    return _h / 1000
+end
+math.map = math.map or function(n_, inMin, inMax, outMin, outMax)
+    return outMin + (n_ - inMin) * (outMax - outMin) / (inMax - inMin)
+end
+_G.math = math
+-- ── Luau string extensions ─────────────────────────────────────────────────
+string.split = string.split or function(s_, sep)
+    local parts = {}
+    for part in s_:gmatch("([^" .. (sep or "%s") .. "]+)") do
+        table.insert(parts, part)
+    end
+    return parts
+end
+-- string.pack / string.unpack / string.packsize are standard in Lua 5.3+
+-- provide stubs for environments that don't have them (e.g. LuaJIT)
+string.pack = string.pack or function(fmt, ...) return "" end
+string.unpack = string.unpack or function(fmt, s_, pos) return nil, (pos or 1) end
+string.packsize = string.packsize or function(fmt) return 0 end
+_G.string = string
+-- ── Luau buffer library stub ───────────────────────────────────────────────
+if not buffer then
+    buffer = {
+        create = function(size) return {_size = size or 0, _data = {}} end,
+        fromstring = function(s_) return {_size = #s_, _str = s_, _data = {}} end,
+        tostring = function(b_) return b_._str or "" end,
+        len = function(b_) return b_._size or 0 end,
+        copy = function(target, offset, source, sourceOffset, count) end,
+        fill = function(b_, offset, value, count) end,
+        readi8  = function(b_, offset) return 0 end,
+        readu8  = function(b_, offset) return 0 end,
+        readi16 = function(b_, offset) return 0 end,
+        readu16 = function(b_, offset) return 0 end,
+        readi32 = function(b_, offset) return 0 end,
+        readu32 = function(b_, offset) return 0 end,
+        readf32 = function(b_, offset) return 0 end,
+        readf64 = function(b_, offset) return 0 end,
+        writei8  = function(b_, offset, val) end,
+        writeu8  = function(b_, offset, val) end,
+        writei16 = function(b_, offset, val) end,
+        writeu16 = function(b_, offset, val) end,
+        writei32 = function(b_, offset, val) end,
+        writeu32 = function(b_, offset, val) end,
+        writef32 = function(b_, offset, val) end,
+        writef64 = function(b_, offset, val) end,
+        readstring  = function(b_, offset, count) return "" end,
+        writestring = function(b_, offset, s_, count) end,
+    }
+end
+_G.buffer = buffer
+-- ── Extra coroutine stubs (Lua 5.4 / Luau) ────────────────────────────────
+if not coroutine.close then
+    coroutine.close = function(co) return true end
+end
+if not coroutine.isyieldable then
+    coroutine.isyieldable = function() return false end
+end
+_G.coroutine = coroutine
+-- ── Luau-specific exec globals ────────────────────────────────────────────
+_G.printidentity = function(s_) end  -- Roblox Studio only
+_G.PluginManager = function() return bj("PluginManager", false) end
+_G.settings    = bj("settings",    true)
+_G.UserSettings = bj("UserSettings", true)
 getmetatable = function(x)
     if G(x) then
         return "The metatable is locked"
@@ -4272,6 +4435,10 @@ function q.reset()
         current_size = 0,
         limit_reached = false,
         lar_counter = 0,
+        loop_counter = 0,
+        hook_calls = {},
+        loop_line_counts = {},
+        loop_detected_lines = {},
         captured_constants = {},
         deferred_hooks = {}
     }
@@ -4796,10 +4963,28 @@ function q.dump_file(eN, eO)
     -- Combined debug hook:
     --   1. Enforce the execution time-out (fires TIMEOUT_FORCED_BY_DUMPER so that
     --      _G.pcall / _G.xpcall cannot silently swallow it).
-    --   2. Luau compat: only for WeAreDevs-obfuscated files — scan locals in the
+    --   2. Loop detection: track how many times each source line is hit; when a
+    --      line exceeds LOOP_DETECT_THRESHOLD hits emit "-- Detected loops N".
+    --   3. Luau compat: only for WeAreDevs-obfuscated files — scan locals in the
     --      active VM dispatch frames and add __call to any plain table so that
     --      `for k,v in plain_table do` works in standard Lua 5.1/5.4.
     --      The scan is skipped for non-WAD files to keep the hook lightweight.
+    local function _loop_check()
+        local _inf = a.getinfo(3, "Sl")
+        if _inf and _inf.currentline and _inf.currentline > 0 then
+            local _key = (_inf.short_src or "?") .. ":" .. _inf.currentline
+            local _cnt = (t.loop_line_counts[_key] or 0) + 1
+            t.loop_line_counts[_key] = _cnt
+            if _cnt > r.LOOP_DETECT_THRESHOLD and not t.loop_detected_lines[_key] then
+                t.loop_detected_lines[_key] = true
+                t.loop_counter = t.loop_counter + 1
+                -- Insert the loop marker directly into output (bypasses cycle suppressor)
+                local _marker = string.format("-- Detected loops %d", t.loop_counter)
+                table.insert(t.output, _marker)
+                t.current_size = t.current_size + #_marker + 1
+            end
+        end
+    end
     if _is_wad then
         b(
             function()
@@ -4807,6 +4992,7 @@ function q.dump_file(eN, eO)
                     b()  -- disarm the hook before raising so it cannot fire again
                     error("TIMEOUT_FORCED_BY_DUMPER", 0)
                 end
+                _loop_check()
                 for _level = 2, 4 do
                     local _info = a.getinfo(_level, "f")
                     if not _info then break end
@@ -4832,6 +5018,7 @@ function q.dump_file(eN, eO)
                     b()  -- disarm the hook before raising so it cannot fire again
                     error("TIMEOUT_FORCED_BY_DUMPER", 0)
                 end
+                _loop_check()
             end,
             "",
             50
@@ -4879,6 +5066,20 @@ function q.dump_string(al, eO)
     b(function()
         if p.clock() - eT2 > r.TIMEOUT_SECONDS then
             error("TIMEOUT_FORCED_BY_DUMPER", 0)
+        end
+        -- Loop detection for dump_string path
+        local _inf2 = a.getinfo(2, "Sl")
+        if _inf2 and _inf2.currentline and _inf2.currentline > 0 then
+            local _key2 = (_inf2.short_src or "?") .. ":" .. _inf2.currentline
+            local _cnt2 = (t.loop_line_counts[_key2] or 0) + 1
+            t.loop_line_counts[_key2] = _cnt2
+            if _cnt2 > r.LOOP_DETECT_THRESHOLD and not t.loop_detected_lines[_key2] then
+                t.loop_detected_lines[_key2] = true
+                t.loop_counter = t.loop_counter + 1
+                local _marker2 = string.format("-- Detected loops %d", t.loop_counter)
+                table.insert(t.output, _marker2)
+                t.current_size = t.current_size + #_marker2 + 1
+            end
         end
     end, "", 50)
     local eo2, eU2 = h(
