@@ -424,8 +424,8 @@ local function at(O, au)
         t.limit_reached = true
         error("TIMEOUT_FORCED_BY_DUMPER: output size limit reached")
     end
-    -- Cycle-aware repetition suppressor: detects repeating blocks of 1, 2 or 3 lines.
-    -- t.rep_buf  : ring buffer holding the last 6 emitted lines (strings).
+    -- Cycle-aware repetition suppressor: detects repeating blocks of 1 to 10 lines.
+    -- t.rep_buf  : ring buffer holding the last 20 emitted lines (strings).
     -- t.rep_n    : currently detected cycle length (0 = none).
     -- t.rep_full : number of complete cycle repetitions observed so far.
     -- t.rep_pos  : position within the current in-progress cycle repetition.
@@ -476,10 +476,10 @@ local function at(O, au)
     -- Always update ring buffer (even when suppressing) so the cycle bookkeeping
     -- stays aligned with what the script would have emitted.
     table.insert(buf, aw)
-    if #buf > 6 then table.remove(buf, 1) end
+    if #buf > 20 then table.remove(buf, 1) end
     -- Scan for a new repeating cycle only when we are not already tracking one.
     if not suppressed and t.rep_n == 0 and #buf >= 2 then
-        for n = 1, 3 do
+        for n = 1, 10 do
             if #buf >= 2 * n then
                 local ok = true
                 for i = 1, n do
