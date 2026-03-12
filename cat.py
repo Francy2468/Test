@@ -10,8 +10,6 @@ import time
 import re
 import asyncio
 import functools
-import random
-import threading
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 
@@ -28,103 +26,12 @@ DUMP_TIMEOUT = 35  # Must exceed catlogger.lua TIMEOUT_SECONDS (30) to allow pro
 PREVIEW_LINES = 10
 PREVIEW_MAX_CHARS = 900
 
-LUA_INTERPRETERS = ["lua5.4", "luajit", "lua"]
-
-# ---------------- PROXY POOL ----------------
-_PROXY_SOURCES = [
-    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
-    "https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt",
-    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/proxies.txt",
-    "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt",
-    "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt",
-    "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt",
-    "https://raw.githubusercontent.com/roosterkid/openproxylist/main/HTTPS_RAW.txt",
-    "https://raw.githubusercontent.com/mmpx12/proxy-list/master/https.txt",
-    "https://raw.githubusercontent.com/almroot/proxylist/master/list.txt",
-    "https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/https/https.txt",
-    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
-    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks4.txt",
-    "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/socks5.txt",
-    "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/socks4.txt",
-    "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt",
-    "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt",
-    "https://raw.githubusercontent.com/mmpx12/proxy-list/master/http.txt",
-    "https://raw.githubusercontent.com/mmpx12/proxy-list/master/socks4.txt",
-    "https://raw.githubusercontent.com/mmpx12/proxy-list/master/socks5.txt",
-    "https://raw.githubusercontent.com/B4RC0DE-TM/proxy-list/main/HTTP.txt",
-    "https://raw.githubusercontent.com/B4RC0DE-TM/proxy-list/main/SOCKS5.txt",
-    "https://raw.githubusercontent.com/Volodichev/proxy-list/main/http.txt",
-    "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/http.txt",
-    "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/socks4.txt",
-    "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/socks5.txt",
-    "https://raw.githubusercontent.com/UptimerBot/proxy-list/main/proxies/http.txt",
-    "https://raw.githubusercontent.com/UptimerBot/proxy-list/main/proxies/socks4.txt",
-    "https://raw.githubusercontent.com/UptimerBot/proxy-list/main/proxies/socks5.txt",
-    "https://raw.githubusercontent.com/saschazesiger/Free-Proxies/master/proxies/http.txt",
-    "https://raw.githubusercontent.com/saschazesiger/Free-Proxies/master/proxies/socks5.txt",
-    "https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/http.txt",
-    "https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/https.txt",
-    "https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/socks4.txt",
-    "https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/socks5.txt",
-    "https://raw.githubusercontent.com/rdavydov/proxy-list/main/proxies/http.txt",
-    "https://raw.githubusercontent.com/rdavydov/proxy-list/main/proxies/socks5.txt",
-    "https://raw.githubusercontent.com/prxchk/proxy-list/main/http.txt",
-    "https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt",
-    "https://raw.githubusercontent.com/ALIILAPRO/Proxy/main/http.txt",
-    "https://raw.githubusercontent.com/ALIILAPRO/Proxy/main/socks5.txt",
-]
-
-_proxy_pool: list = []
-_proxy_lock = threading.Lock()
-
-def _fetch_one_source(url):
-    """Fetch proxies from a single source. Returns a set of valid IP:port strings."""
-    found = set()
-    try:
-        r = requests.get(url, timeout=6)
-        if r.status_code == 200:
-            for line in r.text.splitlines():
-                line = line.strip()
-                if line and re.match(r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?):\d{1,5}$", line):
-                    found.add(line)
-    except Exception:
-        pass
-    return found
-
-def _load_proxies():
-    """Fetch proxies from multiple public sources concurrently and populate the pool."""
-    with ThreadPoolExecutor(max_workers=20) as ex:
-        results = list(ex.map(_fetch_one_source, _PROXY_SOURCES))
-    found = set()
-    for s in results:
-        found.update(s)
-    with _proxy_lock:
-        _proxy_pool.clear()
-        _proxy_pool.extend(list(found))
-    return len(_proxy_pool)
-
-def _get_proxy_dict():
-    """Return a random proxy dict for requests, or None if pool is empty."""
-    with _proxy_lock:
-        if not _proxy_pool:
-            return None
-        addr = random.choice(_proxy_pool)
-    proxy = f"http://{addr}"
-    return {"http": proxy, "https": proxy}
+LUA_INTERPRETERS = ["luau", "lua5.4", "luajit", "lua"]
 
 def _requests_get(url, **kwargs):
-    """requests.get with proxy rotation and automatic fallback."""
-    timeout = kwargs.pop("timeout", 8)
-    proxies = _get_proxy_dict()
-    if proxies:
-        try:
-            return requests.get(url, proxies=proxies, timeout=timeout, **kwargs)
-        except Exception:
-            pass
-    return requests.get(url, timeout=timeout, **kwargs)
-
-# Load proxies in a background thread so startup is not blocked.
-threading.Thread(target=_load_proxies, daemon=True).start()
+    """Simple direct requests.get wrapper."""
+    kwargs.setdefault("timeout", 8)
+    return requests.get(url, **kwargs)
 
 # ---------------- BOT ----------------
 intents = discord.Intents.default()
@@ -518,23 +425,21 @@ def upload_to_pastefy(content, title="Dumped Script"):
         "visibility": "PUBLIC"
     }
 
-    for proxies in (_get_proxy_dict(), None):
-        try:
-            resp = requests.post(
-                "https://pastefy.app/api/v2/paste",
-                json=payload,
-                proxies=proxies,
-                timeout=10
+    try:
+        resp = requests.post(
+            "https://pastefy.app/api/v2/paste",
+            json=payload,
+            timeout=10
+        )
+        if resp.status_code in (200, 201):
+            data = resp.json()
+            pid = (data.get("paste") or {}).get("id") or data.get("id")
+            return (
+                f"https://pastefy.app/{pid}",
+                f"https://pastefy.app/{pid}/raw"
             )
-            if resp.status_code in (200, 201):
-                data = resp.json()
-                pid = (data.get("paste") or {}).get("id") or data.get("id")
-                return (
-                    f"https://pastefy.app/{pid}",
-                    f"https://pastefy.app/{pid}/raw"
-                )
-        except Exception:
-            continue
+    except Exception as e:
+        print(f"[pastefy] upload failed: {e}")
 
     return None, None
 
@@ -623,15 +528,7 @@ async def run_dumper(lua_content):
 # ---------------- EVENTS ----------------
 @bot.event
 async def on_ready():
-    print(f"Logged as {bot.user} | Lua {_lua_interp} | Proxies {len(_proxy_pool)}")
-
-# ---------------- COMMAND .proxies ----------------
-@bot.command(name="proxies")
-@commands.is_owner()
-async def reload_proxies(ctx):
-    msg = await ctx.send("⏳ Reloading proxy pool...")
-    count = await asyncio.get_event_loop().run_in_executor(_executor, _load_proxies)
-    await msg.edit(content=f"✅ Proxy pool refreshed — {count} proxies loaded.")
+    print(f"Logged as {bot.user} | Lua {_lua_interp}")
 
 # ---------------- COMMAND .l ----------------
 @bot.command(name="l")

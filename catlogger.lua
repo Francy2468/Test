@@ -1,4 +1,4 @@
-#!/usr/bin/env lua5.4
+#!/usr/bin/env luau
 local a = debug
 local b = debug.sethook
 local c = debug.getinfo
