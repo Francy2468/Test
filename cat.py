@@ -432,6 +432,31 @@ def _beautify_lua(code: str) -> str:
 
     return "\n".join(output)
 
+# ---------------- LUA COMPATIBILITY FIXER ----------------
+def _fix_lua_compat(code: str) -> str:
+    """Replace common non-Lua syntax with Lua-compatible equivalents.
+
+    Substitutions applied (in order):
+      !=          ->  ~=     (inequality operator)
+      &&          ->  and    (logical AND)
+      ||          ->  or     (logical OR)
+      !expr       ->  not    (logical NOT; only bare '!' not followed by '=')
+      null        ->  nil    (whole word)
+      undefined   ->  nil    (whole word)
+      else if     ->  elseif (Lua uses a single keyword)
+    """
+    # != must come before ! so that '!=' is not split into 'not ='
+    code = code.replace("!=", "~=")
+    # Normalise surrounding whitespace so 'a && b' becomes 'a and b'
+    code = re.sub(r"\s*&&\s*", " and ", code)
+    code = re.sub(r"\s*\|\|\s*", " or ", code)
+    # Replace bare '!' (logical NOT) — '!=' has already been handled above
+    code = re.sub(r"!", "not ", code)
+    code = re.sub(r"\bnull\b", "nil", code)
+    code = re.sub(r"\bundefined\b", "nil", code)
+    code = re.sub(r"\belse\s+if\b", "elseif", code)
+    return code
+
 # ---------------- COMMAND .rename ----------------
 @bot.command(name="rename")
 async def rename_file(ctx, *, args=None):
@@ -473,6 +498,13 @@ async def rename_file(ctx, *, args=None):
 
     if "." not in new_name:
         new_name = new_name + ".lua"
+
+    # Fix Lua-incompatible syntax in the file content before sending
+    try:
+        fixed_text = _fix_lua_compat(content.decode("utf-8", errors="ignore"))
+        content = fixed_text.encode("utf-8")
+    except Exception:
+        pass  # Keep original bytes if processing fails
 
     await ctx.send(
         content=f"✅ Renamed to `{new_name}`",
