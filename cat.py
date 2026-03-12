@@ -178,6 +178,51 @@ def get_filename_from_url(url):
 
     return "script.lua"
 
+# ---------------- REFERENCE MESSAGE HELPER ----------------
+async def _fetch_reference_content(ctx):
+    """Return (content_bytes, filename) from the message that ctx.message replies to.
+
+    Returns (None, None) if:
+    - The message is not a reply.
+    - The referenced message has no attachments and no detectable URL in its content.
+    """
+    ref = ctx.message.reference
+    if not ref:
+        return None, None
+
+    # Resolve the referenced message (may already be cached).
+    try:
+        if ref.resolved and isinstance(ref.resolved, discord.Message):
+            ref_msg = ref.resolved
+        else:
+            ref_msg = await ctx.channel.fetch_message(ref.message_id)
+    except Exception:
+        return None, None
+
+    # Prefer attachments over links.
+    if ref_msg.attachments:
+        att = ref_msg.attachments[0]
+        if att.size > MAX_FILE_SIZE:
+            return None, None
+        loop = asyncio.get_event_loop()
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
+        if r.status_code == 200:
+            return r.content, att.filename
+        return None, None
+
+    # Fall back to the first URL found in the message text.
+    url = extract_first_url(ref_msg.content or "")
+    if url:
+        filename = get_filename_from_url(url)
+        loop = asyncio.get_event_loop()
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, url))
+        if r.status_code == 200:
+            if len(r.content) > MAX_FILE_SIZE:
+                return None, None
+            return r.content, filename
+
+    return None, None
+
 # ---------------- PASTEFY ----------------
 def upload_to_pastefy(content, title="Dumped Script"):
 
@@ -333,8 +378,15 @@ async def process_link(ctx,link=None):
             content=r.content
 
     else:
-        await status.edit(content="Provide a link or file.")
-        return
+        # No attachment or link provided — check if this is a reply to a message
+        # that contains a file or link.
+        ref_content, ref_filename = await _fetch_reference_content(ctx)
+        if ref_content is not None:
+            content = ref_content
+            original_filename = ref_filename or "file"
+        else:
+            await status.edit(content="Provide a link, file, or reply to a message that contains one.")
+            return
 
     if not content:
         await status.edit(content="❌ Failed to get content.")
@@ -465,7 +517,7 @@ def _fix_lua_compat(code: str) -> str:
 async def rename_file(ctx, *, args=None):
 
     if not args:
-        await ctx.send("Usage: `.rename <new_name>` (attach file) or `.rename <link> <new_name>`")
+        await ctx.send("Usage: `.rename <new_name>` (with attachment or as a reply) or `.rename <link> <new_name>`")
         return
 
     content = None
@@ -483,17 +535,25 @@ async def rename_file(ctx, *, args=None):
             content = r.content
     else:
         parts = args.split(None, 1)
-        if len(parts) < 2:
-            await ctx.send("Usage: `.rename <new_name>` (attach file) or `.rename <link> <new_name>`")
-            return
-        link, new_name = parts[0], parts[1].strip()
-        loop = asyncio.get_event_loop()
-        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
-        if r.status_code == 200:
-            if len(r.content) > MAX_FILE_SIZE:
-                await ctx.send("❌ File too large")
+        # Check if first token looks like a URL
+        if len(parts) >= 2 and re.match(r"https?://", parts[0]):
+            link, new_name = parts[0], parts[1].strip()
+            loop = asyncio.get_event_loop()
+            r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
+            if r.status_code == 200:
+                if len(r.content) > MAX_FILE_SIZE:
+                    await ctx.send("❌ File too large")
+                    return
+                content = r.content
+        else:
+            # No URL and no attachment — try the referenced message for content
+            new_name = args.strip()
+            ref_content, _ = await _fetch_reference_content(ctx)
+            if ref_content is not None:
+                content = ref_content
+            else:
+                await ctx.send("Usage: `.rename <new_name>` (with attachment or as a reply) or `.rename <link> <new_name>`")
                 return
-            content = r.content
 
     if not content:
         await ctx.send("❌ Failed to get content.")
@@ -545,8 +605,13 @@ async def beautify(ctx, link=None):
             content = r.content
 
     else:
-        await status.edit(content="Provide a link or file.")
-        return
+        ref_content, ref_filename = await _fetch_reference_content(ctx)
+        if ref_content is not None:
+            content = ref_content
+            original_filename = ref_filename or "script"
+        else:
+            await status.edit(content="Provide a link, file, or reply to a message that contains one.")
+            return
 
     if not content:
         await status.edit(content="❌ Failed to get content.")
@@ -592,15 +657,27 @@ async def beautify(ctx, link=None):
 @bot.command(name="get")
 async def get_link_content(ctx,*,link=None):
 
-    if not link:
-        await ctx.send("Usage: .get <link>")
-        return
-
-    link=extract_first_url(link) or link
-
     status=await ctx.send("⬇️ downloading")
 
     try:
+
+        # If no link given, try to pull the URL from a replied-to message.
+        if not link:
+            ref_content, ref_filename = await _fetch_reference_content(ctx)
+            if ref_content is not None:
+                fname = ref_filename or "file.txt"
+                if not fname.endswith(".txt"):
+                    fname = os.path.splitext(fname)[0] + ".txt"
+                await status.delete()
+                await ctx.send(
+                    content=f"✅ from reply",
+                    file=discord.File(io.BytesIO(ref_content), filename=fname)
+                )
+                return
+            await status.edit(content="Usage: .get <link>  (or reply to a message with a file/link)")
+            return
+
+        link=extract_first_url(link) or link
 
         loop=asyncio.get_event_loop()
         r=await loop.run_in_executor(_executor,functools.partial(_requests_get,link))
