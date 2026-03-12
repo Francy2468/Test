@@ -189,6 +189,83 @@ def _strip_loop_markers(code: str) -> str:
     cleaned = [line for line in code.splitlines() if not _LOOP_MARKER_RE.match(line)]
     return "\n".join(cleaned)
 
+# Pattern that strips trailing numeric counter suffixes from lowercase identifiers
+# (e.g. tween2 → tween, frame3 → frame) while leaving Roblox type names like
+# UDim2, Color3, Vector3 unchanged (they start with an uppercase letter).
+_COUNTER_SUFFIX_RE = re.compile(r'\b([a-z][A-Za-z_]*)\d+\b')
+
+# How many copies of a repeated block to keep before suppressing the rest.
+_MAX_UNROLLED_REPS = 3
+
+
+def _normalize_counters(line: str) -> str:
+    """Strip trailing numeric suffixes from lowercase-starting identifiers."""
+    return _COUNTER_SUFFIX_RE.sub(r'\1', line)
+
+
+def _collapse_loop_unrolls(code: str, max_reps: int = _MAX_UNROLLED_REPS) -> str:
+    """Collapse unrolled loop bodies where only counter-variable suffixes differ.
+
+    When consecutive N-line blocks (3 ≤ N ≤ 10) repeat more than *max_reps*
+    times and are structurally identical except for trailing digits on
+    lowercase identifiers (e.g. tween, tween2, tween3 …), keep the first
+    *max_reps* copies and replace the remainder with a single comment so the
+    output stays readable without losing the essential loop structure.
+    """
+    lines = code.splitlines()
+    n = len(lines)
+    if n == 0:
+        return code
+
+    result: list[str] = []
+    i = 0
+
+    while i < n:
+        best_block_size = 0
+        best_reps = 0
+
+        for block_size in range(3, min(11, n - i + 1)):
+            # Ensure a full block is available before proceeding.
+            if i + block_size > n:
+                break
+            block = lines[i:i + block_size]
+            norm_block = [_normalize_counters(ln) for ln in block]
+
+            # Count consecutive repetitions of this normalised pattern.
+            reps = 1
+            j = i + block_size
+            while j + block_size <= n:
+                candidate = [_normalize_counters(ln) for ln in lines[j:j + block_size]]
+                if candidate == norm_block:
+                    reps += 1
+                    j += block_size
+                else:
+                    break
+
+            if reps > max_reps and reps > best_reps:
+                best_reps = reps
+                best_block_size = block_size
+
+        if best_block_size and best_reps > max_reps:
+            # Emit the first max_reps copies verbatim.
+            for rep in range(max_reps):
+                result.extend(lines[i + rep * best_block_size:i + (rep + 1) * best_block_size])
+            omitted = best_reps - max_reps
+            # Preserve the indentation of the first non-empty line in the block.
+            first_nonempty = next(
+                (ln for ln in lines[i:i + best_block_size] if ln.strip()), ""
+            )
+            indent_str = " " * (len(first_nonempty) - len(first_nonempty.lstrip()))
+            result.append(
+                f"{indent_str}-- [similar block repeated {omitted} more time(s), omitted for clarity]"
+            )
+            i += best_reps * best_block_size
+        else:
+            result.append(lines[i])
+            i += 1
+
+    return "\n".join(result)
+
 # ---------------- REFERENCE MESSAGE HELPER ----------------
 async def _fetch_reference_content(ctx):
     """Return (content_bytes, filename) from the message that ctx.message replies to.
@@ -411,6 +488,7 @@ async def process_link(ctx,link=None):
 
     dumped_text=dumped.decode("utf-8",errors="ignore")
     dumped_text=_strip_loop_markers(dumped_text)
+    dumped_text=_collapse_loop_unrolls(dumped_text)
 
     loop=asyncio.get_event_loop()
     paste,raw=await loop.run_in_executor(
