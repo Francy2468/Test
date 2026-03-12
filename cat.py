@@ -28,7 +28,7 @@ DUMP_TIMEOUT = 60
 PREVIEW_LINES = 10
 PREVIEW_MAX_CHARS = 900
 
-LUA_INTERPRETERS = ["lua5.3", "lua5.4", "luajit", "lua"]
+LUA_INTERPRETERS = ["luau", "lua5.4", "luajit", "lua"]
 
 # ---------------- PROXY POOL ----------------
 _PROXY_SOURCES = [
