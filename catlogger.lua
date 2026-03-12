@@ -4416,6 +4416,18 @@ function q.dump_wad_strings()
     end
 end
 
+-- Emit the decrypted XOR string pool when available.
+function q.dump_xor_strings()
+    if not t.xor_string_pool then return end
+    local pool = t.xor_string_pool
+    if not pool.strings or #pool.strings == 0 then return end
+    aA()
+    at("-- XOR-decrypted string constants (Catmio-style obfuscation)")
+    for idx, s in E(pool.strings) do
+        at(string.format("local _xor_%d = %s", idx, aH(s)))
+    end
+end
+
 -- Execute deferred hooks/callbacks that were registered via hookfunction/Connect etc.
 -- This greatly improves extraction completeness for scripts that register many hooks.
 -- NOTE: hooks list is cleared before processing to prevent infinite re-entrancy.
@@ -4523,6 +4535,83 @@ function eE:process_statement(eF)
     return self:process_expr(eF) or ""
 end
 
+-- XOR-encrypted string extractor for Catmio-style obfuscation.
+-- Detects the signature: `local vN = bit32 or bit` near the top of the file,
+-- followed by a `local function vM(a, b) ... vN.bxor ... end` decrypt helper.
+-- All string literals in the script are passed through this helper; we run it
+-- in a sandboxed Lua chunk to recover the plaintext values and emit them as
+-- local variable declarations at the top of the dump output.
+local XOR_OBFUSC_HEAD_PATTERN = "local%s+[%w_]+%s*=%s*bit32%s+or%s+bit"
+-- How far into the source to scan for the decrypt function body (bytes).
+-- Obfuscated scripts always place the preamble in the very first bytes.
+local XOR_FN_SCAN_BYTES = 4096
+-- Minimum byte-length of a decrypted string to include in the pool.
+-- Single-character results are almost always noise (delimiter chars etc.).
+local XOR_MIN_STRING_LEN = 2
+local function xor_extract_strings(source_code)
+    -- Quick early-out: must have the bit-library alias in the first 1 KB.
+    if not source_code:sub(1, 1024):find(XOR_OBFUSC_HEAD_PATTERN) then
+        return nil
+    end
+    -- Find the name of the first `local function` in the file — this is the
+    -- XOR decrypt helper (e.g. `v7`).  The name is always a plain identifier
+    -- (matched by [%w_]+) so it contains no Lua pattern metacharacters.
+    local _, _, fn_name = source_code:find("local%s+function%s+([%w_]+)%s*%(")
+    if not fn_name then return nil end
+    -- Walk the source from the function definition to find its closing `end`,
+    -- tracking block depth so nested constructs (for/do) are handled correctly.
+    local fn_def_start = source_code:find("local%s+function%s+" .. fn_name .. "%s*%(")
+    if not fn_def_start then return nil end
+    local depth = 0
+    local fn_end_pos = nil
+    local scan_src = source_code:sub(fn_def_start, math.min(#source_code, fn_def_start + XOR_FN_SCAN_BYTES))
+    local pos = 1
+    while pos <= #scan_src do
+        local _, kw_e, kw = scan_src:find("([%a_][%w_]*)", pos)
+        if not kw_e then break end
+        if kw == "function" or kw == "do" or kw == "repeat" or kw == "then" then
+            depth = depth + 1
+        elseif kw == "end" or kw == "until" then
+            depth = depth - 1
+            if depth <= 0 then
+                fn_end_pos = fn_def_start + kw_e - 1
+                break
+            end
+        end
+        pos = kw_e + 1
+    end
+    -- Build a minimal chunk: preamble up to end of the decrypt function,
+    -- then return the function so we can call it from Lua.
+    -- Fallback length (fn_def_start + XOR_FN_SCAN_BYTES/2) is used when the
+    -- depth tracker could not locate the closing `end` within the scan window.
+    local preamble = source_code:sub(1, fn_end_pos or (fn_def_start + XOR_FN_SCAN_BYTES // 2))
+    local get_fn_chunk, _ = load(preamble .. "\nreturn " .. fn_name)
+    if not get_fn_chunk then return nil end
+    local ok, decrypt_fn = pcall(get_fn_chunk)
+    if not ok or type(decrypt_fn) ~= "function" then return nil end
+    -- Collect every call `fn_name(...)` from the full source and decrypt it.
+    -- `%b()` matches balanced parentheses so multi-arg calls are captured whole.
+    local results = {}
+    local seen = {}
+    for args_bal in source_code:gmatch(fn_name .. "(%b())") do
+        if not seen[args_bal] then
+            seen[args_bal] = true
+            local eval_code = "local __f = ...; return __f" .. args_bal
+            local eval_fn, _ = load(eval_code)
+            if eval_fn then
+                local call_ok, result = pcall(eval_fn, decrypt_fn)
+                if call_ok and type(result) == "string" and #result >= XOR_MIN_STRING_LEN then
+                    -- Keep only strings that consist of printable / whitespace chars.
+                    if result:match("^[%g%s]+$") then
+                        table.insert(results, result)
+                    end
+                end
+            end
+        end
+    end
+    return results, fn_name
+end
+
 -- WeAreDevs v1.0.0 obfuscation detector and string-table extractor.
 -- Runs only the decode phase of a WeAreDevs-obfuscated file to produce
 -- a table of all decoded string constants, then emits them as comments
@@ -4601,6 +4690,14 @@ function q.dump_file(eN, eO)
         else
             t.wad_string_pool = nil
         end
+    end
+    -- XOR-encrypted string extraction (Catmio-style: bit32 or bit / bxor helper).
+    local xor_strings, xor_fn = xor_extract_strings(al)
+    if xor_strings and #xor_strings > 0 then
+        B(string.format("[Dumper] XOR obfuscation detected (fn=%s) — %d strings decrypted", tostring(xor_fn), #xor_strings))
+        t.xor_string_pool = { strings = xor_strings }
+    else
+        t.xor_string_pool = nil
     end
     B("[Dumper] Sanitizing Luau and Binary Literals...")
     local eP = I(al)
@@ -4707,6 +4804,7 @@ function q.dump_file(eN, eO)
         b(
             function()
                 if p.clock() - eT > r.TIMEOUT_SECONDS then
+                    b()  -- disarm the hook before raising so it cannot fire again
                     error("TIMEOUT_FORCED_BY_DUMPER", 0)
                 end
                 for _level = 2, 4 do
@@ -4731,6 +4829,7 @@ function q.dump_file(eN, eO)
         b(
             function()
                 if p.clock() - eT > r.TIMEOUT_SECONDS then
+                    b()  -- disarm the hook before raising so it cannot fire again
                     error("TIMEOUT_FORCED_BY_DUMPER", 0)
                 end
             end,
@@ -4757,6 +4856,7 @@ function q.dump_file(eN, eO)
     q.dump_captured_upvalues()
     q.dump_string_constants()
     q.dump_wad_strings()
+    q.dump_xor_strings()
     return q.save(eO or r.OUTPUT_FILE)
 end
 function q.dump_string(al, eO)
