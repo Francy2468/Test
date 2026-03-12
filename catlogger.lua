@@ -63,7 +63,7 @@ local r = {
     MAX_DEFERRED_HOOKS = 200,
     OBFUSCATION_THRESHOLD = 0.35,
     INLINE_SMALL_FUNCTIONS = true,
-    EMIT_LOOP_COUNTER = true,
+    EMIT_LOOP_COUNTER = false,
     EMIT_CALL_GRAPH = true,
     EMIT_STRING_REFS = true,
     EMIT_TYPE_ANNOTATIONS = false,
@@ -453,9 +453,11 @@ local function at(O, au)
                 -- Emit a single "Detected loops" notice at the start of the first suppressed repetition.
                 if t.rep_full == r.MAX_REPEATED_LINES + 1 and t.rep_pos == 0 then
                     t.loop_counter = t.loop_counter + 1
-                    local ay = av .. string.format("-- Detected loops %d", t.loop_counter)
-                    table.insert(t.output, ay)
-                    t.current_size = t.current_size + #ay + 1
+                    if r.EMIT_LOOP_COUNTER then
+                        local ay = av .. string.format("-- Detected loops %d", t.loop_counter)
+                        table.insert(t.output, ay)
+                        t.current_size = t.current_size + #ay + 1
+                    end
                 end
             end
         else
@@ -5237,10 +5239,12 @@ function q.dump_file(eN, eO)
             if _cnt > r.LOOP_DETECT_THRESHOLD and not t.loop_detected_lines[_key] then
                 t.loop_detected_lines[_key] = true
                 t.loop_counter = t.loop_counter + 1
-                -- Insert the loop marker directly into output (bypasses cycle suppressor)
-                local _marker = string.format("-- Detected loops %d", t.loop_counter)
-                table.insert(t.output, _marker)
-                t.current_size = t.current_size + #_marker + 1
+                if r.EMIT_LOOP_COUNTER then
+                    -- Insert the loop marker directly into output (bypasses cycle suppressor)
+                    local _marker = string.format("-- Detected loops %d", t.loop_counter)
+                    table.insert(t.output, _marker)
+                    t.current_size = t.current_size + #_marker + 1
+                end
             end
         end
     end
@@ -5336,9 +5340,11 @@ function q.dump_string(al, eO)
             if _cnt2 > r.LOOP_DETECT_THRESHOLD and not t.loop_detected_lines[_key2] then
                 t.loop_detected_lines[_key2] = true
                 t.loop_counter = t.loop_counter + 1
-                local _marker2 = string.format("-- Detected loops %d", t.loop_counter)
-                table.insert(t.output, _marker2)
-                t.current_size = t.current_size + #_marker2 + 1
+                if r.EMIT_LOOP_COUNTER then
+                    local _marker2 = string.format("-- Detected loops %d", t.loop_counter)
+                    table.insert(t.output, _marker2)
+                    t.current_size = t.current_size + #_marker2 + 1
+                end
             end
         end
     end, "", 50)
