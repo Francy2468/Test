@@ -388,6 +388,10 @@ def _fold_string_concat(code: str) -> str:
     return code
 
 
+# Regex fragment that matches a Lua double-quoted string literal
+# (handles backslash-escaped characters inside the string).
+_LUA_STR_VAL = r'"(?:[^"\\]|\\.)*"'
+
 # Constants that are runtime-captured (not pre-extracted string pools).
 # _ref_N / _url_N / _webhook_N come from actual execution and may be referenced
 # in the VM output above them; _s_N / _xor_N / _wad_N are pre-extracted pools
