@@ -255,6 +255,25 @@ class TestCombinedPipeline(unittest.TestCase):
         self.assertEqual(_fix_lua_compat("if a || b then"), "if a or b then")
         self.assertIn("nil", _fix_lua_compat("local x = null"))
 
+    def test_fix_lua_compat_else_if_same_line(self):
+        """else if on the same line is collapsed to elseif."""
+        self.assertEqual(_fix_lua_compat("else if x then"), "elseif x then")
+        self.assertEqual(_fix_lua_compat("else if(x) then"), "elseif(x) then")
+
+    def test_fix_lua_compat_else_if_multiline_preserved(self):
+        """else followed by if on the next line must NOT be collapsed to elseif.
+
+        Collapsing across lines removes the structural 'end' required to close
+        the inner if, which causes the Lua error:
+        'end' expected near 'elseif' (issue: Obfuscated_Script).
+        """
+        code = "if a then\n    x()\nelse\n    if b then\n        y()\n    end\nend"
+        result = _fix_lua_compat(code)
+        # The 'else' and 'if' on separate lines must remain separate keywords.
+        self.assertNotIn("elseif", result)
+        self.assertIn("else", result)
+        self.assertIn("if b then", result)
+
     def test_dedup_connections_removes_second(self):
         code = (
             "btn.Click:Connect(function()\n"
