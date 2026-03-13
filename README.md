@@ -8,7 +8,9 @@ Catmio Lua deobfuscation toolset.
 
 `catlogger.lua` also has `DUMP_DECODED_STRINGS = false` — decoded string pool entries are **not** emitted as inline comments in the output.
 
-Both settings ensure the deobfuscated output is clean and readable, with no raw decoded-string noise.
+`catlogger.lua` also has `DUMP_LIGHTCATE_STRINGS = false` — decoded Lightcate v2.0.0 string pool entries (`_lc_N` locals) are **not** emitted at the top of the dump output.
+
+All three settings (`DUMP_ALL_STRINGS`, `DUMP_DECODED_STRINGS`, and `DUMP_LIGHTCATE_STRINGS`) ensure the deobfuscated output is clean and readable, with no raw decoded-string noise.
 
 ## Usage
 

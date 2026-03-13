@@ -37,6 +37,7 @@ local r = {
     DUMP_GLOBALS = true,
     DUMP_ALL_STRINGS = false,
     DUMP_DECODED_STRINGS = false,
+    DUMP_LIGHTCATE_STRINGS = false,
     DUMP_UPVALUES = true,
     MAX_UPVALUES_PER_FUNCTION = 200,
     -- Extra collection options
@@ -4746,6 +4747,7 @@ end
 
 -- Emit the decoded Lightcate v2.0.0 string pool when available.
 function q.dump_lightcate_strings()
+    if not r.DUMP_LIGHTCATE_STRINGS then return end
     if not t.lightcate_string_pool then return end
     local pool = t.lightcate_string_pool
     if not pool.strings or #pool.strings == 0 then return end
