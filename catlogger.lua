@@ -348,10 +348,21 @@ local function I(J)
         -- as "end else if", where the "end" closes the then-clause.  Collapsing
         -- that to "elseif" removes a required structural "end" and produces the
         -- "'end' expected near 'elseif'" load error.
+        --
+        -- Additional protection: 'else if' at the very start of a non-string
+        -- segment, or immediately after ')', is always a genuine Lua else-block.
+        -- In these cases the structural 'end' for the outer if lives in a prior
+        -- non-string segment that was separated by a string literal (e.g.
+        -- EquipWeapon("str")else if(cond)then), so the "end else if" guard below
+        -- cannot see it.  We use a separate placeholder so the restore step puts
+        -- back "else" rather than "if".
+        R = R:gsub("^([ \t]*)else([ \t]+if)", "%1\x00CATMIO_NELSE\x00%2")
+        R = R:gsub("(%)[ \t]*)else([ \t]+if)", "%1\x00CATMIO_NELSE\x00%2")
         R = R:gsub("(end[ \t]+else[ \t]+)if", "%1\x00CATMIO_ELSEIF\x00")
         R = R:gsub("else[ \t]+if%(", "elseif(")
         R = R:gsub("else[ \t]+if[ \t]", "elseif ")
         R = R:gsub("\x00CATMIO_ELSEIF\x00", "if")
+        R = R:gsub("\x00CATMIO_NELSE\x00", "else")
         R = R:gsub("([^%w_])continue([^%w_])", "%1_G.LuraphContinue()%2")
         R = R:gsub("^continue([^%w_])", "_G.LuraphContinue()%1")
         R = R:gsub("([^%w_])continue$", "%1_G.LuraphContinue()")
