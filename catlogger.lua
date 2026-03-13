@@ -5196,6 +5196,118 @@ local function wad_extract_strings(source_code)
     return results, #w_tbl, lookup
 end
 
+-- ---------------------------------------------------------------------------
+-- _reduce_locals(src) → transformed_src
+-- Handles obfuscated scripts that exceed Lua's 200-local-variable limit.
+-- Finds the longest run of sequential numbered local declarations
+-- (e.g.  local k0 = v0 … local k250 = v250) and converts the overflow
+-- (everything past the first MAX_SAFE locals) into a single table variable
+-- _catExt, then rewrites every reference to the overflow variables.
+-- If no fixable pattern is found the original source is returned unchanged.
+-- ---------------------------------------------------------------------------
+local function _reduce_locals(src)
+    local MAX_SAFE = 180
+
+    -- Split into lines
+    local lines = {}
+    for ln in (src .. "\n"):gmatch("([^\n]*)\n") do
+        table.insert(lines, ln)
+    end
+
+    -- Parse lines that look like:  [indent]local [base][num] = [expr]
+    local parsed = {}
+    for i, ln in ipairs(lines) do
+        local ind, base, nstr, expr =
+            ln:match("^(%s*)local%s+([%a_][%a_]*)(%d+)%s*=%s*(.-)%s*$")
+        if ind and base and nstr and expr and expr ~= "" then
+            parsed[i] = { indent = ind, base = base, num = tonumber(nstr), expr = expr }
+        end
+    end
+
+    -- Find the longest consecutive sequential run (same base, nums increase by 1)
+    local best = nil
+    local rs, rb, rn, rc = nil, nil, nil, 0
+
+    local function flush()
+        if rc > MAX_SAFE then
+            if not best or rc > best.count then
+                best = { start = rs, base = rb, start_num = rn, count = rc }
+            end
+        end
+        rs, rb, rn, rc = nil, nil, nil, 0
+    end
+
+    for i = 1, #lines do
+        local p = parsed[i]
+        if p then
+            if rb == p.base and p.num == rn + rc then
+                rc = rc + 1
+            else
+                flush()
+                rs, rb, rn, rc = i, p.base, p.num, 1
+            end
+        else
+            flush()
+        end
+    end
+    flush()
+
+    if not best then return src end
+
+    -- Determine split boundary
+    local overflow_start_line = best.start + MAX_SAFE       -- index of first overflow line
+    local overflow_end_line   = best.start + best.count - 1 -- index of last overflow line
+    local overflow_count      = best.count - MAX_SAFE
+
+    -- Collect RHS expressions for overflow locals
+    local exprs = {}
+    for i = overflow_start_line, overflow_end_line do
+        local p = parsed[i]
+        if not p then return src end  -- bail if we can't parse cleanly
+        -- Expressions that contain a comma are wrapped in parentheses so that
+        -- the table constructor receives exactly one value per slot.  This is
+        -- intentionally conservative: if the original local was initialised from
+        -- a multi-return call (e.g. local k180 = f()) and the extra return values
+        -- were silently discarded anyway, (f()) behaves identically.  In the
+        -- rare case where downstream code truly depends on a multi-return the
+        -- script will error at runtime, but it would have errored at compile time
+        -- (too many locals) without this fix.
+        local e = p.expr
+        if e:find(",", 1, true) then e = "(" .. e .. ")" end
+        table.insert(exprs, e)
+    end
+
+    local indent = (parsed[best.start] or {}).indent or ""
+    local tname  = "_catExt"
+
+    -- Build the new source: keep first MAX_SAFE locals, replace rest with table
+    local out = {}
+    for i = 1, overflow_start_line - 1 do
+        table.insert(out, lines[i])
+    end
+    table.insert(out, indent .. "local " .. tname .. " = {" .. table.concat(exprs, ", ") .. "}")
+    for i = overflow_end_line + 1, #lines do
+        table.insert(out, lines[i])
+    end
+
+    local new_src = table.concat(out, "\n")
+
+    -- Replace all references to overflow variable names (e.g. k180 → _catExt[1])
+    for k = 0, overflow_count - 1 do
+        local vname = best.base .. (best.start_num + MAX_SAFE + k)
+        local repl  = tname .. "[" .. (k + 1) .. "]"
+        -- Escape any pattern-special characters in the variable name (safe for
+        -- typical obfuscator names like k180, _a5, reg200, etc.)
+        local vpat  = vname:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+        -- Replace with manual word-boundary guards
+        new_src = new_src:gsub("([^%a%d_])" .. vpat .. "([^%a%d_])", "%1" .. repl .. "%2")
+        new_src = new_src:gsub("^" .. vpat .. "([^%a%d_])", repl .. "%1")
+        new_src = new_src:gsub("([^%a%d_])" .. vpat .. "$", "%1" .. repl)
+    end
+
+    return new_src
+end
+
 function q.dump_file(eN, eO)
     if not eN then return false end
     q.reset()
@@ -5242,8 +5354,21 @@ function q.dump_file(eN, eO)
     local eP = I(al)
     local R, eQ = e(eP, "Obfuscated_Script")
     if not R then
-        B("\n[LUA_LOAD_FAIL] " .. m(eQ))
-        return false
+        -- When the compile error is "too many local variables", attempt a
+        -- source-level transformation that folds the overflow into a table.
+        if m(eQ):find("too many local variables", 1, true) then
+            local ePfixed = _reduce_locals(eP)
+            if ePfixed ~= eP then
+                R, eQ = e(ePfixed, "Obfuscated_Script")
+                if R then
+                    eP = ePfixed
+                end
+            end
+        end
+        if not R then
+            B("\n[LUA_LOAD_FAIL] " .. m(eQ))
+            return false
+        end
     end
     -- Luau table-as-iterator compatibility metatable.
     -- In Luau, `for k,v in plain_table do` is valid.  The WeAreDevs VM implements
@@ -5433,7 +5558,17 @@ function q.dump_string(al, eO)
     end
     local R, an = e(al)
     if not R then
-        return false, an
+        -- Retry with local-overflow fix when that is the compile error
+        if m(an):find("too many local variables", 1, true) then
+            local al_fixed = _reduce_locals(al)
+            if al_fixed ~= al then
+                R, an = e(al_fixed)
+                if R then al = al_fixed end
+            end
+        end
+        if not R then
+            return false, an
+        end
     end
     -- Snapshot globals before execution so dump_captured_upvalues knows which
     -- globals are new (written by the script) vs pre-existing standard library.

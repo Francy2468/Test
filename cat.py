@@ -128,7 +128,7 @@ def _normalize_counters(line: str) -> str:
 def _collapse_loop_unrolls(code: str, max_reps: int = _MAX_UNROLLED_REPS) -> str:
     """Collapse unrolled loop bodies where only counter-variable suffixes differ.
 
-    When consecutive N-line blocks (3 ≤ N ≤ 50) repeat more than *max_reps*
+    When consecutive N-line blocks (1 ≤ N ≤ 50) repeat more than *max_reps*
     times and are structurally identical except for trailing digits on
     lowercase identifiers (e.g. tween, tween2, tween3 …), keep the first
     *max_reps* copies and replace the remainder with a single comment so the
@@ -154,11 +154,18 @@ def _collapse_loop_unrolls(code: str, max_reps: int = _MAX_UNROLLED_REPS) -> str
         best_block_size = 0
         best_reps = 0
 
-        for block_size in range(3, min(51, n - i + 1)):
+        for block_size in range(1, min(51, n - i + 1)):
             # Ensure a full block is available before proceeding.
             if i + block_size > n:
                 break
             norm_block = norm_lines[i:i + block_size]
+
+            # For single-line blocks, only collapse if the line is non-empty
+            # and has meaningful content (not just whitespace or a bare 'end').
+            if block_size == 1:
+                stripped = norm_block[0].strip()
+                if not stripped or stripped in ("end", "do", "then"):
+                    continue
 
             # Count consecutive repetitions of this normalised pattern.
             reps = 1
@@ -218,6 +225,120 @@ def _remove_trailing_whitespace(code: str) -> str:
 def _collapse_blank_lines(code: str) -> str:
     """Replace three or more consecutive blank lines with at most two blank lines."""
     return re.sub(r"\n{3,}", "\n\n", code)
+
+
+def _normalize_all_counters(code: str) -> str:
+    """Strip trailing numeric suffixes from every lowercase identifier in the output.
+
+    Applies _normalize_counters to each line so that loop-variable copies such
+    as tween2, tween3, conn4, taskWait2, etc. are all reduced to their base name
+    (tween, conn, taskWait).  Uppercase-starting identifiers (Vector3, UDim2,
+    Color3, Part) are untouched.
+
+    Call AFTER _collapse_loop_unrolls so the best representative copies have
+    already been selected before names are normalised.  Running
+    _collapse_loop_unrolls again after this step collapses further repetitions
+    that are now structurally identical.
+    """
+    return "\n".join(_normalize_counters(ln) for ln in code.splitlines())
+
+
+# Regex to detect a plain local declaration at any indent level.
+_LOCAL_DECL_RE = re.compile(r"^\s*local\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=")
+# Regex for lines that open a new Lua function body (introducing a new scope).
+_FUNC_OPEN_RE = re.compile(r"\bfunction\b")
+# Regex for lines that close a Lua block.
+_BLOCK_CLOSE_RE = re.compile(r"^\s*(end|until)\b")
+# Regex for lines that open non-function Lua blocks (if/for/while/do/repeat).
+_NONFUNC_OPEN_RE = re.compile(r"\b(then|do)\s*(?:--.*)?$|\brepeat\b")
+
+
+# How many lines ahead to scan when deciding whether a local variable is
+# "ephemeral" (only used within this window → safe to wrap in do…end).
+# Larger values wrap more aggressively; smaller values are more conservative.
+# 12 covers typical fire-and-forget patterns (tween:Play(), conn:Connect(), …)
+# without accidentally wrapping service locals referenced many lines later.
+_SCOPE_LOOKAHEAD = 12
+
+
+def _scope_group_locals(code: str, max_locals: int = 185) -> str:
+    """Wrap ephemeral local-variable groups in ``do … end`` blocks.
+
+    An *ephemeral* local is one whose name is never referenced more than
+    *_SCOPE_LOOKAHEAD* lines after its declaration.  Wrapping such locals in
+    ``do … end`` removes them from the enclosing function's local-variable
+    count, keeping it below *max_locals* so the output is directly executable.
+
+    Long-lived locals (game services, player references, etc.) that are
+    referenced far into the script remain at the outer scope and are not
+    wrapped.
+    """
+
+    lines = code.splitlines()
+    n = len(lines)
+    if n == 0:
+        return code
+
+    # -----------------------------------------------------------------------
+    # Phase 1 – For each local declaration find whether the variable is only
+    # used within the lookahead window (i.e., ephemeral).
+    # -----------------------------------------------------------------------
+    ephemeral: dict[int, int] = {}   # decl_line_idx → last_use_line_idx
+
+    for i, line in enumerate(lines):
+        m = _LOCAL_DECL_RE.match(line)
+        if not m:
+            continue
+        name = m.group(1)
+        pat = re.compile(r"\b" + re.escape(name) + r"\b")
+
+        last = i
+        found_far = False
+        for j in range(i + 1, n):
+            if pat.search(lines[j]):
+                if j <= i + _SCOPE_LOOKAHEAD:
+                    last = j
+                else:
+                    found_far = True
+                    break   # referenced beyond window → not ephemeral
+
+        if not found_far:
+            ephemeral[i] = last
+
+    # -----------------------------------------------------------------------
+    # Phase 2 – Merge adjacent ephemeral groups and emit with do … end.
+    # -----------------------------------------------------------------------
+    result: list[str] = []
+    i = 0
+
+    while i < n:
+        if i in ephemeral:
+            # Greedily extend this group to absorb all consecutive ephemerals
+            # whose last-use falls within the current group window.
+            group_end = ephemeral[i]
+            j = i + 1
+            # The upper bound `group_end + 1` intentionally peeks one line past
+            # the current group end so that an immediately adjacent ephemeral
+            # declaration (e.g. the very next local statement) is chained into
+            # the same do…end block rather than generating a separate one.
+            # This is safe because do…end does not restrict visibility of outer
+            # variables; only the newly declared inner variables become scoped.
+            while j <= group_end + 1 and j < n:
+                if j in ephemeral:
+                    group_end = max(group_end, ephemeral[j])
+                j += 1
+
+            indent = " " * (len(lines[i]) - len(lines[i].lstrip()))
+            result.append(indent + "do")
+            for k in range(i, group_end + 1):
+                result.append(lines[k])
+            result.append(indent + "end")
+            i = group_end + 1
+        else:
+            result.append(lines[i])
+            i += 1
+
+    return "\n".join(result)
 
 
 # The one comment line that must be kept verbatim at the top of every dump.
@@ -616,6 +737,12 @@ async def process_link(ctx,link=None):
     dumped_text=_collapse_loop_unrolls(dumped_text)
     dumped_text=_fold_string_concat(dumped_text)
     dumped_text=_inline_single_use_constants(dumped_text)
+    # Normalise all counter-suffixed variable names (tween2→tween, conn3→conn …)
+    # then run collapse again — after normalisation many more blocks are identical.
+    dumped_text=_normalize_all_counters(dumped_text)
+    dumped_text=_collapse_loop_unrolls(dumped_text)
+    # Wrap ephemeral local groups in do…end so the output is directly executable.
+    dumped_text=_scope_group_locals(dumped_text)
     dumped_text=_strip_comments(dumped_text)
     dumped_text=_collapse_blank_lines(dumped_text)
     dumped_text=_remove_trailing_whitespace(dumped_text)
