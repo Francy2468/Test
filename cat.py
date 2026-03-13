@@ -645,6 +645,33 @@ def _rename_by_name_property(code: str) -> str:
                         and candidate not in existing
                     ):
                         renames[var] = candidate
+            # Fallback for underscore-suffixed variables: frame_, frame__,
+            # uICorner_, uIGradient_, textLabel_, textButton_, etc.
+            # Convert the trailing underscore count to an alphabetic suffix
+            # (a, b … z, aa, ab …) so the new name does NOT end in a digit and
+            # therefore survives _normalize_all_counters (which only strips
+            # trailing digit sequences).  Using base-26 letter strings avoids
+            # collisions even when the same type has more than 26 instances.
+            elif inst_m:
+                under_m = re.match(r"^([a-zA-Z][a-zA-Z0-9]*)(_+)$", var)
+                if under_m:
+                    type_name = inst_m.group(1)
+                    underscore_count = len(under_m.group(2))
+                    base = _name_to_camel_id(type_name)
+                    if base:
+                        # Build a base-26 letter string: 1→'a', 26→'z', 27→'aa', etc.
+                        n = underscore_count
+                        letters = ""
+                        while n > 0:
+                            n -= 1
+                            letters = chr(ord("a") + (n % 26)) + letters
+                            n //= 26
+                        candidate = base + "_" + letters
+                        if (
+                            candidate not in renames.values()
+                            and candidate not in existing
+                        ):
+                            renames[var] = candidate
 
     if not renames:
         return code
@@ -661,6 +688,100 @@ def _rename_by_name_property(code: str) -> str:
         )
 
     return result
+
+
+# ---------------- LUA SYNTAX FIXER ----------------
+
+# Keywords that open a new Lua block scope (each requires a matching 'end').
+_LUA_BLOCK_OPEN_RE = re.compile(r"\b(function|do|repeat)\b")
+# Multi-line openers: if/for/while need a trailing 'then'/'do' to open a block.
+_LUA_COND_OPEN_RE = re.compile(r"\b(if|for|while)\b")
+_LUA_COND_CLOSE_RE = re.compile(r"\b(then|do)\s*(?:--.*)?$")
+_LUA_BLOCK_CLOSE_RE_FIX = re.compile(r"^\s*(end|until)\b")
+
+
+def _fix_lua_do_end(code: str) -> str:
+    """Append missing 'end' keywords to balance unmatched Lua block openers.
+
+    Parses each line tracking nesting depth using the same heuristics as
+    ``_beautify_lua``.  If the script ends with an open block (depth > 0),
+    the required number of ``end`` statements are appended so that the
+    output is syntactically complete.
+
+    This is safe to run on already-balanced scripts: when depth reaches 0
+    at the end of the file nothing is appended.
+    """
+    depth = 0
+    for raw_line in code.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("--"):
+            continue
+        m = re.match(r"^(\w+)", line)
+        first_kw = m.group(1) if m else ""
+
+        # Closers decrease depth before we inspect the line.
+        if first_kw in ("end", "until"):
+            depth = max(0, depth - 1)
+
+        # Openers increase depth after the line.
+        if first_kw in ("function", "do", "repeat"):
+            depth += 1
+        elif first_kw in ("if", "for", "while"):
+            if _LUA_COND_CLOSE_RE.search(line):
+                depth += 1
+        elif first_kw == "then":
+            depth += 1
+        elif re.search(r"\bfunction\b", line) and not re.search(
+            r"\bend\b\s*(?:--.*)?$", line
+        ):
+            # Handles 'local function', 'local x = function()', etc.
+            depth += 1
+
+    if depth > 0:
+        code = code.rstrip() + "\n" + "end\n" * depth
+    return code
+
+
+# Matches the opening line of a :Connect() event binding, capturing the
+# object+event portion (e.g. "button.MouseButton1Click").
+_CONN_OPEN_RE = re.compile(r"^\s*(\w[\w.]*\.\w+):Connect\s*\(")
+
+
+def _dedup_connections(code: str) -> str:
+    """Remove duplicate :Connect() event handler bindings.
+
+    When the same ``obj.Event:Connect(...)`` appears more than once in the
+    script (a common artifact of deobfuscation), only the first binding is
+    kept.  Subsequent duplicates — including their full handler body up to
+    the matching closing ``end)`` — are silently dropped.
+
+    Detection is based on the ``obj.Event`` portion of the opening line; two
+    connections are considered duplicates when they share the same
+    object-and-event key regardless of whitespace differences in the rest of
+    the line.
+    """
+    lines = code.splitlines()
+    seen: set[str] = set()
+    result: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        m = _CONN_OPEN_RE.match(line)
+        if m:
+            conn_key = m.group(1)
+            if conn_key in seen:
+                # Skip this duplicate handler: walk forward until the
+                # parenthesis/block opened on this line is fully closed.
+                depth = line.count("(") - line.count(")")
+                i += 1
+                while i < len(lines) and depth > 0:
+                    depth += lines[i].count("(") - lines[i].count(")")
+                    i += 1
+                continue
+            seen.add(conn_key)
+        result.append(line)
+        i += 1
+    return "\n".join(result)
 
 
 # ---------------- REFERENCE MESSAGE HELPER ----------------
@@ -901,7 +1022,17 @@ async def process_link(ctx,link=None):
     # are now correctly renamed.  Counter-suffixed Instance.new() variables
     # that have no .Name assignment receive a type-based fallback name
     # (e.g. frame2 → frame_2) so they stay unique after normalization.
+    # Underscore-suffixed variables (frame_, frame__, uICorner_, etc.) that
+    # lack a .Name assignment get a letter-suffixed fallback (frame_a, frame_b …)
+    # which survives _normalize_all_counters (letter endings, not digit endings).
     dumped_text=_rename_by_name_property(dumped_text)
+    # Remove duplicate :Connect() event handler bindings produced by the
+    # deobfuscator before normalising names so that we don't have to re-check
+    # after counter suffixes have been collapsed.
+    dumped_text=_dedup_connections(dumped_text)
+    # Balance any unmatched do/end blocks introduced by deobfuscation
+    # (appends missing 'end' statements).
+    dumped_text=_fix_lua_do_end(dumped_text)
     # Normalise all counter-suffixed variable names (tween2→tween, conn3→conn …)
     # then run collapse again — after normalisation many more blocks are identical.
     dumped_text=_normalize_all_counters(dumped_text)
