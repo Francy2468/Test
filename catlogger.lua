@@ -5025,9 +5025,11 @@ local function generic_wrapper_extract_strings(source_code)
                     -- are *call expressions*, not expressions; their return value is
                     -- discarded at the chunk level.  Prefixing with `return ` turns
                     -- the call into an expression whose value pcall() can capture.
+                    -- NOTE: use `e` (original load) so the custom loadstring's I()
+                    -- sanitizer cannot corrupt the decode preamble.
                     local prefix = outer_has_return and "" or "return "
                     local patched = prefix .. preamble .. "\nreturn " .. var_name .. " " .. closing .. "\n"
-                    local fn = load(patched)
+                    local fn = e(patched)
                     if fn then
                         local ok, result = pcall(fn)
                         if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
@@ -5173,8 +5175,10 @@ local function wad_extract_strings(source_code)
     end
     -- Inject "return w" right after "end end end" so we get the
     -- fully-decoded string table without running the VM itself.
+    -- NOTE: use `e` (original load) so the custom loadstring's I() sanitizer
+    -- cannot corrupt the WeAreDevs decode preamble.
     local patched = source_code:sub(1, boundary + WAD_DECODE_PREFIX_LEN) .. "\nreturn w\nend)()\n"
-    local fn, load_err = load(patched)
+    local fn, load_err = e(patched)
     if not fn then
         return nil
     end
@@ -5251,8 +5255,11 @@ local function lightcate_extract_strings(source_code)
     -- Build a patched chunk: execute the decode preamble, then return the
     -- now-decoded string table.  The outer return(function(...) wrapper is
     -- preserved so the chunk remains syntactically valid.
+    -- NOTE: use `e` (original load captured before the loadstring override at
+    -- line 4403) so that the custom loadstring's I() sanitizer cannot corrupt
+    -- the Lightcate decode preamble and cause a silent extraction failure.
     local patched = preamble .. "\nreturn " .. var_name .. "\nend)(...)\n"
-    local fn, _load_err = load(patched)
+    local fn, _load_err = e(patched)
     if not fn then
         return nil
     end
@@ -5333,6 +5340,41 @@ function q.dump_file(eN, eO)
         B("\n[LUA_LOAD_FAIL] " .. m(eQ))
         return false
     end
+    -- Lightcate v2.0.0 anti-dump bypass: the Lightcate VM obtains the environment via
+    -- `getfenv and getfenv() or _ENV` and then checks for executor-specific globals
+    -- using direct table indexing (env[name], not rawget).  The sandbox __index normally
+    -- falls through to _G which contains catlogger's executor stubs, triggering the
+    -- "Protocol 7335" error before the game logic can run.  When Lightcate is detected
+    -- we replace __index with a filtered function that returns nil for every name on
+    -- the executor blocklist so the anti-dump check sees a clean environment.
+    -- We also skip injecting getgenv into eR because Lightcate checks for it too.
+    local _eR_index
+    if t.lightcate_string_pool then
+        local _lc_blocked = {
+            hookfunction=true, hookmetamethod=true, newcclosure=true, replaceclosure=true,
+            checkcaller=true, iscclosure=true, islclosure=true,
+            getrawmetatable=true, setreadonly=true, make_writeable=true,
+            getrenv=true, getgc=true, getinstances=true,
+            -- Note: "getscriptenviroment" is the historic executor misspelling used by
+            -- Synapse X and reflected in Lightcate's own string table; keep both spellings.
+            getsenv=true, getscriptenv=true, getscriptenviroment=true, getscriptenvironment=true,
+            identifyexecutor=true, getexecutorname=true,
+            getupvalues=true, getupvalue=true, setupvalue=true,
+            getconnections=true, getscripts=true, getrunningscripts=true,
+            getloadedmodules=true, getcallingscript=true, getregistry=true,
+            getprotos=true, getproto=true, getstack=true, getspecialinfo=true,
+            decompile=true, getscriptbytecode=true, getscriptfunction=true,
+            checkclosure=true, dumpstring=true, firesignal=true,
+            getgenv=true, XENO_LOADED=true, is_solara_closure=true, syn=true,
+        }
+        _eR_index = function(_, name)
+            if _lc_blocked[name] then return nil end
+            return _G[name]
+        end
+        B("[Dumper] Lightcate anti-dump bypass active (executor globals hidden from sandbox)")
+    else
+        _eR_index = _G
+    end
     -- Luau table-as-iterator compatibility metatable.
     -- In Luau, `for k,v in plain_table do` is valid.  The WeAreDevs VM implements
     -- Luau's generic-for with the standard Lua protocol:
@@ -5384,7 +5426,7 @@ function q.dump_file(eN, eO)
                 end
                 return unpack(dg)
             end},
-        {__index = _G, __newindex = _G}
+        {__index = _eR_index, __newindex = _G}
     )
     -- Inject getfenv/getgenv stubs into the sandbox that return the sandbox itself.
     -- catlogger's _G.getfenv is a stub returning {} (empty table), so calling it from
@@ -5393,7 +5435,11 @@ function q.dump_file(eN, eO)
     -- don't pollute the real _G), we ensure any Lua 5.1 / Luau-style VM that calls
     -- `getfenv and getfenv() or _ENV` or `getgenv()` gets back our full sandbox.
     rawset(eR, "getfenv", function() return eR end)
-    rawset(eR, "getgenv", function() return eR end)
+    -- For Lightcate-protected scripts getgenv is on the blocklist; do not inject it
+    -- into eR so that env["getgenv"] returns nil and the anti-dump check passes.
+    if not t.lightcate_string_pool then
+        rawset(eR, "getgenv", function() return eR end)
+    end
     if _native_setfenv then
         -- Lua 5.1/5.2: native setfenv properly rebinds the chunk's environment.
         _native_setfenv(R, eR)
