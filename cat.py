@@ -742,6 +742,188 @@ def _fix_lua_do_end(code: str) -> str:
     return code
 
 
+def _fix_extra_ends(code: str) -> str:
+    """Remove 'end' (or 'end)') lines that exceed the current nesting depth.
+
+    Scans the code line-by-line tracking block-nesting depth with the same
+    heuristics used by ``_fix_lua_do_end`` and ``_beautify_lua``.  Whenever
+    an ``end`` or ``until`` would push the depth below zero the line is
+    silently dropped so that mismatched closers do not cause syntax errors.
+
+    This is the complement of ``_fix_lua_do_end``: that function adds missing
+    ``end`` keywords; this function removes superfluous ones.  Running both in
+    sequence produces balanced blocks from either direction of imbalance.
+    """
+    lines = code.splitlines()
+    result: list[str] = []
+    depth = 0
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("--"):
+            result.append(raw_line)
+            continue
+
+        m = re.match(r"^(\w+)", line)
+        first_kw = m.group(1) if m else ""
+
+        if first_kw in ("end", "until"):
+            if depth <= 0:
+                # Extra closer with nothing to close — drop this line.
+                continue
+            depth -= 1
+            result.append(raw_line)
+            continue
+
+        # Track openers for non-closer lines.
+        if first_kw in ("function", "do", "repeat"):
+            depth += 1
+        elif first_kw in ("if", "for", "while"):
+            if _LUA_COND_CLOSE_RE.search(line):
+                depth += 1
+        elif first_kw == "then":
+            depth += 1
+        elif re.search(r"\bfunction\b", line) and not re.search(
+            r"\bend\b\s*(?:--.*)?$", line
+        ):
+            depth += 1
+
+        result.append(raw_line)
+
+    return "\n".join(result)
+
+
+# Detects a :Connect(function… opening that leaves at least one unclosed '('.
+_CONN_FUNC_OPEN_RE = re.compile(r":Connect\s*\(.*\bfunction\b")
+
+
+def _fix_connect_end_parens(code: str) -> str:
+    """Add missing ')' to the 'end' that closes a :Connect(function…) block.
+
+    A common deobfuscation artifact is::
+
+        button.MouseButton1Click:Connect(function()
+            doSomething()
+        end          -- missing closing ')' for the Connect call
+
+    This function detects each ``:Connect(function…`` opener that leaves an
+    unclosed ``(`` from the Connect call and appends the required ``)`` to the
+    ``end`` line that closes the inner function body, turning ``end`` into
+    ``end)``.
+
+    The matching is depth-based: the ``end`` that brings the block depth back
+    to the level it was at when the Connect call opened is the one that needs
+    the extra ``)``'s.
+    """
+    lines = code.splitlines()
+    result = list(lines)
+
+    # Stack entries: (line_index, block_depth_at_open, unclosed_paren_count)
+    connect_stack: list[tuple[int, int, int]] = []
+    block_depth = 0
+
+    for idx, raw_line in enumerate(lines):
+        line = raw_line.strip()
+        if not line or line.startswith("--"):
+            continue
+
+        m = re.match(r"^(\w+)", line)
+        first_kw = m.group(1) if m else ""
+
+        if first_kw in ("end", "until"):
+            # Check whether this end closes a tracked Connect function.
+            if connect_stack and block_depth - 1 == connect_stack[-1][1]:
+                _open_idx, _open_depth, missing_parens = connect_stack.pop()
+                existing_close = line.count(")")
+                needed = missing_parens - existing_close
+                if needed > 0:
+                    indent = len(raw_line) - len(raw_line.lstrip())
+                    result[idx] = raw_line[:indent] + "end" + ")" * needed
+            block_depth = max(0, block_depth - 1)
+        else:
+            # Detect :Connect(function… openers.
+            if _CONN_FUNC_OPEN_RE.search(line):
+                paren_delta = line.count("(") - line.count(")")
+                if paren_delta > 0:
+                    connect_stack.append((idx, block_depth, paren_delta))
+
+            # Track openers.
+            if first_kw in ("function", "do", "repeat"):
+                block_depth += 1
+            elif first_kw in ("if", "for", "while"):
+                if _LUA_COND_CLOSE_RE.search(line):
+                    block_depth += 1
+            elif first_kw == "then":
+                block_depth += 1
+            elif re.search(r"\bfunction\b", line) and not re.search(
+                r"\bend\b\s*(?:--.*)?$", line
+            ):
+                block_depth += 1
+
+    return "\n".join(result)
+
+
+def _fix_ui_variable_shadowing(code: str) -> str:
+    """Ensure every ``local var = Instance.new(…)`` declaration has a unique name.
+
+    When the same variable name is declared more than once for a UI element
+    (e.g. two separate ``local frame = Instance.new("Frame")`` lines), each
+    subsequent re-declaration is renamed by appending an incrementing numeric
+    suffix (``frame``, ``frame_2``, ``frame_3`` …).  The rename is applied
+    throughout the lines that follow the re-declaration up until the next
+    re-declaration of the same base name, so each block of code continues to
+    reference the correct object.
+
+    This pass runs **before** ``_rename_by_name_property`` so that unique
+    suffixed names are available when the Name-based renaming looks for
+    ``.Name = "…"`` assignments.
+    """
+    _INST_NEW_DECL_RE = re.compile(
+        r"^(\s*local\s+)([a-zA-Z_][a-zA-Z0-9_]*)(\s*=\s*Instance\.new\s*\()"
+    )
+
+    lines = code.splitlines()
+    # Map: base_name → number of times seen so far
+    seen_count: dict[str, int] = {}
+
+    result: list[str] = []
+    # Pending renames: list of (original_name, new_name, start_line_index)
+    # We apply each rename only to lines after the declaration.
+    renames: list[tuple[str, str, int]] = []
+
+    for idx, raw_line in enumerate(lines):
+        m = _INST_NEW_DECL_RE.match(raw_line)
+        if m:
+            prefix, var_name, suffix = m.group(1), m.group(2), m.group(3)
+            count = seen_count.get(var_name, 0)
+            seen_count[var_name] = count + 1
+            if count > 0:
+                # This is a re-declaration — give it a unique name.
+                new_name = f"{var_name}_{count + 1}"
+                raw_line = prefix + new_name + suffix + raw_line[m.end():]
+                renames.append((var_name, new_name, idx))
+
+        # Apply active renames: replace uses of the original name in lines
+        # after the re-declaration (word-boundary safe substitution).
+        # We only apply the *most recent* rename for each base name so later
+        # blocks reference the latest object, not an earlier one.
+        active: dict[str, str] = {}
+        for orig, new, start in renames:
+            if start < idx:
+                active[orig] = new  # later rename wins
+
+        for orig, new in sorted(active.items(), key=lambda kv: -len(kv[0])):
+            raw_line = re.sub(
+                r"(?<![a-zA-Z0-9_])" + re.escape(orig) + r"(?![a-zA-Z0-9_])",
+                new,
+                raw_line,
+            )
+
+        result.append(raw_line)
+
+    return "\n".join(result)
+
+
 # Matches the opening line of a :Connect() event binding, capturing the
 # object+event portion (e.g. "button.MouseButton1Click").
 _CONN_OPEN_RE = re.compile(r"^\s*(\w[\w.]*\.\w+):Connect\s*\(")
@@ -1315,6 +1497,123 @@ async def beautify(ctx, link=None):
         ))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send beautified result: {e}")
+        try:
+            await status.edit(content=f"❌ Discord error, please retry: {e}")
+        except discord.errors.HTTPException:
+            pass
+
+# ---------------- COMMAND .fix ----------------
+@bot.command(name="fix")
+async def fix_lua(ctx, link=None):
+    """Apply a full Roblox/Lua syntax repair pipeline to the supplied script.
+
+    Fixes applied (in order):
+    1. Non-Lua operators (``!=``, ``&&``, ``||``, ``!``, ``null``, ``else if``)
+    2. Missing ``)`` on ``:Connect(function…end)`` blocks
+    3. Extra / misplaced ``end`` keywords
+    4. Remaining missing ``end`` keywords (appended at EOF)
+    5. Duplicate ``:Connect()`` event-handler bindings
+    6. Shadowed UI-element variable names (``local frame = Instance.new(…)``
+       declared more than once)
+    7. Rename locals to reflect their ``.Name`` property assignment
+    8. Re-indent (beautify)
+    """
+
+    content = None
+    original_filename = "script"
+
+    try:
+        status = await _send_with_retry(lambda: ctx.send("🔧 fixing"))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send status message: {e}")
+        return
+
+    if ctx.message.attachments:
+        att = ctx.message.attachments[0]
+        original_filename = att.filename
+        if att.size > MAX_FILE_SIZE:
+            await status.edit(content="❌ File too large")
+            return
+        loop = asyncio.get_event_loop()
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
+        if r.status_code == 200:
+            content = r.content
+
+    elif link:
+        original_filename = get_filename_from_url(link)
+        loop = asyncio.get_event_loop()
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
+        if r.status_code == 200:
+            if len(r.content) > MAX_FILE_SIZE:
+                await status.edit(content="❌ File too large")
+                return
+            content = r.content
+
+    else:
+        ref_content, ref_filename = await _fetch_reference_content(ctx)
+        if ref_content is not None:
+            content = ref_content
+            original_filename = ref_filename or "script"
+        else:
+            await status.edit(content="Provide a link, file, or reply to a message that contains one.")
+            return
+
+    if not content:
+        await status.edit(content="❌ Failed to get content.")
+        return
+
+    lua_text = content.decode("utf-8", errors="ignore")
+
+    def _run_fix_pipeline(code: str) -> str:
+        code = _fix_lua_compat(code)
+        code = _fix_connect_end_parens(code)
+        code = _fix_extra_ends(code)
+        code = _fix_lua_do_end(code)
+        code = _dedup_connections(code)
+        code = _fix_ui_variable_shadowing(code)
+        code = _rename_by_name_property(code)
+        code = _beautify_lua(code)
+        return code
+
+    loop = asyncio.get_event_loop()
+    fixed = await loop.run_in_executor(
+        _executor,
+        functools.partial(_run_fix_pipeline, lua_text)
+    )
+
+    paste, raw = await loop.run_in_executor(
+        _executor,
+        functools.partial(upload_to_pastefy, fixed, title=f"[FIX] {original_filename}")
+    )
+
+    preview = "\n".join(fixed.splitlines()[:PREVIEW_LINES])
+
+    embed = discord.Embed(
+        title="🔧 Fixed",
+        description=f"Paste: {raw}" if raw else "⚠️ Paste upload failed",
+        color=0x2b2d31
+    )
+    embed.add_field(
+        name="Preview",
+        value=f"```lua\n{preview[:PREVIEW_MAX_CHARS]}\n```",
+        inline=False
+    )
+
+    try:
+        await status.delete()
+    except discord.errors.HTTPException as e:
+        print(f"Warning: failed to delete status message: {e}")
+
+    try:
+        await _send_with_retry(lambda: ctx.send(
+            embed=embed,
+            file=discord.File(
+                io.BytesIO(fixed.encode("utf-8")),
+                filename=os.path.splitext(original_filename)[0] + "_fixed.lua"
+            )
+        ))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send fixed result: {e}")
         try:
             await status.edit(content=f"❌ Discord error, please retry: {e}")
         except discord.errors.HTTPException:
