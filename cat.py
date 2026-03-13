@@ -523,9 +523,6 @@ def _inline_single_use_constants(code: str) -> str:
     return result
 
 
-# How many lines after a local declaration to search for a .Name = "X" assignment.
-_NAME_PROP_LOOKAHEAD = 10
-
 # Lua reserved words that must never be used as variable names.
 _LUA_KEYWORDS = frozenset({
     "and", "break", "do", "else", "elseif", "end", "false", "for",
@@ -572,6 +569,16 @@ def _rename_by_name_property(code: str) -> str:
     derived new name does not collide with any existing identifier are
     renamed.
 
+    When no ``.Name`` assignment is found anywhere in the script but the
+    declaration is ``Instance.new("TypeName")``, a unique fallback name is
+    derived from the type (e.g. ``frame3`` with type ``Frame`` →
+    ``frame_3``) so that counter-suffixed duplicates remain distinguishable
+    after ``_normalize_all_counters`` runs.
+
+    The scan for a ``.Name`` assignment is unbounded — the entire remaining
+    script is searched — because Roblox GUI scripts routinely set properties
+    many lines (or hundreds of lines) after the variable declaration.
+
     This pass must run **before** ``_normalize_all_counters`` so that
     numbered duplicates (``frame``, ``frame2``, ``frame3`` …) are still
     distinct identifiers and can each receive their own descriptive name.
@@ -588,6 +595,9 @@ def _rename_by_name_property(code: str) -> str:
 
     renames: dict[str, str] = {}  # old_name → new_name
 
+    # Pattern to detect Instance.new("TypeName") on the RHS of a declaration.
+    _INSTANCE_NEW_RE = re.compile(r'Instance\.new\s*\(\s*"([A-Za-z][A-Za-z0-9]*)"\s*\)')
+
     for i, line in enumerate(lines):
         m = re.match(r"^\s*local\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=", line)
         if not m:
@@ -596,8 +606,11 @@ def _rename_by_name_property(code: str) -> str:
         if var in renames:
             continue  # already scheduled for rename
 
-        # Look ahead for VAR.Name = "SomeName"
-        for j in range(i + 1, min(i + _NAME_PROP_LOOKAHEAD + 1, n)):
+        # Scan the ENTIRE remaining script for VAR.Name = "SomeName".
+        # Roblox GUI construction scripts routinely set .Name far below the
+        # declaration, so a small fixed lookahead would miss most renames.
+        found_name = False
+        for j in range(i + 1, n):
             nm = re.match(
                 r"^\s*" + re.escape(var) + r"\s*\.\s*Name\s*=\s*\"([^\"]+)\"",
                 lines[j],
@@ -611,7 +624,27 @@ def _rename_by_name_property(code: str) -> str:
                     and new_name not in existing
                 ):
                     renames[var] = new_name
+                found_name = True
                 break  # stop after first .Name assignment for this var
+
+        # Fallback: if the variable has a numeric suffix (frame2, textLabel3 …)
+        # and was created with Instance.new() but has no .Name assignment, derive
+        # a unique name from the type and suffix so it survives
+        # _normalize_all_counters without colliding with other same-type locals.
+        if not found_name:
+            suffix_m = re.match(r"^([a-zA-Z_][a-zA-Z_]*)(\d+)$", var)
+            inst_m = _INSTANCE_NEW_RE.search(line)
+            if suffix_m and inst_m:
+                type_name = inst_m.group(1)
+                suffix = suffix_m.group(2)
+                base = _name_to_camel_id(type_name)
+                if base:
+                    candidate = base + "_" + suffix
+                    if (
+                        candidate not in renames.values()
+                        and candidate not in existing
+                    ):
+                        renames[var] = candidate
 
     if not renames:
         return code
@@ -860,9 +893,14 @@ async def process_link(ctx,link=None):
     dumped_text=_collapse_loop_unrolls(dumped_text)
     dumped_text=_fold_string_concat(dumped_text)
     dumped_text=_inline_single_use_constants(dumped_text)
-    # Rename locals using their .Name property assignment before normalising
-    # counter suffixes — frame2/frame3 are still distinct at this point and
-    # each can receive its own descriptive name (backdrop, scanBeam, window…).
+    # Rename locals using their .Name property assignment (scanning the entire
+    # script, not just a small window) before normalising counter suffixes —
+    # frame2/frame3 are still distinct at this point and each can receive its
+    # own descriptive name (backdrop, scanBeam, window…).  Variables whose
+    # .Name is set far below their declaration (common in Roblox GUI scripts)
+    # are now correctly renamed.  Counter-suffixed Instance.new() variables
+    # that have no .Name assignment receive a type-based fallback name
+    # (e.g. frame2 → frame_2) so they stay unique after normalization.
     dumped_text=_rename_by_name_property(dumped_text)
     # Normalise all counter-suffixed variable names (tween2→tween, conn3→conn …)
     # then run collapse again — after normalisation many more blocks are identical.
