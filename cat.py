@@ -1127,7 +1127,7 @@ async def on_ready():
 
 # ---------------- COMMAND .l ----------------
 @bot.command(name="l")
-async def process_link(ctx,link=None):
+async def process_link(ctx, *, link=None):
 
     content=None
     original_filename="file"
@@ -1157,6 +1157,7 @@ async def process_link(ctx,link=None):
 
     elif link:
 
+        link=extract_first_url(link) or link
         original_filename=get_filename_from_url(link)
 
         loop=asyncio.get_event_loop()
@@ -1412,7 +1413,7 @@ async def rename_file(ctx, *, args=None):
 
 # ---------------- COMMAND .bf ----------------
 @bot.command(name="bf")
-async def beautify(ctx, link=None):
+async def beautify(ctx, *, link=None):
 
     content = None
     original_filename = "script"
@@ -1435,6 +1436,7 @@ async def beautify(ctx, link=None):
             content = r.content
 
     elif link:
+        link = extract_first_url(link) or link
         original_filename = get_filename_from_url(link)
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
@@ -1505,7 +1507,7 @@ async def beautify(ctx, link=None):
 
 # ---------------- COMMAND .fix ----------------
 @bot.command(name="fix")
-async def fix_lua(ctx, link=None):
+async def fix_lua(ctx, *, link=None):
     """Apply a full Roblox/Lua syntax repair pipeline to the supplied script.
 
     Fixes applied (in order):
@@ -1541,6 +1543,7 @@ async def fix_lua(ctx, link=None):
             content = r.content
 
     elif link:
+        link = extract_first_url(link) or link
         original_filename = get_filename_from_url(link)
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
