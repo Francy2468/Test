@@ -64,6 +64,8 @@ _fix_lua_do_end = cat._fix_lua_do_end
 _dedup_connections = cat._dedup_connections
 _fix_lua_compat = cat._fix_lua_compat
 extract_first_url = cat.extract_first_url
+_fold_string_concat = cat._fold_string_concat
+_strip_loop_markers = cat._strip_loop_markers
 
 
 class TestFixExtraEnds(unittest.TestCase):
@@ -261,6 +263,30 @@ class TestCombinedPipeline(unittest.TestCase):
         self.assertEqual(_fix_lua_compat("else if x then"), "elseif x then")
         self.assertEqual(_fix_lua_compat("else if(x) then"), "elseif(x) then")
 
+    def test_fix_lua_compat_end_else_if_preserved(self):
+        """'end else if' on the same line must NOT be collapsed to elseif.
+
+        The WeAreDevs VM (and similar obfuscators) write genuine Lua
+        nested-if-in-else blocks on a single line as:
+          "end else if n<x then"
+        where 'end' closes the then-clause and 'else if' opens a new
+        if-block inside the else-clause.  Collapsing it to 'elseif'
+        removes a required structural 'end', producing:
+          'end' expected near 'elseif'
+        """
+        code = "n=1 end else if n<100 then n=2 end end"
+        result = _fix_lua_compat(code)
+        self.assertNotIn("elseif", result)
+        self.assertIn("else if", result)
+        # Verify multiple occurrences are all protected
+        code2 = "end else if a then x() end end else if b then y() end end"
+        result2 = _fix_lua_compat(code2)
+        self.assertNotIn("elseif", result2)
+        self.assertEqual(result2.count("else if"), 2)
+        # Verify tab-separated and multi-space variants are also protected
+        self.assertNotIn("elseif", _fix_lua_compat("end\telse\tif x then"))
+        self.assertNotIn("elseif", _fix_lua_compat("end  else  if x then"))
+
     def test_fix_lua_compat_else_if_multiline_preserved(self):
         """else followed by if on the next line must NOT be collapsed to elseif.
 
@@ -321,6 +347,48 @@ class TestExtractFirstUrl(unittest.TestCase):
 
     def test_empty_string_returns_none(self):
         self.assertIsNone(extract_first_url(""))
+
+
+class TestGameClassNameGuardPattern(unittest.TestCase):
+    """Regression tests for the game.ClassName=="DataModel" guard pattern.
+
+    Roblox scripts commonly start with:
+        repeat wait(.1) until type(game)=="userdata" and game.ClassName=="DataModel"
+
+    Before the catlogger.lua fix, game.ClassName returned "game" (the instance
+    name) instead of "DataModel", causing this guard loop to spin until timeout.
+    These tests verify that the Python post-processing pipeline handles output
+    from scripts that pass through such guards without distortion.
+    """
+
+    def test_fold_string_concat_leaves_classname_check_intact(self):
+        """_fold_string_concat must not corrupt standalone string literals."""
+        code = 'if game.ClassName == "DataModel" then\n    return true\nend'
+        self.assertEqual(_fold_string_concat(code), code)
+
+    def test_strip_loop_markers_does_not_strip_normal_comment(self):
+        """_strip_loop_markers only removes '-- Detected loops N' lines."""
+        code = (
+            'repeat task.wait(0.1) until game.ClassName == "DataModel"\n'
+            '-- this comment is preserved\n'
+            'local x = 1'
+        )
+        result = _strip_loop_markers(code)
+        self.assertIn('-- this comment is preserved', result)
+        self.assertIn('repeat task.wait(0.1)', result)
+
+    def test_strip_loop_markers_removes_detected_loops_annotation(self):
+        """'-- Detected loops N' lines injected by the dumper are stripped."""
+        code = (
+            'local x = 1\n'
+            '-- Detected loops 500\n'
+            'local y = 2'
+        )
+        result = _strip_loop_markers(code)
+        self.assertNotIn('Detected loops', result)
+        self.assertIn('local x = 1', result)
+        self.assertIn('local y = 2', result)
+
 
 if __name__ == "__main__":
     unittest.main()
