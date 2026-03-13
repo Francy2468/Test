@@ -698,8 +698,24 @@ local function aP(aQ, aR, aS)
     if aT:match("^Enum%.") then
         return aT
     end
-    local T = aT:gsub("[^%w_]", '"'):gsub("^%d+", '"')
-    if T == '"' or T == "Object" or T == "Value" or T == "result" then
+    -- Single-letter names and pure-generic method verbs produce unhelpful "a2",
+    -- "get3" style names — fall back to "var" so the deduplicator can assign a
+    -- stable short name from context instead.
+    if #aT == 1 and aT:match("^%a$") then
+        return "var"
+    end
+    local _aT_low = aT:lower()
+    local _SKIP = {
+        ["new"]=true, ["clone"]=true, ["copy"]=true, ["init"]=true,
+        ["object"]=true, ["value"]=true, ["result"]=true,
+        ["data"]=true, ["info"]=true, ["arg"]=true, ["args"]=true,
+        ["temp"]=true, ["tmp"]=true, ["ret"]=true, ["val"]=true,
+    }
+    if _SKIP[_aT_low] then
+        return "var"
+    end
+    local T = aT:gsub("[^%w_]", "_"):gsub("^%d+", "_")
+    if T == "_" or T == "" then
         T = "var"
     end
     return T
@@ -1064,8 +1080,29 @@ bk = function(aS, bw)
         if bD then
             bJ = br(bD, bt)
         end
-        local z = bj(bB or by, false, bw)
-        local _ = aW(z, bB or by, nil, by)
+        -- If the method is a generic verb (Get, Add, Create, …) with no library-prefix
+        -- override, try to use the first plain-string argument as the proxy name so
+        -- the dump reads  "local config = obj:GetConfig()"  rather than "local get2 = …"
+        local _GENERIC_VERBS = {
+            get=true, set=true, add=true, remove=true, delete=true,
+            find=true, create=true, make=true, build=true, load=true,
+            fetch=true, send=true, fire=true, call=true, run=true,
+            execute=true, invoke=true, connect=true, bind=true,
+            insert=true, push=true, pop=true, append=true, update=true,
+            register=true, unregister=true, new=true, init=true,
+        }
+        local _nameHint = bB or by
+        if not bB and _GENERIC_VERBS[by:lower()] then
+            for _, _bArg in ipairs(bA) do
+                if j(_bArg) == "string" and #_bArg >= 2 and #_bArg <= 64
+                        and _bArg:match("^[%a_][%w_]*$") then
+                    _nameHint = _bArg
+                    break
+                end
+            end
+        end
+        local z = bj(_nameHint, false, bw)
+        local _ = aW(z, _nameHint, nil, by)
         local bK = {}
         for L, b5 in ipairs(bA) do
             if j(b5) == "table" and not G(b5) and L == bF then
@@ -3446,12 +3483,19 @@ local exploit_funcs = {getgenv = function()
     getversion = function() return "1.0.0" end,
     getidentity = function() return 8 end,
     setidentity = function() end,
+    identitycheck = function() return 8 end,
     getthreadidentity = function() return 8 end,
     setthreadidentity = function() end,
     -- Environment query stubs
     isscript = function(x) return false end,
     ismodule = function(x) return false end,
     islocalscript = function(x) return false end,
+    -- Anti-tamper: executor-closure detection stubs
+    isexecutorclosure = function(fn) return false end,
+    isourclosure     = function(fn) return j(fn) == "function" end,
+    checkclosure     = function(fn) return j(fn) == "function" end,
+    -- copyfunction / clonefunction
+    copyfunction  = function(fn) return fn end,
     -- Cache / reference stubs
     cache = {
         invalidate = function(x) end,
@@ -3596,13 +3640,15 @@ local exploit_funcs = {getgenv = function()
     end, make_readonly = function(b2)
         return b2
     end, getthreadidentity = function()
-        return 7
+        return 8
     end, setthreadidentity = function(aG)
+    end, identitycheck = function()
+        return 8
     end, getidentity = function()
-        return 7
+        return 8
     end, setidentity = function(aG)
     end, getthreadcontext = function()
-        return 7
+        return 8
     end, setthreadcontext = function(aG)
     end, getcustomasset = function(dA)
         return "rbxasset://" .. aE(dA)
@@ -3659,18 +3705,28 @@ local exploit_funcs = {getgenv = function()
     end, getstack = function(dH, ba)
         return nil
     end, setstack = function(dH, ba, bm)
-    end, debug = {getinfo = c or function()
-                return {}
-            end, getupvalue = debug.getupvalue or function()
-                return nil
-            end, setupvalue = debug.setupvalue or function()
-            end, getmetatable = a.getmetatable, setmetatable = debug.setmetatable or setmetatable, traceback = d or
-            function()
-                return '"'
-            end, profilebegin = function()
-        end, profileend = function()
-        end, sethook = function()
-        end}, rconsoleprint = function(ay)
+    end, debug = {
+        getinfo = c or function() return {} end,
+        getupvalue = debug.getupvalue or function() return nil end,
+        setupvalue = debug.setupvalue or function() end,
+        getlocal  = debug.getlocal  or function() return nil end,
+        setlocal  = debug.setlocal  or function() end,
+        getmetatable = a.getmetatable,
+        setmetatable = debug.setmetatable or setmetatable,
+        traceback = d or function() return "" end,
+        profilebegin = function() end,
+        profileend   = function() end,
+        -- No-op sethook: prevents the obfuscated script from disabling our debug hook
+        sethook = function() end,
+        -- Bytecode-level stubs (Luau executor extensions used by anti-tamper)
+        getconstants = function() return {} end,
+        getconsts    = function() return {} end,
+        setconstants = function() end,
+        setconsts    = function() end,
+        getprotos    = function() return {} end,
+        getproto     = function() return function() end end,
+        getregistry  = function() return {} end,
+    }, rconsoleprint = function(ay)
     end, rconsoleclear = function()
     end, rconsolecreate = function()
     end, rconsoledestroy = function()
@@ -5208,7 +5264,7 @@ end
 -- If no fixable pattern is found the original source is returned unchanged.
 -- ---------------------------------------------------------------------------
 local function _reduce_locals(src)
-    local MAX_SAFE = 180
+    local MAX_SAFE = 150   -- conservative: leave ~50 headroom for other locals in same scope
 
     -- Split into lines
     local lines = {}
@@ -5254,60 +5310,143 @@ local function _reduce_locals(src)
     end
     flush()
 
-    if not best then return src end
+    if best then
+        -- Determine split boundary
+        local overflow_start_line = best.start + MAX_SAFE       -- index of first overflow line
+        local overflow_end_line   = best.start + best.count - 1 -- index of last overflow line
+        local overflow_count      = best.count - MAX_SAFE
 
-    -- Determine split boundary
-    local overflow_start_line = best.start + MAX_SAFE       -- index of first overflow line
-    local overflow_end_line   = best.start + best.count - 1 -- index of last overflow line
-    local overflow_count      = best.count - MAX_SAFE
+        -- Collect RHS expressions for overflow locals
+        local exprs = {}
+        for i = overflow_start_line, overflow_end_line do
+            local p = parsed[i]
+            if not p then return src end  -- bail if we can't parse cleanly
+            local e = p.expr
+            if e:find(",", 1, true) then e = "(" .. e .. ")" end
+            table.insert(exprs, e)
+        end
 
-    -- Collect RHS expressions for overflow locals
-    local exprs = {}
-    for i = overflow_start_line, overflow_end_line do
-        local p = parsed[i]
-        if not p then return src end  -- bail if we can't parse cleanly
-        -- Expressions that contain a comma are wrapped in parentheses so that
-        -- the table constructor receives exactly one value per slot.  This is
-        -- intentionally conservative: if the original local was initialised from
-        -- a multi-return call (e.g. local k180 = f()) and the extra return values
-        -- were silently discarded anyway, (f()) behaves identically.  In the
-        -- rare case where downstream code truly depends on a multi-return the
-        -- script will error at runtime, but it would have errored at compile time
-        -- (too many locals) without this fix.
-        local e = p.expr
-        if e:find(",", 1, true) then e = "(" .. e .. ")" end
-        table.insert(exprs, e)
+        local indent = (parsed[best.start] or {}).indent or ""
+        local tname  = "_catExt"
+
+        -- Build the new source: keep first MAX_SAFE locals, replace rest with table
+        local out = {}
+        for i = 1, overflow_start_line - 1 do
+            table.insert(out, lines[i])
+        end
+        table.insert(out, indent .. "local " .. tname .. " = {" .. table.concat(exprs, ", ") .. "}")
+        for i = overflow_end_line + 1, #lines do
+            table.insert(out, lines[i])
+        end
+
+        local new_src = table.concat(out, "\n")
+
+        -- Replace all references to overflow variable names (e.g. k180 → _catExt[1])
+        for k = 0, overflow_count - 1 do
+            local vname = best.base .. (best.start_num + MAX_SAFE + k)
+            local repl  = tname .. "[" .. (k + 1) .. "]"
+            local vpat  = vname:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+            new_src = new_src:gsub("([^%a%d_])" .. vpat .. "([^%a%d_])", "%1" .. repl .. "%2")
+            new_src = new_src:gsub("^" .. vpat .. "([^%a%d_])", repl .. "%1")
+            new_src = new_src:gsub("([^%a%d_])" .. vpat .. "$", "%1" .. repl)
+        end
+
+        return new_src
     end
 
-    local indent = (parsed[best.start] or {}).indent or ""
-    local tname  = "_catExt"
-
-    -- Build the new source: keep first MAX_SAFE locals, replace rest with table
-    local out = {}
-    for i = 1, overflow_start_line - 1 do
-        table.insert(out, lines[i])
-    end
-    table.insert(out, indent .. "local " .. tname .. " = {" .. table.concat(exprs, ", ") .. "}")
-    for i = overflow_end_line + 1, #lines do
-        table.insert(out, lines[i])
-    end
-
-    local new_src = table.concat(out, "\n")
-
-    -- Replace all references to overflow variable names (e.g. k180 → _catExt[1])
-    for k = 0, overflow_count - 1 do
-        local vname = best.base .. (best.start_num + MAX_SAFE + k)
-        local repl  = tname .. "[" .. (k + 1) .. "]"
-        -- Escape any pattern-special characters in the variable name (safe for
-        -- typical obfuscator names like k180, _a5, reg200, etc.)
-        local vpat  = vname:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
-        -- Replace with manual word-boundary guards
-        new_src = new_src:gsub("([^%a%d_])" .. vpat .. "([^%a%d_])", "%1" .. repl .. "%2")
-        new_src = new_src:gsub("^" .. vpat .. "([^%a%d_])", repl .. "%1")
-        new_src = new_src:gsub("([^%a%d_])" .. vpat .. "$", "%1" .. repl)
+    -- ---------------------------------------------------------------------------
+    -- Strategy 2: No sequential numbered run found (or run too short).
+    -- Find the largest block of consecutive  local <name> = <expr>  lines at the
+    -- same indentation level and split it so that no contiguous stretch exceeds
+    -- MAX_SAFE declarations.  Each extra block is introduced with the same
+    -- _catExt table approach.  Unlike strategy 1 the overflow variable names are
+    -- NOT rewritten here – instead each chunk keeps its own small table with a
+    -- unique suffix (_catExt2, _catExt3, …).  This is safe only when the overflow
+    -- locals are no longer referenced after their declaration block, which is
+    -- typical for obfuscated VM dispatch tables.
+    -- ---------------------------------------------------------------------------
+    local function _any_local_pattern(ln)
+        -- matches: [indent]local <name> = <anything>
+        local ind, rest = ln:match("^(%s*)local%s+([%a_][%w_]*%s*=.-)%s*$")
+        if ind and rest and rest ~= "" then
+            return ind, rest
+        end
+        return nil, nil
     end
 
-    return new_src
+    -- Scan for the longest run of local-decl lines at the same indent
+    local best2 = nil
+    local rs2, ri2, rc2 = nil, nil, 0
+    for i, ln in ipairs(lines) do
+        local ind = _any_local_pattern(ln)
+        if ind and (ri2 == nil or ind == ri2) then
+            if rs2 == nil then rs2 = i; ri2 = ind; rc2 = 1
+            else rc2 = rc2 + 1 end
+        else
+            if rc2 > MAX_SAFE and (best2 == nil or rc2 > best2.count) then
+                best2 = { start = rs2, count = rc2, indent = ri2 }
+            end
+            if ind then
+                rs2 = i; ri2 = ind; rc2 = 1
+            else
+                rs2 = nil; ri2 = nil; rc2 = 0
+            end
+        end
+    end
+    if rc2 > MAX_SAFE and (best2 == nil or rc2 > best2.count) then
+        best2 = { start = rs2, count = rc2, indent = ri2 }
+    end
+
+    if not best2 then return src end
+
+    -- Split the run into chunks of MAX_SAFE; wrap overflow in _catExt<n> tables
+    local out2 = {}
+    local chunk_idx = 0
+    local in_run_pos = 0
+    local chunk_open = false
+
+    for i = 1, #lines do
+        local in_run = (i >= best2.start and i < best2.start + best2.count)
+        if in_run then
+            in_run_pos = in_run_pos + 1
+            if in_run_pos == 1 then
+                -- First chunk: emit normally
+                table.insert(out2, lines[i])
+            elseif (in_run_pos - 1) % MAX_SAFE == 0 then
+                -- Close previous extra table if open
+                if chunk_open then
+                    table.insert(out2, best2.indent .. "}")
+                    chunk_open = false
+                end
+                -- Open new extra table
+                chunk_idx = chunk_idx + 1
+                local tname2 = "_catExt" .. chunk_idx
+                -- Start table with first element from this line
+                local _, rest = _any_local_pattern(lines[i])
+                -- Extract just the rhs (after '=')
+                local rhs = (rest or ""):match("=[%s]*(.-)%s*$") or "nil"
+                if rhs:find(",", 1, true) then rhs = "(" .. rhs .. ")" end
+                table.insert(out2, best2.indent .. "local " .. tname2 .. " = {" .. rhs)
+                chunk_open = true
+            else
+                local _, rest = _any_local_pattern(lines[i])
+                local rhs = (rest or ""):match("=[%s]*(.-)%s*$") or "nil"
+                if rhs:find(",", 1, true) then rhs = "(" .. rhs .. ")" end
+                table.insert(out2, best2.indent .. ", " .. rhs)
+            end
+        else
+            if chunk_open then
+                table.insert(out2, best2.indent .. "}")
+                chunk_open = false
+            end
+            table.insert(out2, lines[i])
+        end
+    end
+    if chunk_open then
+        table.insert(out2, best2.indent .. "}")
+    end
+
+    return table.concat(out2, "\n")
 end
 
 function q.dump_file(eN, eO)
@@ -5358,12 +5497,23 @@ function q.dump_file(eN, eO)
     if not R then
         -- When the compile error is "too many local variables", attempt a
         -- source-level transformation that folds the overflow into a table.
+        -- Retry up to 5 times: each pass fixes one overflow block; multiple
+        -- passes are needed when several distinct functions each exceed the limit.
         if m(eQ):find("too many local variables", 1, true) then
-            local ePfixed = _reduce_locals(eP)
-            if ePfixed ~= eP then
-                R, eQ = e(ePfixed, "Obfuscated_Script")
-                if R then
-                    eP = ePfixed
+            for _fix_pass = 1, 5 do
+                local ePfixed = _reduce_locals(eP)
+                if ePfixed == eP then break end  -- no further progress
+                local R2, eQ2 = e(ePfixed, "Obfuscated_Script")
+                eP = ePfixed
+                if R2 then
+                    R = R2
+                    eQ = nil
+                    break
+                else
+                    eQ = eQ2
+                    if not m(eQ2):find("too many local variables", 1, true) then
+                        break  -- different error; stop
+                    end
                 end
             end
         end
@@ -5562,10 +5712,21 @@ function q.dump_string(al, eO)
     if not R then
         -- Retry with local-overflow fix when that is the compile error
         if m(an):find("too many local variables", 1, true) then
-            local al_fixed = _reduce_locals(al)
-            if al_fixed ~= al then
-                R, an = e(al_fixed)
-                if R then al = al_fixed end
+            for _fix_pass2 = 1, 5 do
+                local al_fixed = _reduce_locals(al)
+                if al_fixed == al then break end
+                local R2, an2 = e(al_fixed)
+                al = al_fixed
+                if R2 then
+                    R = R2
+                    an = nil
+                    break
+                else
+                    an = an2
+                    if not m(an2):find("too many local variables", 1, true) then
+                        break
+                    end
+                end
             end
         end
         if not R then

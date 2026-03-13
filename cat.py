@@ -44,8 +44,23 @@ async def _send_with_retry(coro_factory):
                 raise
 
 def _requests_get(url, **kwargs):
-    """Simple direct requests.get wrapper."""
+    """requests.get wrapper with browser-like headers to avoid HTTP 403."""
     kwargs.setdefault("timeout", 8)
+    default_headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+    if "headers" in kwargs:
+        merged = dict(default_headers)
+        merged.update(kwargs["headers"])
+        kwargs["headers"] = merged
+    else:
+        kwargs["headers"] = default_headers
     return requests.get(url, **kwargs)
 
 # ---------------- BOT ----------------
