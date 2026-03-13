@@ -5330,6 +5330,9 @@ function q.dump_file(eN, eO)
         B(string.format("[Dumper] Lightcate obfuscation detected (var=%s) — %d/%d strings decoded",
             lc_var or "?", #lc_strings, lc_total or 0))
         t.lightcate_string_pool = { strings = lc_strings, var_name = lc_var }
+        -- Emit Lightcate string constants early (before execution output) so they
+        -- appear near the top of the dump and in the Discord embed preview.
+        q.dump_lightcate_strings()
     else
         t.lightcate_string_pool = nil
     end
@@ -5556,7 +5559,6 @@ function q.dump_file(eN, eO)
     q.dump_wad_strings()
     q.dump_xor_strings()
     q.dump_k0lrot_strings()
-    q.dump_lightcate_strings()
     return q.save(eO or r.OUTPUT_FILE)
 end
 function q.dump_string(al, eO)

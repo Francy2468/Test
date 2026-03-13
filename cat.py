@@ -225,6 +225,12 @@ _CATMIO_HEADER_RE = re.compile(
     r"^--\s*generated with catmio\b.*$", re.IGNORECASE
 )
 
+# Section header emitted by catlogger for the decoded Lightcate string pool.
+# Preserving it lets users quickly identify what the _lc_N block is.
+_LIGHTCATE_HEADER_RE = re.compile(
+    r"^--\s*Decoded string constants\s*\(Lightcate\b", re.IGNORECASE
+)
+
 # Long-bracket Lua comments: --[[ ... ]] or --[=[ ... ]=]  (inline fragments)
 _INLINE_LONG_COMMENT_RE = re.compile(r"--\[=*\[.*?\]=*\]", re.DOTALL)
 
@@ -262,11 +268,13 @@ def _strip_inline_trailing_comment(line: str) -> str:
 
 
 def _strip_comments(code: str) -> str:
-    """Remove all Lua comments from *code* except the catmio/discord header line.
+    """Remove all Lua comments from *code* except the catmio/discord header line
+    and the Lightcate decoded-string-constants section header.
 
     Handles:
     * Whole-line comments: any line whose first non-whitespace characters are ``--``
-      is removed entirely (keeping only the catmio header).
+      is removed entirely (keeping only the catmio header and the Lightcate section
+      header so users can identify the ``_lc_N`` block).
     * Inline long-bracket comments: ``--[[...]]`` fragments embedded inside a code
       line are stripped, leaving the surrounding code intact.
     * Short trailing inline comments: ``  -- remark`` at the end of a code line are
@@ -280,12 +288,17 @@ def _strip_comments(code: str) -> str:
         if _CATMIO_HEADER_RE.match(stripped):
             result.append(line)
             continue
-        # 2. Drop whole-line comments (lines whose entire content is a comment).
+        # 2. Preserve the Lightcate decoded-string-constants section header so
+        #    users can identify the _lc_N block.
+        if _LIGHTCATE_HEADER_RE.match(stripped):
+            result.append(line)
+            continue
+        # 3. Drop all other whole-line comments.
         if stripped.startswith("--"):
             continue
-        # 3. Remove long-bracket inline comments embedded in code lines.
+        # 4. Remove long-bracket inline comments embedded in code lines.
         line = _INLINE_LONG_COMMENT_RE.sub("", line)
-        # 4. Remove short trailing inline comments, respecting string literals.
+        # 5. Remove short trailing inline comments, respecting string literals.
         line = _strip_inline_trailing_comment(line)
         result.append(line)
     return "\n".join(result)
