@@ -36,7 +36,6 @@ local r = {
     INSTRUMENT_LOGIC = true,
     DUMP_GLOBALS = true,
     DUMP_ALL_STRINGS = false,
-    DUMP_WAD_STRINGS = false,
     DUMP_DECODED_STRINGS = false,
     DUMP_UPVALUES = true,
     MAX_UPVALUES_PER_FUNCTION = 200,
@@ -4709,7 +4708,6 @@ end
 
 -- Emit the decoded WeAreDevs string pool when available.
 function q.dump_wad_strings()
-    if not r.DUMP_WAD_STRINGS then return end
     if not t.wad_string_pool then return end
     local pool = t.wad_string_pool
     if not pool.strings or #pool.strings == 0 then return end
