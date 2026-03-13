@@ -1,5 +1,6 @@
 """Unit tests for the Lua syntax-repair helper functions added to cat.py."""
 
+import struct as _struct
 import sys
 import types
 import unittest
@@ -73,8 +74,6 @@ _dec54          = cat._dec54
 # ---------------------------------------------------------------------------
 # Helpers for building minimal Lua bytecode fixtures
 # ---------------------------------------------------------------------------
-
-import struct as _struct
 
 _HDR_51 = b'\x1bLua\x51\x00\x01\x04\x08\x04\x08\x00'  # LE, int4, sizet8, instr4, num8
 
@@ -418,7 +417,7 @@ class TestLuacDecompiler51(unittest.TestCase):
 
     def test_header_contains_branding(self):
         result = self._decompile([_instr51(30, 0, b=1)])
-        self.assertIn('Luac Decompiler', result)
+        self.assertIn('Cat Logger', result)
 
     def test_return_instruction_present(self):
         result = self._decompile([_instr51(30, 0, b=1)])  # RETURN 0 1

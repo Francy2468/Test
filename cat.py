@@ -10,6 +10,7 @@ import time
 import re
 import asyncio
 import functools
+import struct as _struct
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 
@@ -1363,8 +1364,6 @@ def _fix_lua_compat(code: str) -> str:
 # ======== LUAC DECOMPILER (Lua 5.1 / 5.3 / 5.4) ========
 # Converts compiled Lua bytecode (.luac) back to human-readable pseudocode.
 
-import struct as _struct
-
 _LUAC_MAGIC = b'\x1bLua'
 
 # ---- Opcode tables ----
@@ -1434,7 +1433,7 @@ class _LR:
         self._ss = sizet_size
         self._li = lu_int_size   # lua_Integer size
         self._ln = lu_num_size   # lua_Number  size
-        self._st: list[str] = [] # Lua 5.4 string back-reference table
+        self._st: list[str] = []  # Lua 5.4 string back-reference table
 
     @property
     def pos(self) -> int:
@@ -2450,7 +2449,7 @@ def decompile_luac(data: bytes) -> str:
 
     lines = _emit_proto(proto, ver, depth=0, func_idx='main')
     header = [
-        f'-- Luac Decompiler | cat logger',
+        f'-- Luac Decompiler | Cat Logger',
         f'-- Lua {ver} bytecode  ({len(data)} bytes)',
         f'-- ' + '=' * 56,
         '',
