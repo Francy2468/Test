@@ -36,8 +36,8 @@ local r = {
     INSTRUMENT_LOGIC = true,
     DUMP_GLOBALS = true,
     DUMP_ALL_STRINGS = false,
+    DUMP_WAD_STRINGS = false,
     DUMP_DECODED_STRINGS = false,
-    DUMP_LIGHTCATE_STRINGS = false,
     DUMP_UPVALUES = true,
     MAX_UPVALUES_PER_FUNCTION = 200,
     -- Extra collection options
@@ -4709,6 +4709,7 @@ end
 
 -- Emit the decoded WeAreDevs string pool when available.
 function q.dump_wad_strings()
+    if not r.DUMP_WAD_STRINGS then return end
     if not t.wad_string_pool then return end
     local pool = t.wad_string_pool
     if not pool.strings or #pool.strings == 0 then return end
@@ -4742,20 +4743,6 @@ function q.dump_k0lrot_strings()
         label, pool.var_name or "?"))
     for _, entry in E(pool.strings) do
         at(string.format("local _s_%d = %s", entry.idx, aH(entry.val)))
-    end
-end
-
--- Emit the decoded Lightcate v2.0.0 string pool when available.
-function q.dump_lightcate_strings()
-    if not r.DUMP_LIGHTCATE_STRINGS then return end
-    if not t.lightcate_string_pool then return end
-    local pool = t.lightcate_string_pool
-    if not pool.strings or #pool.strings == 0 then return end
-    aA()
-    at(string.format("-- Decoded string constants (Lightcate v2.0.0 obfuscation, var=%s)",
-        pool.var_name or "?"))
-    for _, entry in E(pool.strings) do
-        at(string.format("local _lc_%d = %s", entry.idx, aH(entry.val)))
     end
 end
 
@@ -5025,11 +5012,9 @@ local function generic_wrapper_extract_strings(source_code)
                     -- are *call expressions*, not expressions; their return value is
                     -- discarded at the chunk level.  Prefixing with `return ` turns
                     -- the call into an expression whose value pcall() can capture.
-                    -- NOTE: use `e` (original load) so the custom loadstring's I()
-                    -- sanitizer cannot corrupt the decode preamble.
                     local prefix = outer_has_return and "" or "return "
                     local patched = prefix .. preamble .. "\nreturn " .. var_name .. " " .. closing .. "\n"
-                    local fn = e(patched)
+                    local fn = load(patched)
                     if fn then
                         local ok, result = pcall(fn)
                         if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
@@ -5175,10 +5160,8 @@ local function wad_extract_strings(source_code)
     end
     -- Inject "return w" right after "end end end" so we get the
     -- fully-decoded string table without running the VM itself.
-    -- NOTE: use `e` (original load) so the custom loadstring's I() sanitizer
-    -- cannot corrupt the WeAreDevs decode preamble.
     local patched = source_code:sub(1, boundary + WAD_DECODE_PREFIX_LEN) .. "\nreturn w\nend)()\n"
-    local fn, load_err = e(patched)
+    local fn, load_err = load(patched)
     if not fn then
         return nil
     end
@@ -5211,74 +5194,6 @@ local function wad_extract_strings(source_code)
         end
     end
     return results, #w_tbl, lookup
-end
-
--- Lightcate v2.0.0 obfuscation detector and string-table extractor.
--- Detects scripts protected by Lightcate by looking for its marker string,
--- then runs the decode preamble (before the inner VM function) to recover the
--- plaintext string table.  The decoded strings are emitted as local variable
--- declarations at the top of the dump so the caller can identify the original
--- API names and other constants.
---
--- Lightcate v2.0.0 structure:
---   return(function(...)
---     local _0xXXXX = { "hex-encoded-strings", ... }   -- string table
---     local function _0xXXXX(...) return _0xXXXX[...] end  -- accessor
---     <array shuffle + decode loop>
---     return(function(_0xXXXX, _0xXXXX, ...)            -- inner VM (boundary)
---       ...
---     end)(...)
---   end)(...)
-local LIGHTCATE_DETECT_STR = "Lightcate"
-local LIGHTCATE_VM_BOUNDARY_PAT = "return%(function%(_0x[0-9a-f]+,_0x[0-9a-f]+"
--- Minimum number of decoded strings required to treat the result as valid.
--- Low counts are likely false positives on unrelated scripts that coincidentally
--- contain the "Lightcate" string but lack its characteristic string table.
-local LIGHTCATE_MIN_STRING_COUNT = 3
-local function lightcate_extract_strings(source_code)
-    -- Quick early-out: must mention "Lightcate".
-    if not source_code:find(LIGHTCATE_DETECT_STR, 1, true) then
-        return nil
-    end
-    -- Find the inner VM function boundary (hex-named parameters).
-    local boundary = source_code:find(LIGHTCATE_VM_BOUNDARY_PAT)
-    if not boundary then
-        return nil
-    end
-    local preamble = source_code:sub(1, boundary - 1)
-    -- Extract the string table variable name: the first local assigned a
-    -- table literal with a hex-encoded name (e.g. `local _0x8876 = {...}`).
-    local var_name = preamble:match("local%s+(_0x[0-9a-f]+)%s*=%s*{")
-    if not var_name then
-        return nil
-    end
-    -- Build a patched chunk: execute the decode preamble, then return the
-    -- now-decoded string table.  The outer return(function(...) wrapper is
-    -- preserved so the chunk remains syntactically valid.
-    -- NOTE: use `e` (original load captured before the loadstring override at
-    -- line 4403) so that the custom loadstring's I() sanitizer cannot corrupt
-    -- the Lightcate decode preamble and cause a silent extraction failure.
-    local patched = preamble .. "\nreturn " .. var_name .. "\nend)(...)\n"
-    local fn, _load_err = e(patched)
-    if not fn then
-        return nil
-    end
-    local ok, result = pcall(fn)
-    if not ok or type(result) ~= "table" then
-        return nil
-    end
-    -- Collect printable strings from the decoded table.
-    local results = {}
-    for idx = 1, #result do
-        local s = result[idx]
-        if type(s) == "string" and s:match("^[%g%s]+$") then
-            table.insert(results, {idx = idx, val = s})
-        end
-    end
-    if #results < LIGHTCATE_MIN_STRING_COUNT then
-        return nil
-    end
-    return results, #result, var_name
 end
 
 function q.dump_file(eN, eO)
@@ -5323,57 +5238,12 @@ function q.dump_file(eN, eO)
     else
         t.k0lrot_string_pool = nil
     end
-    -- Lightcate v2.0.0 string extraction: decodes the XOR-shifted string table
-    -- embedded in scripts protected by Lightcate.
-    local lc_strings, lc_total, lc_var = lightcate_extract_strings(al)
-    if lc_strings and #lc_strings > 0 then
-        B(string.format("[Dumper] Lightcate obfuscation detected (var=%s) — %d/%d strings decoded",
-            lc_var or "?", #lc_strings, lc_total or 0))
-        t.lightcate_string_pool = { strings = lc_strings, var_name = lc_var }
-    else
-        t.lightcate_string_pool = nil
-    end
     B("[Dumper] Sanitizing Luau and Binary Literals...")
     local eP = I(al)
     local R, eQ = e(eP, "Obfuscated_Script")
     if not R then
         B("\n[LUA_LOAD_FAIL] " .. m(eQ))
         return false
-    end
-    -- Lightcate v2.0.0 anti-dump bypass: the Lightcate VM obtains the environment via
-    -- `getfenv and getfenv() or _ENV` and then checks for executor-specific globals
-    -- using direct table indexing (env[name], not rawget).  The sandbox __index normally
-    -- falls through to _G which contains catlogger's executor stubs, triggering the
-    -- "Protocol 7335" error before the game logic can run.  When Lightcate is detected
-    -- we replace __index with a filtered function that returns nil for every name on
-    -- the executor blocklist so the anti-dump check sees a clean environment.
-    -- We also skip injecting getgenv into eR because Lightcate checks for it too.
-    local _eR_index
-    if t.lightcate_string_pool then
-        local _lc_blocked = {
-            hookfunction=true, hookmetamethod=true, newcclosure=true, replaceclosure=true,
-            checkcaller=true, iscclosure=true, islclosure=true,
-            getrawmetatable=true, setreadonly=true, make_writeable=true,
-            getrenv=true, getgc=true, getinstances=true,
-            -- Note: "getscriptenviroment" is the historic executor misspelling used by
-            -- Synapse X and reflected in Lightcate's own string table; keep both spellings.
-            getsenv=true, getscriptenv=true, getscriptenviroment=true, getscriptenvironment=true,
-            identifyexecutor=true, getexecutorname=true,
-            getupvalues=true, getupvalue=true, setupvalue=true,
-            getconnections=true, getscripts=true, getrunningscripts=true,
-            getloadedmodules=true, getcallingscript=true, getregistry=true,
-            getprotos=true, getproto=true, getstack=true, getspecialinfo=true,
-            decompile=true, getscriptbytecode=true, getscriptfunction=true,
-            checkclosure=true, dumpstring=true, firesignal=true,
-            getgenv=true, XENO_LOADED=true, is_solara_closure=true, syn=true,
-        }
-        _eR_index = function(_, name)
-            if _lc_blocked[name] then return nil end
-            return _G[name]
-        end
-        B("[Dumper] Lightcate anti-dump bypass active (executor globals hidden from sandbox)")
-    else
-        _eR_index = _G
     end
     -- Luau table-as-iterator compatibility metatable.
     -- In Luau, `for k,v in plain_table do` is valid.  The WeAreDevs VM implements
@@ -5426,7 +5296,7 @@ function q.dump_file(eN, eO)
                 end
                 return unpack(dg)
             end},
-        {__index = _eR_index, __newindex = _G}
+        {__index = _G, __newindex = _G}
     )
     -- Inject getfenv/getgenv stubs into the sandbox that return the sandbox itself.
     -- catlogger's _G.getfenv is a stub returning {} (empty table), so calling it from
@@ -5435,11 +5305,7 @@ function q.dump_file(eN, eO)
     -- don't pollute the real _G), we ensure any Lua 5.1 / Luau-style VM that calls
     -- `getfenv and getfenv() or _ENV` or `getgenv()` gets back our full sandbox.
     rawset(eR, "getfenv", function() return eR end)
-    -- For Lightcate-protected scripts getgenv is on the blocklist; do not inject it
-    -- into eR so that env["getgenv"] returns nil and the anti-dump check passes.
-    if not t.lightcate_string_pool then
-        rawset(eR, "getgenv", function() return eR end)
-    end
+    rawset(eR, "getgenv", function() return eR end)
     if _native_setfenv then
         -- Lua 5.1/5.2: native setfenv properly rebinds the chunk's environment.
         _native_setfenv(R, eR)
@@ -5556,7 +5422,6 @@ function q.dump_file(eN, eO)
     q.dump_wad_strings()
     q.dump_xor_strings()
     q.dump_k0lrot_strings()
-    q.dump_lightcate_strings()
     return q.save(eO or r.OUTPUT_FILE)
 end
 function q.dump_string(al, eO)
