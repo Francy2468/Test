@@ -36,7 +36,7 @@ local r = {
     INSTRUMENT_LOGIC = true,
     DUMP_GLOBALS = true,
     DUMP_ALL_STRINGS = false,
-    DUMP_WAD_STRINGS = true,
+    DUMP_WAD_STRINGS = false,
     DUMP_DECODED_STRINGS = false,
     EMIT_XOR = false,
     DUMP_UPVALUES = true,
@@ -5865,12 +5865,15 @@ function q.dump_string(al, eO)
     for _k in D(eC) do _pre_exec_keys[_k] = true end
     t.pre_exec_keys = _pre_exec_keys
     local eT2 = p.clock()
-    b(function()
-        if p.clock() - eT2 > r.TIMEOUT_SECONDS then
-            error("TIMEOUT_FORCED_BY_DUMPER", 0)
+    -- Luau compat metatable for WeAreDevs-obfuscated files: same as dump_file.
+    local _ds_is_wad = (t.wad_string_pool ~= nil)
+    local _ds_luau_iter_mt = {
+        __call = function(self, _state, prev_key)
+            return next(self, prev_key)
         end
-        -- Loop detection for dump_string path
-        local _inf2 = a.getinfo(2, "Sl")
+    }
+    local function _ds_loop_check()
+        local _inf2 = a.getinfo(3, "Sl")
         if _inf2 and _inf2.currentline and _inf2.currentline > 0 then
             local _key2 = (_inf2.short_src or "?") .. ":" .. _inf2.currentline
             local _cnt2 = (t.loop_line_counts[_key2] or 0) + 1
@@ -5885,7 +5888,42 @@ function q.dump_string(al, eO)
                 end
             end
         end
-    end, "", 50)
+    end
+    if _ds_is_wad then
+        b(
+            function()
+                if p.clock() - eT2 > r.TIMEOUT_SECONDS then
+                    b()
+                    error("TIMEOUT_FORCED_BY_DUMPER", 0)
+                end
+                _ds_loop_check()
+                for _level = 2, 4 do
+                    local _info = a.getinfo(_level, "f")
+                    if not _info then break end
+                    local _idx = 1
+                    while true do
+                        local _name, _val = a.getlocal(_level, _idx)
+                        if not _name then break end
+                        if j(_val) == "table" and not a.getmetatable(_val) then
+                            a.setmetatable(_val, _ds_luau_iter_mt)
+                        end
+                        _idx = _idx + 1
+                        if _idx > 40 then break end
+                    end
+                end
+            end,
+            "",
+            30
+        )
+    else
+        b(function()
+            if p.clock() - eT2 > r.TIMEOUT_SECONDS then
+                b()
+                error("TIMEOUT_FORCED_BY_DUMPER", 0)
+            end
+            _ds_loop_check()
+        end, "", 50)
+    end
     local eo2, eU2 = h(
         function()
             _script_executing = true
