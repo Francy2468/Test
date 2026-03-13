@@ -14,9 +14,9 @@ def _make_stub(name):
     return mod
 
 
-for _m in ("discord", "discord.ext", "discord.ext.commands", "requests", "dotenv"):
-    if _m not in sys.modules:
-        _make_stub(_m)
+for module_name in ("discord", "discord.ext", "discord.ext.commands", "requests", "dotenv"):
+    if module_name not in sys.modules:
+        _make_stub(module_name)
 
 # discord stubs
 discord = sys.modules["discord"]

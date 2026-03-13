@@ -833,7 +833,7 @@ def _fix_connect_end_parens(code: str) -> str:
         if first_kw in ("end", "until"):
             # Check whether this end closes a tracked Connect function.
             if connect_stack and block_depth - 1 == connect_stack[-1][1]:
-                _open_idx, _open_depth, missing_parens = connect_stack.pop()
+                _, _, missing_parens = connect_stack.pop()
                 existing_close = line.count(")")
                 needed = missing_parens - existing_close
                 if needed > 0:
