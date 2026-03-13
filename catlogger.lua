@@ -111,6 +111,22 @@ local BLOCKED_OUTPUT_PATTERNS = {
     "HOME=",
     "USER=",
     "SHELL=",
+    -- credential / secret leaks
+    "TOKEN%s*=",
+    "SECRET%s*=",
+    "PASSWORD%s*=",
+    "API_KEY%s*=",
+    "WEBHOOK%s*=",
+    -- Discord bot token format (starts with a base64-ish string of ~24 chars
+    -- followed by a dot; we match the canonical NTK…. prefix shape)
+    "Nz[A-Za-z0-9_%-]+%.[A-Za-z0-9_%-]+%.[A-Za-z0-9_%-]+",
+    -- Discord webhook URLs
+    "discord%.com/api/webhooks/",
+    "discordapp%.com/api/webhooks/",
+    -- GitHub personal-access token prefixes
+    "ghp_[A-Za-z0-9]+",
+    "gho_[A-Za-z0-9]+",
+    "ghs_[A-Za-z0-9]+",
 }
 local s = (arg and arg[3]) or "NoKey"
 if arg and arg[3] then
@@ -238,6 +254,12 @@ local function I(J)
     if j(J) ~= "string" then
         return '"'
     end
+    -- Strip a leading shebang line (#! ...) so the source can be loaded by
+    -- Lua's standard `load` function, which does not understand shebangs.
+    if J:sub(1, 2) == "#!" then
+        local nl = J:find("\n", 3, true)
+        J = nl and J:sub(nl) or ""
+    end
     local K = {}
     local L, M = 1, #J
     local function N(O)
@@ -275,6 +297,18 @@ local function I(J)
         while R:match("%d_+%d") do
             R = R:gsub("(%d)_+(%d)", "%1%2")
         end
+        -- JavaScript / cross-compiled language operator compatibility.
+        -- These must be handled before compound-assignment expansion so that
+        -- e.g. "!=" is not split into "not =" by a later pass.
+        R = R:gsub("!==", "~=")          -- JS strict not-equal  →  Lua not-equal
+        R = R:gsub("!=",  "~=")          -- JS not-equal         →  Lua not-equal
+        R = R:gsub("%s*&&%s*", " and ")  -- JS/C logical AND      →  Lua and
+        R = R:gsub("%s*||%s*", " or ")   -- JS/C logical OR       →  Lua or
+        -- Power operator ** (Python / JS) → ^ (Lua).
+        -- Must run before compound-assignment expansion so that e.g. x**=2 gets
+        -- properly rewritten: **= → ^= which is then expanded by the V table.
+        R = R:gsub("%*%*=", "^=")         -- **= → ^=  (then expanded below)
+        R = R:gsub("%*%*",  "^")         -- **  → ^
         local V = {{"+=", "+"}, {"-=", "-"}, {"*=", "*"}, {"/=", "/"}, {"%%=", "%%"}, {"%^=", "^"}, {"%.%.=", ".."}}
         for W, X in ipairs(V) do
             local Y, Z = X[1], X[2]
@@ -300,6 +334,15 @@ local function I(J)
                 end
             )
         end
+        -- null / undefined → nil (word-boundary safe: require non-identifier context)
+        for _, _kw in ipairs({"null", "undefined"}) do
+            R = R:gsub("([^%w_])" .. _kw .. "([^%w_])", "%1nil%2")
+            R = R:gsub("^"       .. _kw .. "([^%w_])",  "nil%1")
+            R = R:gsub("([^%w_])" .. _kw .. "$",        "%1nil")
+        end
+        -- else if → elseif (Lua requires a single keyword)
+        R = R:gsub("else%s+if%(", "elseif(")
+        R = R:gsub("else%s+if%s", "elseif ")
         R = R:gsub("([^%w_])continue([^%w_])", "%1_G.LuraphContinue()%2")
         R = R:gsub("^continue([^%w_])", "_G.LuraphContinue()%1")
         R = R:gsub("([^%w_])continue$", "%1_G.LuraphContinue()")
@@ -410,10 +453,26 @@ local function ak(al, am)
     if ap then
         local a1 = al:find(ap, 1, true)
         if a1 then
-            local aq = math.max(1, a1 - 50)
-            local ar = math.min(#al, a1 + 50)
+            local aq = math.max(1, a1 - 80)
+            local ar = math.min(#al, a1 + 80)
             B("Context around error:")
             B("..." .. al:sub(aq, ar) .. "...")
+        end
+    end
+    -- Emit a line-number excerpt when only a line number is available
+    if ao and not ap then
+        local line_n = 0
+        local pos = 1
+        while pos <= #al do
+            local nl = al:find("\n", pos, true)
+            local eol = nl or (#al + 1)
+            line_n = line_n + 1
+            if line_n == ao then
+                B(string.format("Line %d: %s", ao, al:sub(pos, eol - 1)))
+                break
+            end
+            if not nl then break end
+            pos = nl + 1
         end
     end
     local as = o.open("DEBUG_FAILED_TRANSPILE.lua", "w")
@@ -4494,25 +4553,56 @@ loadstring = function(al, eu)
         {pattern = "custom%-ui", name = "CustomUI"},
         {pattern = "getObjects", name = "GetObjects"},
         -- Additional common libraries / exploit scripts
-        {pattern = "aurora",    name = "Aurora"},
-        {pattern = "cemetery",  name = "Cemetery"},
-        {pattern = "imperial",  name = "ImperialHub"},
-        {pattern = "aimbot",    name = "Aimbot"},
-        {pattern = "esp",       name = "ESP"},
-        {pattern = "triggerbot",name = "Triggerbot"},
-        {pattern = "speedhack", name = "SpeedHack"},
-        {pattern = "noclip",    name = "Noclip"},
-        {pattern = "btools",    name = "BTools"},
-        {pattern = "antigrav",  name = "AntiGrav"},
-        {pattern = "flyhack",   name = "FlyHack"},
-        {pattern = "teleport",  name = "Teleport"},
-        {pattern = "scripthub", name = "ScriptHub"},
-        {pattern = "loader",    name = "Loader"},
-        {pattern = "autoparry", name = "AutoParry"},
-        {pattern = "autofarm",  name = "AutoFarm"},
-        {pattern = "farmbot",   name = "FarmBot"},
-        {pattern = "mspaint",   name = "MsPaint"},
-        {pattern = "topkek",    name = "TopKek"},
+        {pattern = "aurora",      name = "Aurora"},
+        {pattern = "cemetery",    name = "Cemetery"},
+        {pattern = "imperial",    name = "ImperialHub"},
+        {pattern = "aimbot",      name = "Aimbot"},
+        {pattern = "esp",         name = "ESP"},
+        {pattern = "triggerbot",  name = "Triggerbot"},
+        {pattern = "speedhack",   name = "SpeedHack"},
+        {pattern = "noclip",      name = "Noclip"},
+        {pattern = "btools",      name = "BTools"},
+        {pattern = "antigrav",    name = "AntiGrav"},
+        {pattern = "flyhack",     name = "FlyHack"},
+        {pattern = "teleport",    name = "Teleport"},
+        {pattern = "scripthub",   name = "ScriptHub"},
+        {pattern = "loader",      name = "Loader"},
+        {pattern = "autoparry",   name = "AutoParry"},
+        {pattern = "autofarm",    name = "AutoFarm"},
+        {pattern = "farmbot",     name = "FarmBot"},
+        {pattern = "mspaint",     name = "MsPaint"},
+        {pattern = "topkek",      name = "TopKek"},
+        -- Additional UI / hub libraries
+        {pattern = "infinity",    name = "InfinityHub"},
+        {pattern = "vynixui",     name = "VynixUI"},
+        {pattern = "solara",      name = "Solara"},
+        {pattern = "andromeda",   name = "Andromeda"},
+        {pattern = "electron",    name = "Electron"},
+        {pattern = "helios",      name = "Helios"},
+        {pattern = "nexus",       name = "Nexus"},
+        {pattern = "celery",      name = "Celery"},
+        {pattern = "ghost",       name = "Ghost"},
+        {pattern = "carbon",      name = "Carbon"},
+        {pattern = "zeus",        name = "Zeus"},
+        {pattern = "cronos",      name = "Cronos"},
+        {pattern = "paladin",     name = "Paladin"},
+        {pattern = "phantom",     name = "Phantom"},
+        {pattern = "atlas",       name = "Atlas"},
+        {pattern = "nitro",       name = "Nitro"},
+        {pattern = "argon",       name = "Argon"},
+        {pattern = "arctic",      name = "Arctic"},
+        {pattern = "oxide",       name = "Oxide"},
+        -- Common game-specific scripts
+        {pattern = "bloxfruit",   name = "BloxFruits"},
+        {pattern = "aimlock",     name = "AimLock"},
+        {pattern = "wallhack",    name = "WallHack"},
+        {pattern = "killaura",    name = "KillAura"},
+        {pattern = "hitbox",      name = "HitboxExpander"},
+        {pattern = "antilag",     name = "AntiLag"},
+        {pattern = "anticheat",   name = "AntiCheat"},
+        {pattern = "bypass",      name = "Bypass"},
+        {pattern = "executor",    name = "Executor"},
+        {pattern = "exploit",     name = "Exploit"},
     }
     -- Library name detection only makes sense when cI is a URL (an HTTP-fetched
     -- script path).  Applying these patterns to raw Lua code is incorrect and can
@@ -5200,7 +5290,9 @@ end
 --
 -- In WeAreDevs v1.0.0 the decoded string table ends with three closing
 -- "end" keywords followed immediately by the inner-VM function definition:
---   "end end end return(function(w,j,e,...)"
+--   "end end end return(function(W,e,s,...)"
+-- The string table variable name (W, w, etc.) varies across script variants
+-- and is detected dynamically from the source.
 -- This pattern is used to split off the decode phase from the VM body.
 local WAD_DECODE_BOUNDARY = "end end end return%(function%([^)]*%)"
 -- Length of the literal prefix "end end end" that we keep (11 chars, 0-indexed = 10).
@@ -5211,14 +5303,19 @@ local function wad_extract_strings(source_code)
     if not source_code:find("wearedevs%.net/obfuscator", 1, false) then
         return nil
     end
+    -- Detect the string table variable name: it is always the first local
+    -- table literal declared inside the outer return(function(...)) wrapper.
+    -- Different script variants use different cases (e.g. "W" vs "w").
+    local str_var = source_code:match(
+        "return%(function%([^)]*%)%s*local%s+([%a_][%w_]*)%s*=%s*{") or "w"
     -- Find the boundary between the decode block and the inner VM function.
     local boundary = source_code:find(WAD_DECODE_BOUNDARY)
     if not boundary then
         return nil
     end
-    -- Inject "return w" right after "end end end" so we get the
+    -- Inject "return <str_var>" right after "end end end" so we get the
     -- fully-decoded string table without running the VM itself.
-    local patched = source_code:sub(1, boundary + WAD_DECODE_PREFIX_LEN) .. "\nreturn w\nend)()\n"
+    local patched = source_code:sub(1, boundary + WAD_DECODE_PREFIX_LEN) .. "\nreturn " .. str_var .. "\nend)()\n"
     local fn, load_err = load(patched)
     if not fn then
         return nil
@@ -5459,7 +5556,10 @@ function q.dump_file(eN, eO)
     end
     local al = as:read("*a")
     as:close()
-    if al:find("wearedevs%.net/obfuscator", 1, false) then
+    -- WAD string extraction: wad_extract_strings already checks for the
+    -- WeAreDevs obfuscator fingerprint internally, so we call it unconditionally
+    -- and let it decide whether extraction is applicable.
+    do
         local wad_strings, wad_total, wad_lookup = wad_extract_strings(al)
         if wad_strings then
             t.wad_string_pool = {
@@ -5706,6 +5806,31 @@ function q.dump_string(al, eO)
     az("generated with catmio | https://discord.gg/cq9GkRKX2V")
     aA()
     if al then
+        -- Run string-pool extractors before sanitisation so they see the
+        -- raw source (extractors do their own internal detection checks).
+        do
+            local wad_strings, wad_total, wad_lookup = wad_extract_strings(al)
+            if wad_strings then
+                t.wad_string_pool = { strings = wad_strings, total = wad_total or 0, lookup = wad_lookup }
+            else
+                t.wad_string_pool = nil
+            end
+        end
+        local xor_strings, xor_fn = xor_extract_strings(al)
+        if xor_strings and #xor_strings > 0 then
+            B(string.format("[Dumper] XOR obfuscation detected (fn=%s) — %d strings decrypted", m(xor_fn), #xor_strings))
+            t.xor_string_pool = { strings = xor_strings }
+        else
+            t.xor_string_pool = nil
+        end
+        local gw_strings, gw_total, gw_var, gw_label = generic_wrapper_extract_strings(al)
+        if gw_strings and #gw_strings > 0 then
+            B(string.format("[Dumper] %s wrapper detected (var=%s) — %d/%d strings decoded",
+                gw_label or "generic", gw_var or "?", #gw_strings, gw_total or 0))
+            t.k0lrot_string_pool = { strings = gw_strings, var_name = gw_var, label = gw_label }
+        else
+            t.k0lrot_string_pool = nil
+        end
         al = I(al)
     end
     local R, an = e(al)
@@ -5730,6 +5855,7 @@ function q.dump_string(al, eO)
             end
         end
         if not R then
+            B("[LUA_LOAD_FAIL] " .. m(an))
             return false, an
         end
     end
@@ -5739,12 +5865,15 @@ function q.dump_string(al, eO)
     for _k in D(eC) do _pre_exec_keys[_k] = true end
     t.pre_exec_keys = _pre_exec_keys
     local eT2 = p.clock()
-    b(function()
-        if p.clock() - eT2 > r.TIMEOUT_SECONDS then
-            error("TIMEOUT_FORCED_BY_DUMPER", 0)
+    -- Luau compat metatable for WeAreDevs-obfuscated files: same as dump_file.
+    local _ds_is_wad = (t.wad_string_pool ~= nil)
+    local _ds_luau_iter_mt = {
+        __call = function(self, _state, prev_key)
+            return next(self, prev_key)
         end
-        -- Loop detection for dump_string path
-        local _inf2 = a.getinfo(2, "Sl")
+    }
+    local function _ds_loop_check()
+        local _inf2 = a.getinfo(3, "Sl")
         if _inf2 and _inf2.currentline and _inf2.currentline > 0 then
             local _key2 = (_inf2.short_src or "?") .. ":" .. _inf2.currentline
             local _cnt2 = (t.loop_line_counts[_key2] or 0) + 1
@@ -5759,7 +5888,42 @@ function q.dump_string(al, eO)
                 end
             end
         end
-    end, "", 50)
+    end
+    if _ds_is_wad then
+        b(
+            function()
+                if p.clock() - eT2 > r.TIMEOUT_SECONDS then
+                    b()
+                    error("TIMEOUT_FORCED_BY_DUMPER", 0)
+                end
+                _ds_loop_check()
+                for _level = 2, 4 do
+                    local _info = a.getinfo(_level, "f")
+                    if not _info then break end
+                    local _idx = 1
+                    while true do
+                        local _name, _val = a.getlocal(_level, _idx)
+                        if not _name then break end
+                        if j(_val) == "table" and not a.getmetatable(_val) then
+                            a.setmetatable(_val, _ds_luau_iter_mt)
+                        end
+                        _idx = _idx + 1
+                        if _idx > 40 then break end
+                    end
+                end
+            end,
+            "",
+            30
+        )
+    else
+        b(function()
+            if p.clock() - eT2 > r.TIMEOUT_SECONDS then
+                b()
+                error("TIMEOUT_FORCED_BY_DUMPER", 0)
+            end
+            _ds_loop_check()
+        end, "", 50)
+    end
     local eo2, eU2 = h(
         function()
             _script_executing = true
@@ -5775,6 +5939,9 @@ function q.dump_string(al, eO)
     q.run_deferred_hooks()
     q.dump_captured_upvalues()
     q.dump_string_constants()
+    q.dump_wad_strings()
+    q.dump_xor_strings()
+    q.dump_k0lrot_strings()
     if eO then
         return q.save(eO)
     end
