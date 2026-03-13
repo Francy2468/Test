@@ -437,8 +437,9 @@ _LUA_STR_VAL = r'"(?:[^"\\]|\\.)*"'
 
 # Constants that are runtime-captured (not pre-extracted string pools).
 # _ref_N / _url_N / _webhook_N come from actual execution and may be referenced
-# in the VM output above them; _s_N / _xor_N / _wad_N are pre-extracted pools
-# that are intentional reference tables and should be preserved as-is.
+# in the VM output above them; _s_N / _wad_N are pre-extracted pools that are
+# intentional reference tables and should be preserved as-is.
+# _xor_N constants are inlined by _rename_by_name_property and the inline pass.
 _RUNTIME_CONST_RE = re.compile(
     r"^[ \t]*local\s+(_ref_\d+|_url_\d+|_webhook_\d+)\s*=\s*(\"(?:[^\"\\]|\\.)*\")\s*$",
     re.MULTILINE,
@@ -503,6 +504,113 @@ def _inline_single_use_constants(code: str) -> str:
                 result,
                 flags=re.MULTILINE,
             )
+
+    return result
+
+
+# How many lines after a local declaration to search for a .Name = "X" assignment.
+_NAME_PROP_LOOKAHEAD = 10
+
+# Lua reserved words that must never be used as variable names.
+_LUA_KEYWORDS = frozenset({
+    "and", "break", "do", "else", "elseif", "end", "false", "for",
+    "function", "goto", "if", "in", "local", "nil", "not", "or",
+    "repeat", "return", "then", "true", "until", "while",
+})
+
+
+def _name_to_camel_id(raw: str) -> str:
+    """Convert an arbitrary Name string (e.g. ``"ScanBeam"``) to a
+    camelCase Lua identifier.
+
+    Non-alphanumeric characters are treated as word separators.  The
+    first word is lower-cased; subsequent words are title-cased.  Returns
+    an empty string when the result would be invalid or a Lua keyword.
+    """
+    parts = [p for p in re.sub(r"[^a-zA-Z0-9]+", " ", raw).split() if p]
+    if not parts:
+        return ""
+    first = parts[0]
+    result = first[0].lower() + first[1:] + "".join(p.capitalize() for p in parts[1:])
+    # Ensure valid identifier start
+    if result and result[0].isdigit():
+        result = "_" + result
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", result):
+        return ""
+    if result in _LUA_KEYWORDS:
+        return ""
+    return result
+
+
+def _rename_by_name_property(code: str) -> str:
+    """Rename local variables to reflect their ``.Name = "X"`` property
+    assignment, greatly improving readability of deobfuscated Roblox GUIs.
+
+    For every pattern::
+
+        local frame2 = Instance.new("Frame")   -- or any other constructor
+        ...
+        frame2.Name = "ScanBeam"
+
+    the variable ``frame2`` is renamed to ``scanBeam`` (camelCase of the
+    Name value) throughout the whole output.  Only variables whose
+    derived new name does not collide with any existing identifier are
+    renamed.
+
+    This pass must run **before** ``_normalize_all_counters`` so that
+    numbered duplicates (``frame``, ``frame2``, ``frame3`` …) are still
+    distinct identifiers and can each receive their own descriptive name.
+    """
+    lines = code.splitlines()
+    n = len(lines)
+
+    # Collect every identifier already present in the output to detect
+    # collisions before committing a rename.
+    existing: set[str] = set()
+    for line in lines:
+        for m in re.finditer(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b", line):
+            existing.add(m.group(1))
+
+    renames: dict[str, str] = {}  # old_name → new_name
+
+    for i, line in enumerate(lines):
+        m = re.match(r"^\s*local\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=", line)
+        if not m:
+            continue
+        var = m.group(1)
+        if var in renames:
+            continue  # already scheduled for rename
+
+        # Look ahead for VAR.Name = "SomeName"
+        for j in range(i + 1, min(i + _NAME_PROP_LOOKAHEAD + 1, n)):
+            nm = re.match(
+                r"^\s*" + re.escape(var) + r"\s*\.\s*Name\s*=\s*\"([^\"]+)\"",
+                lines[j],
+            )
+            if nm:
+                new_name = _name_to_camel_id(nm.group(1))
+                if (
+                    new_name
+                    and new_name != var
+                    and new_name not in renames.values()
+                    and new_name not in existing
+                ):
+                    renames[var] = new_name
+                break  # stop after first .Name assignment for this var
+
+    if not renames:
+        return code
+
+    # Apply all renames with word-boundary guards so only complete
+    # identifiers are replaced (not sub-strings of longer names).
+    # Sort longest-first to avoid partial replacement of shorter names.
+    result = "\n".join(lines)
+    for old, new in sorted(renames.items(), key=lambda kv: -len(kv[0])):
+        result = re.sub(
+            r"(?<![a-zA-Z0-9_])" + re.escape(old) + r"(?![a-zA-Z0-9_])",
+            new,
+            result,
+        )
 
     return result
 
@@ -737,6 +845,10 @@ async def process_link(ctx,link=None):
     dumped_text=_collapse_loop_unrolls(dumped_text)
     dumped_text=_fold_string_concat(dumped_text)
     dumped_text=_inline_single_use_constants(dumped_text)
+    # Rename locals using their .Name property assignment before normalising
+    # counter suffixes — frame2/frame3 are still distinct at this point and
+    # each can receive its own descriptive name (backdrop, scanBeam, window…).
+    dumped_text=_rename_by_name_property(dumped_text)
     # Normalise all counter-suffixed variable names (tween2→tween, conn3→conn …)
     # then run collapse again — after normalisation many more blocks are identical.
     dumped_text=_normalize_all_counters(dumped_text)
