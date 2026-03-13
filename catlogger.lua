@@ -36,7 +36,7 @@ local r = {
     INSTRUMENT_LOGIC = true,
     DUMP_GLOBALS = true,
     DUMP_ALL_STRINGS = false,
-    DUMP_WAD_STRINGS = false,
+    DUMP_WAD_STRINGS = true,
     DUMP_DECODED_STRINGS = false,
     EMIT_XOR = false,
     DUMP_UPVALUES = true,
@@ -5290,7 +5290,9 @@ end
 --
 -- In WeAreDevs v1.0.0 the decoded string table ends with three closing
 -- "end" keywords followed immediately by the inner-VM function definition:
---   "end end end return(function(w,j,e,...)"
+--   "end end end return(function(W,e,s,...)"
+-- The string table variable name (W, w, etc.) varies across script variants
+-- and is detected dynamically from the source.
 -- This pattern is used to split off the decode phase from the VM body.
 local WAD_DECODE_BOUNDARY = "end end end return%(function%([^)]*%)"
 -- Length of the literal prefix "end end end" that we keep (11 chars, 0-indexed = 10).
@@ -5301,14 +5303,19 @@ local function wad_extract_strings(source_code)
     if not source_code:find("wearedevs%.net/obfuscator", 1, false) then
         return nil
     end
+    -- Detect the string table variable name: it is always the first local
+    -- table literal declared inside the outer return(function(...)) wrapper.
+    -- Different script variants use different cases (e.g. "W" vs "w").
+    local str_var = source_code:match(
+        "return%(function%([^)]*%)%s*local%s+([%a_][%w_]*)%s*=%s*{") or "w"
     -- Find the boundary between the decode block and the inner VM function.
     local boundary = source_code:find(WAD_DECODE_BOUNDARY)
     if not boundary then
         return nil
     end
-    -- Inject "return w" right after "end end end" so we get the
+    -- Inject "return <str_var>" right after "end end end" so we get the
     -- fully-decoded string table without running the VM itself.
-    local patched = source_code:sub(1, boundary + WAD_DECODE_PREFIX_LEN) .. "\nreturn w\nend)()\n"
+    local patched = source_code:sub(1, boundary + WAD_DECODE_PREFIX_LEN) .. "\nreturn " .. str_var .. "\nend)()\n"
     local fn, load_err = load(patched)
     if not fn then
         return nil
