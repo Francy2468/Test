@@ -1344,7 +1344,7 @@ def _fix_lua_compat(code: str) -> str:
     code = re.sub(r"(?<!\w)!", "not ", code)
     code = re.sub(r"\bnull\b", "nil", code)
     code = re.sub(r"\bundefined\b", "nil", code)
-    code = re.sub(r"\belse\s+if\b", "elseif", code)
+    code = re.sub(r"\belse[ \t]+if\b", "elseif", code)
     return code
 
 

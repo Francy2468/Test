@@ -340,9 +340,11 @@ local function I(J)
             R = R:gsub("^"       .. _kw .. "([^%w_])",  "nil%1")
             R = R:gsub("([^%w_])" .. _kw .. "$",        "%1nil")
         end
-        -- else if → elseif (Lua requires a single keyword)
-        R = R:gsub("else%s+if%(", "elseif(")
-        R = R:gsub("else%s+if%s", "elseif ")
+        -- else if → elseif (Lua requires a single keyword; only collapse when
+        -- on the same line so that a genuine else-block containing an if is not
+        -- incorrectly folded, which would produce an "'end' expected" error).
+        R = R:gsub("else[ \t]+if%(", "elseif(")
+        R = R:gsub("else[ \t]+if[ \t]", "elseif ")
         R = R:gsub("([^%w_])continue([^%w_])", "%1_G.LuraphContinue()%2")
         R = R:gsub("^continue([^%w_])", "_G.LuraphContinue()%1")
         R = R:gsub("([^%w_])continue$", "%1_G.LuraphContinue()")
