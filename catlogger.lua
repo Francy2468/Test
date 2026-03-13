@@ -38,6 +38,7 @@ local r = {
     DUMP_ALL_STRINGS = false,
     DUMP_WAD_STRINGS = false,
     DUMP_DECODED_STRINGS = false,
+    EMIT_XOR = false,
     DUMP_UPVALUES = true,
     MAX_UPVALUES_PER_FUNCTION = 200,
     -- Extra collection options
@@ -4721,6 +4722,7 @@ end
 
 -- Emit the decrypted XOR string pool when available.
 function q.dump_xor_strings()
+    if not r.EMIT_XOR then return end
     if not t.xor_string_pool then return end
     local pool = t.xor_string_pool
     if not pool.strings or #pool.strings == 0 then return end
