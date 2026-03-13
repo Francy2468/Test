@@ -63,6 +63,7 @@ _fix_ui_variable_shadowing = cat._fix_ui_variable_shadowing
 _fix_lua_do_end = cat._fix_lua_do_end
 _dedup_connections = cat._dedup_connections
 _fix_lua_compat = cat._fix_lua_compat
+extract_first_url = cat.extract_first_url
 
 
 class TestFixExtraEnds(unittest.TestCase):
@@ -295,6 +296,31 @@ class TestCombinedPipeline(unittest.TestCase):
         self.assertTrue(result.rstrip().endswith("end"))
 
 
+class TestExtractFirstUrl(unittest.TestCase):
+    """extract_first_url strips surrounding quotes so quoted URLs don't cause
+    discord.ext.commands.errors.UnexpectedQuoteError when passed to .l / .bf /
+    .fix commands whose ``link`` parameter was changed to keyword-only."""
+
+    def test_bare_url_returned(self):
+        url = "https://example.com/file.lua"
+        self.assertEqual(extract_first_url(url), url)
+
+    def test_double_quoted_url_stripped(self):
+        """A URL wrapped in double-quotes is extracted without the quotes."""
+        self.assertEqual(
+            extract_first_url('"https://example.com/file.lua"'),
+            "https://example.com/file.lua",
+        )
+
+    def test_url_with_trailing_text(self):
+        raw = "https://example.com/file.lua some extra text"
+        self.assertEqual(extract_first_url(raw), "https://example.com/file.lua")
+
+    def test_no_url_returns_none(self):
+        self.assertIsNone(extract_first_url("no url here"))
+
+    def test_empty_string_returns_none(self):
+        self.assertIsNone(extract_first_url(""))
 
 if __name__ == "__main__":
     unittest.main()
