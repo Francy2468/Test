@@ -343,8 +343,15 @@ local function I(J)
         -- else if → elseif (Lua requires a single keyword; only collapse when
         -- on the same line so that a genuine else-block containing an if is not
         -- incorrectly folded, which would produce an "'end' expected" error).
+        -- Protect "end <ws> else <ws> if" first: the WeAreDevs VM (and similar
+        -- obfuscators) write genuine else-blocks-with-nested-if on the same line
+        -- as "end else if", where the "end" closes the then-clause.  Collapsing
+        -- that to "elseif" removes a required structural "end" and produces the
+        -- "'end' expected near 'elseif'" load error.
+        R = R:gsub("(end[ \t]+else[ \t]+)if", "%1\x00CATMIO_ELSEIF\x00")
         R = R:gsub("else[ \t]+if%(", "elseif(")
         R = R:gsub("else[ \t]+if[ \t]", "elseif ")
+        R = R:gsub("\x00CATMIO_ELSEIF\x00", "if")
         R = R:gsub("([^%w_])continue([^%w_])", "%1_G.LuraphContinue()%2")
         R = R:gsub("^continue([^%w_])", "_G.LuraphContinue()%1")
         R = R:gsub("([^%w_])continue$", "%1_G.LuraphContinue()")

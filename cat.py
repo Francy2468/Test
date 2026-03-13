@@ -1332,7 +1332,13 @@ def _fix_lua_compat(code: str) -> str:
       !expr       ->  not    (logical NOT; only bare '!' not followed by '=')
       null        ->  nil    (whole word)
       undefined   ->  nil    (whole word)
-      else if     ->  elseif (Lua uses a single keyword)
+      else if     ->  elseif (Lua uses a single keyword; see note below)
+
+    Note on "else if" collapsing: the transformation is skipped for the
+    pattern "end … else … if" (on the same line) because that is genuine Lua
+    syntax where the "end" closes the then-clause and "else if" opens a new
+    nested if-block.  Collapsing it would remove a required structural "end"
+    and produce the error "'end' expected near 'elseif'".
     """
     # != must come before ! so that '!=' is not split into 'not ='
     code = code.replace("!=", "~=")
@@ -1345,7 +1351,17 @@ def _fix_lua_compat(code: str) -> str:
     code = re.sub(r"(?<!\w)!", "not ", code)
     code = re.sub(r"\bnull\b", "nil", code)
     code = re.sub(r"\bundefined\b", "nil", code)
+    # Collapse "else if" -> "elseif" but protect "end … else … if" first.
+    # The WeAreDevs VM (and similar obfuscated Lua) writes genuine
+    # else-blocks-with-nested-if as "end else if" on a single line.
+    _PROTECT = "\x00CATMIO_ELSEIF\x00"
+    code = re.sub(
+        r"\bend([ \t]+)else([ \t]+)if\b",
+        lambda m: f"end{m.group(1)}else{m.group(2)}{_PROTECT}",
+        code,
+    )
     code = re.sub(r"\belse[ \t]+if\b", "elseif", code)
+    code = code.replace(_PROTECT, "if")
     return code
 
 

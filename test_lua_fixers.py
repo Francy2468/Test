@@ -263,6 +263,30 @@ class TestCombinedPipeline(unittest.TestCase):
         self.assertEqual(_fix_lua_compat("else if x then"), "elseif x then")
         self.assertEqual(_fix_lua_compat("else if(x) then"), "elseif(x) then")
 
+    def test_fix_lua_compat_end_else_if_preserved(self):
+        """'end else if' on the same line must NOT be collapsed to elseif.
+
+        The WeAreDevs VM (and similar obfuscators) write genuine Lua
+        nested-if-in-else blocks on a single line as:
+          "end else if n<x then"
+        where 'end' closes the then-clause and 'else if' opens a new
+        if-block inside the else-clause.  Collapsing it to 'elseif'
+        removes a required structural 'end', producing:
+          'end' expected near 'elseif'
+        """
+        code = "n=1 end else if n<100 then n=2 end end"
+        result = _fix_lua_compat(code)
+        self.assertNotIn("elseif", result)
+        self.assertIn("else if", result)
+        # Verify multiple occurrences are all protected
+        code2 = "end else if a then x() end end else if b then y() end end"
+        result2 = _fix_lua_compat(code2)
+        self.assertNotIn("elseif", result2)
+        self.assertEqual(result2.count("else if"), 2)
+        # Verify tab-separated and multi-space variants are also protected
+        self.assertNotIn("elseif", _fix_lua_compat("end\telse\tif x then"))
+        self.assertNotIn("elseif", _fix_lua_compat("end  else  if x then"))
+
     def test_fix_lua_compat_else_if_multiline_preserved(self):
         """else followed by if on the next line must NOT be collapsed to elseif.
 
