@@ -3160,7 +3160,9 @@ Instance = {new = function(bX, bS)
     end
 }
 game = bj("game", true)
+t.property_store[game].ClassName = "DataModel"
 workspace = bj("workspace", true)
+t.property_store[workspace].ClassName = "Workspace"
 script = bj("script", true)
 t.property_store[script] = {Name = "DumpedScript", Parent = game, ClassName = "LocalScript"}
 task = {
