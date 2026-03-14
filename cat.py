@@ -55,6 +55,12 @@ async def _send_with_retry(coro_factory):
             else:
                 raise
 
+class _FailedResponse:
+    """Returned by _requests_get when a network error occurs."""
+    status_code = 0
+    content = b""
+
+
 def _requests_get(url, **kwargs):
     """requests.get wrapper with browser-like headers to avoid HTTP 403."""
     kwargs.setdefault("timeout", 8)
@@ -73,7 +79,11 @@ def _requests_get(url, **kwargs):
         kwargs["headers"] = merged
     else:
         kwargs["headers"] = default_headers
-    return requests.get(url, **kwargs)
+    try:
+        return requests.get(url, **kwargs)
+    except requests.exceptions.RequestException as e:
+        print(f"Warning: request to {url!r} failed: {e}")
+        return _FailedResponse()
 
 # ---------------- BOT ----------------
 intents = discord.Intents.default()
