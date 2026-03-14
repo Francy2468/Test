@@ -683,6 +683,7 @@ local aJ = {
     Players = "Players",
     Workspace = "Workspace",
     ReplicatedStorage = "ReplicatedStorage",
+    ReplicatedFirst = "ReplicatedFirst",
     ServerStorage = "ServerStorage",
     ServerScriptService = "ServerScriptService",
     StarterGui = "StarterGui",
@@ -713,7 +714,39 @@ local aJ = {
     TextService = "TextService",
     TextChatService = "TextChatService",
     ContentProvider = "ContentProvider",
-    Debris = "Debris"
+    Debris = "Debris",
+    -- Additional Roblox services
+    AnalyticsService = "AnalyticsService",
+    BadgeService = "BadgeService",
+    AssetService = "AssetService",
+    AvatarEditorService = "AvatarEditorService",
+    SocialService = "SocialService",
+    LocalizationService = "LocalizationService",
+    GroupService = "GroupService",
+    FriendService = "FriendService",
+    NotificationService = "NotificationService",
+    ScriptContext = "ScriptContext",
+    Stats = "Stats",
+    AdService = "AdService",
+    AbuseReportService = "AbuseReportService",
+    MemStorageService = "MemStorageService",
+    PolicyService = "PolicyService",
+    RbxAnalyticsService = "RbxAnalyticsService",
+    CoreScriptSyncService = "CoreScriptSyncService",
+    GamePassService = "GamePassService",
+    StarterPlayerScripts = "StarterPlayerScripts",
+    StarterCharacterScripts = "StarterCharacterScripts",
+    NetworkClient = "NetworkClient",
+    NetworkServer = "NetworkServer",
+    TestService = "TestService",
+    Selection = "Selection",
+    ChangeHistoryService = "ChangeHistoryService",
+    UserGameSettings = "UserGameSettings",
+    RobloxPluginGuiService = "RobloxPluginGuiService",
+    PermissionsService = "PermissionsService",
+    VoiceChatService = "VoiceChatService",
+    ExperienceService = "ExperienceService",
+    OpenCloudService = "OpenCloudService",
 }
 local aK = {
     Players = "Players",
@@ -743,7 +776,31 @@ local aK = {
     GuiService = "GuiService",
     TextService = "TextService",
     InsertService = "InsertService",
-    Debris = "Debris"
+    Debris = "Debris",
+    -- Additional services for aK alias map
+    BadgeService = "BadgeService",
+    AnalyticsService = "AnalyticsService",
+    AssetService = "AssetService",
+    LocalizationService = "LocalizationService",
+    GroupService = "GroupService",
+    PolicyService = "PolicyService",
+    SocialService = "SocialService",
+    VoiceChatService = "VoiceChatService",
+    StarterPlayerScripts = "StarterPlayerScripts",
+    StarterCharacterScripts = "StarterCharacterScripts",
+    ServerStorage = "ServerStorage",
+    ServerScriptService = "ServerScriptService",
+    MessagingService = "MessagingService",
+    TextChatService = "TextChatService",
+    ContentProvider = "ContentProvider",
+    NotificationService = "NotificationService",
+    ScriptContext = "ScriptContext",
+    Stats = "Stats",
+    AdService = "AdService",
+    GamePassService = "GamePassService",
+    HapticService = "HapticService",
+    VRService = "VRService",
+    AvatarEditorService = "AvatarEditorService",
 }
 local aL = {
     {pattern = "window", prefix = "Window", counter = "window"},
@@ -4393,6 +4450,11 @@ table.find = table.find or function(t_, val, init)
 end
 table.freeze = table.freeze or function(t_) return t_ end  -- no-op stub
 table.isfrozen = table.isfrozen or function(t_) return false end
+-- Prometheus uses table.freeze on its constant tables as anti-tamper.
+-- Ensure our stub does NOT actually freeze tables so metatables remain writable.
+-- Redefine even if already set in native Lua to ensure it is a safe no-op.
+table.freeze = function(t_) return t_ end
+table.isfrozen = function(t_) return false end
 _G.table = table
 -- ── Luau math extensions ───────────────────────────────────────────────────
 math.clamp = math.clamp or function(n_, min_, max_)
@@ -4500,6 +4562,33 @@ _G.printidentity = function(s_) end  -- Roblox Studio only
 _G.PluginManager = function() return bj("PluginManager", false) end
 _G.settings    = bj("settings",    true)
 _G.UserSettings = bj("UserSettings", true)
+-- ── Roblox service globals (anti-tamper: scripts may query these directly) ──
+do
+    local function _make_svc(name)
+        local svc = bj(name, true)
+        t.property_store[svc] = t.property_store[svc] or {}
+        t.property_store[svc].ClassName = name
+        t.property_store[svc].Name = name
+        return svc
+    end
+    local _extra_services = {
+        "AnalyticsService","BadgeService","AssetService","AvatarEditorService",
+        "SocialService","LocalizationService","GroupService","FriendService",
+        "NotificationService","ScriptContext","Stats","AdService",
+        "AbuseReportService","MemStorageService","PolicyService",
+        "RbxAnalyticsService","CoreScriptSyncService","GamePassService",
+        "StarterPlayerScripts","StarterCharacterScripts",
+        "NetworkClient","NetworkServer","TestService","Selection",
+        "ChangeHistoryService","UserGameSettings","RobloxPluginGuiService",
+        "PermissionsService","VoiceChatService","ExperienceService",
+        "OpenCloudService","ReplicatedFirst",
+    }
+    for _, svcName in ipairs(_extra_services) do
+        if _G[svcName] == nil then
+            _G[svcName] = _make_svc(svcName)
+        end
+    end
+end
 getmetatable = function(x)
     if G(x) then
         return "The metatable is locked"
@@ -4795,6 +4884,8 @@ function q.reset()
         deferred_hooks = {},
         char_seen = {},
         _loadstring_seen = { ok = {}, fail = {} },
+        prometheus_string_pool = nil,
+        moonsec_string_pool = nil,
     }
     aM = {}
     game = bj("game", true)
@@ -4983,6 +5074,36 @@ function q.dump_lightcate_strings()
     end
 end
 
+-- Emit the decoded Prometheus string pool when available.
+-- Only emits when DUMP_DECODED_STRINGS is true; otherwise does nothing.
+function q.dump_prometheus_strings()
+    if not r.DUMP_DECODED_STRINGS then return end
+    if not t.prometheus_string_pool then return end
+    local pool = t.prometheus_string_pool
+    if not pool.strings or #pool.strings == 0 then return end
+    aA()
+    at(string.format("-- Decoded string pool (Prometheus obfuscation, var=%s, %d strings)",
+        pool.var_name or "?", #pool.strings))
+    for _, entry in E(pool.strings) do
+        at(string.format("local _prom_%d = %s", entry.idx, aH(entry.val)))
+    end
+end
+
+-- Emit the decoded MoonSec v3 string pool when available.
+-- Only emits when DUMP_DECODED_STRINGS is true; otherwise does nothing.
+function q.dump_moonsec_strings()
+    if not r.DUMP_DECODED_STRINGS then return end
+    if not t.moonsec_string_pool then return end
+    local pool = t.moonsec_string_pool
+    if not pool.strings or #pool.strings == 0 then return end
+    aA()
+    at(string.format("-- Decoded string pool (MoonSec obfuscation, var=%s, %d strings)",
+        pool.var_name or "?", #pool.strings))
+    for _, entry in E(pool.strings) do
+        at(string.format("local _ms_%d = %s", entry.idx, aH(entry.val)))
+    end
+end
+
 -- Execute deferred hooks/callbacks that were registered via hookfunction/Connect etc.
 -- This greatly improves extraction completeness for scripts that register many hooks.
 -- NOTE: hooks list is cleared before processing to prevent infinite re-entrancy.
@@ -5128,9 +5249,22 @@ local GEN_OUTER_PATTERNS = {
     "%(function%([%a_][%w_]*%)",
     -- Lightcate v2.0.0 and similar: return(function(_0x...
     "return%(function%(_0x",
+    -- MoonSec v3: do-block wrapper with local VM function
+    "do%s+local%s+[%w_]+%s*=%s*function",
+    -- Prometheus: return((function(env,fenv
+    "return%(%(function%(env,",
+    -- Prometheus alternate: return (function(env
+    "return%(function%(env,",
+    -- Generic: script starts immediately with (function with multi-letter params
+    "^%(function%([%a_][%w_]+,[%a_]",
+    -- WeAreDevs v3+ variants with longer preambles
+    "return%(function%(W,",
+    "return%(function%(w,",
 }
 -- How many bytes from the start of the file to scan for the outer wrapper.
-local GEN_OUTER_HEADER_BYTES = 1024
+-- Increased to 8192 to handle very long obfuscated scripts where the preamble
+-- may be several kilobytes of comments or encoded data before the wrapper.
+local GEN_OUTER_HEADER_BYTES = 8192
 
 -- Known VM dispatcher entry-point signatures, ordered from most-specific
 -- (rarest / most reliable) to least-specific (most general).
@@ -5145,14 +5279,27 @@ local GEN_VM_BOUNDARIES = {
     "return%(function%(S,N,",
     -- WeAreDevs v1.0.0 (often `w` is the string table)
     "return%(function%(w,j,e,",
+    -- WeAreDevs v2+ variants
+    "return%(function%(W,j,e,",
+    "return%(function%(w,J,e,",
     -- Iron Brew / generic (K0, K1, K2 named constants)
     "return%(function%(K0,K1,K2,",
-    -- Prometheus obfuscator
+    -- Prometheus obfuscator (open source: github.com/levno-710/Prometheus)
     "return%(function%(env,fenv,",
-    -- Moonsec v2/v3
+    "return%(function%(ENV,FENV,",
+    "return%(function%(ProteusEnv,",
+    "return%(function%(pEnv,",
+    -- Moonsec v2/v3 (open source: github.com/nicememe/moonsec)
     "return%(function%(luraph,",
+    "return%(function%(Luraph,",
     -- Moonsec alternate
     "return%(function%(obc,",
+    -- Moonsec v3 specific: uses VM/vm as the first parameter
+    "return%(function%(vm,",
+    "return%(function%(VM,",
+    -- Moonsec v3: Instruction-based VM
+    "return%(function%(Instruction,",
+    "return%(function%(instructions,",
     -- Bytexor / LuaEncrypt style (uses `_` or `__` as string table)
     "return%(function%(_,",
     "return%(function%(__,",
@@ -5168,6 +5315,12 @@ local GEN_VM_BOUNDARIES = {
     "return%(function%(vals,",
     -- Lightcate v2.0.0 and similar obfuscators using _0x hex-prefixed param names
     "return%(function%(_0x",
+    -- Additional WeAreDevs/K0lrot variants using single uppercase letters
+    "return%(function%(A,B,C,D,",
+    "return%(function%(a,b,c,d,",
+    -- Obfuscators that pass environment as first param
+    "return%(function%(env,",
+    "return%(function%(_ENV,",
     -- Generic long-argument dispatcher heuristic: ≥8 consecutive single-letter
     -- comma-separated params suggests a VM dispatch table (built programmatically
     -- to avoid repetitive literals).
@@ -5183,6 +5336,7 @@ local GEN_STRING_VARS = {
     -- Primary (most common)
     "S",    -- K0lrot
     "w",    -- WeAreDevs
+    "W",    -- WeAreDevs variant
     "t",    -- generic / Iron Brew
     "args",
     -- Single letters a–z (excluding w, t, S already listed above)
@@ -5195,10 +5349,17 @@ local GEN_STRING_VARS = {
     "data","payload","values","params","buffer",
     "container","pack","stack","env","tbl","arr","tab",
     "str","strs","strings","consts","constants","keys","vals",
+    -- Prometheus-specific names
+    "fenv","penv","ENV","FENV","environment",
+    -- MoonSec v3 specific names
+    "strtable","strTable","StringTable","string_table",
+    "luraph","obc","vm","VM","Luraph",
     -- Underscore variants
     "_","__","___","____","_____","______",
     -- Numbered variants
     "v1","v2","v3","v4","v5","v6","v7","v8","v9","v10",
+    -- Lua-style indexed
+    "l0_0","l1_0","l2_0","l0_1","l1_1",
 }
 
 -- Strings explicitly excluded from the decoded generic-wrapper pool output.
@@ -5211,8 +5372,9 @@ local GEN_FILTERED_STRINGS = { ["remove"] = true }
 -- a candidate result.  Low values cause false positives on small tables.
 local GEN_MIN_STRING_COUNT = 3
 
--- Maximum wrapper nesting depth to try (1 = K0lrot standard, up to 4 deep).
-local GEN_MAX_NEST_DEPTH = 4
+-- Maximum wrapper nesting depth to try (1 = K0lrot standard, up to 6 deep).
+-- Increased from 4 to 6 to handle deeply nested MoonSec v3 / Prometheus variants.
+local GEN_MAX_NEST_DEPTH = 6
 
 local function generic_wrapper_extract_strings(source_code)
     -- 1. Quick early-out: detect outer wrapper near the start of the file.
@@ -5281,14 +5443,18 @@ local function generic_wrapper_extract_strings(source_code)
                                 local label = "generic-wrapper"
                                 if vm_pat:find("S,n,f,B,d,l,M,") then
                                     label = "K0lrot"
-                                elseif vm_pat:find("w,j,e,") then
+                                elseif vm_pat:find("w,j,e,") or vm_pat:find("W,j,e,") or vm_pat:find("W,J,e,") then
                                     label = "WeAreDevs"
                                 elseif vm_pat:find("K0,K1,K2,") then
                                     label = "IronBrew"
-                                elseif vm_pat:find("env,fenv,") then
+                                elseif vm_pat:find("env,fenv,") or vm_pat:find("ENV,FENV,")
+                                    or vm_pat:find("ProteusEnv,") or vm_pat:find("pEnv,") then
                                     label = "Prometheus"
-                                elseif vm_pat:find("luraph,") or vm_pat:find("obc,") then
-                                    label = "Moonsec"
+                                elseif vm_pat:find("luraph,") or vm_pat:find("Luraph,") or vm_pat:find("obc,") then
+                                    label = "MoonSec"
+                                elseif vm_pat:find("vm,") or vm_pat:find("VM,")
+                                    or vm_pat:find("Instruction,") or vm_pat:find("instructions,") then
+                                    label = "MoonSecV3"
                                 end
                                 return results, #result, var_name, label
                             end
@@ -5536,7 +5702,180 @@ local function lightcate_extract_strings(source_code)
     end
     return nil
 end
--- Handles obfuscated scripts that exceed Lua's 200-local-variable limit.
+-- ---------------------------------------------------------------------------
+-- Prometheus obfuscator (github.com/levno-710/Prometheus) string extractor.
+-- Prometheus wraps the script in: return (function(env, fenv, ...) ... end)(...)
+-- and encodes all string constants using a custom decoder stored in the preamble.
+-- Detection: script contains "env" and "fenv" near the start as the first two
+-- formal parameters of the outer function, and uses table.freeze for anti-tamper.
+-- This extractor finds and runs the decode preamble to recover the string table,
+-- trying both `ProteusVM`/`env` style and simpler `fenv` table style.
+-- ---------------------------------------------------------------------------
+local PROMETHEUS_DETECT_PATS = {
+    "return%(function%(env,fenv,",
+    "return%(function%(ENV,FENV,",
+    "return%(function%(ProteusEnv,",
+    "%(function%(env,fenv,",
+}
+local function prometheus_extract_strings(source_code)
+    -- Quick detection: must have one of the Prometheus signatures near start.
+    local header = source_code:sub(1, GEN_OUTER_HEADER_BYTES)
+    local found = false
+    for _, pat in ipairs(PROMETHEUS_DETECT_PATS) do
+        if header:find(pat) then
+            found = true
+            break
+        end
+    end
+    if not found then
+        return nil
+    end
+    -- Find the VM boundary (the inner function that takes env/fenv).
+    local boundary = nil
+    for _, pat in ipairs(PROMETHEUS_DETECT_PATS) do
+        boundary = source_code:find(pat)
+        if boundary then break end
+    end
+    if not boundary then
+        return nil
+    end
+    local preamble = source_code:sub(1, boundary - 1)
+    -- Strategy: the preamble typically contains:
+    --   local <var> = { ... table of decoded strings ... }
+    -- We try to find the last local table declaration before the VM boundary,
+    -- inject a return of that variable, and execute to get the decoded strings.
+    local str_var = nil
+    -- Try to find a local variable assigned a table literal: local X = {
+    for v in preamble:gmatch("local%s+([%a_][%w_]*)%s*=%s*{") do
+        str_var = v
+    end
+    if not str_var then
+        -- Fallback: try `fenv` or `env` as the string container
+        if preamble:find("local%s+fenv%s*=") then
+            str_var = "fenv"
+        elseif preamble:find("local%s+env%s*=") then
+            str_var = "env"
+        end
+    end
+    if not str_var then
+        return nil
+    end
+    -- Try to run preamble and return the string table
+    local patched = preamble .. "\nreturn " .. str_var .. "\n"
+    local fn = e(patched)
+    if fn then
+        local ok, result = pcall(fn)
+        if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
+            local results = {}
+            for idx = 1, #result do
+                local s = result[idx]
+                if type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$") then
+                    table.insert(results, {idx = idx, val = s})
+                end
+            end
+            if #results >= GEN_MIN_STRING_COUNT then
+                return results, #result, str_var
+            end
+        end
+    end
+    -- Fallback: try GEN_STRING_VARS candidates on the preamble
+    for _, var_name in ipairs(GEN_STRING_VARS) do
+        if var_name ~= str_var then
+            local patched2 = preamble .. "\nreturn " .. var_name .. "\n"
+            local fn2 = e(patched2)
+            if fn2 then
+                local ok2, result2 = pcall(fn2)
+                if ok2 and type(result2) == "table" and #result2 >= GEN_MIN_STRING_COUNT then
+                    local results = {}
+                    for idx = 1, #result2 do
+                        local s = result2[idx]
+                        if type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$") then
+                            table.insert(results, {idx = idx, val = s})
+                        end
+                    end
+                    if #results >= GEN_MIN_STRING_COUNT then
+                        return results, #result2, var_name
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- ---------------------------------------------------------------------------
+-- MoonSec v3 specific string extractor.
+-- MoonSec v3 (based on Luraph VM) uses a characteristic structure where the
+-- outer wrapper populates a string table before passing control to the VM.
+-- Detection: typical patterns include `luraph` or `Luraph` param name OR
+-- the presence of a `-- Made with MoonSec` / `-- MoonSec` comment.
+-- The string variable is typically named after single-letter or `strtable`.
+-- ---------------------------------------------------------------------------
+local MOONSEC_DETECT_PATS = {
+    "%-%-.*[Mm]oon[Ss]ec",   -- comment mentioning MoonSec
+    "return%(function%(luraph,",
+    "return%(function%(Luraph,",
+    "return%(function%(obc,",
+    "return%(function%(vm,",
+    "return%(function%(VM,",
+}
+local function moonsec_extract_strings(source_code)
+    local header = source_code:sub(1, GEN_OUTER_HEADER_BYTES)
+    local found = false
+    for _, pat in ipairs(MOONSEC_DETECT_PATS) do
+        if header:find(pat) then
+            found = true
+            break
+        end
+    end
+    if not found then
+        return nil
+    end
+    -- Use the generic extractor with MoonSec-specific variable names as priority.
+    local priority_vars = { "luraph", "Luraph", "obc", "vm", "VM", "strtable", "strTable", "StringTable" }
+    -- Find VM boundary
+    local boundary = nil
+    local vm_pat_used = nil
+    for _, vmpat in ipairs(GEN_VM_BOUNDARIES) do
+        local pos = source_code:find(vmpat)
+        if pos then
+            boundary = pos
+            vm_pat_used = vmpat
+            break
+        end
+    end
+    if not boundary then
+        return nil
+    end
+    local preamble = source_code:sub(1, boundary - 1)
+    -- Try priority vars first, then fall back to GEN_STRING_VARS
+    local all_vars = {}
+    for _, v in ipairs(priority_vars) do table.insert(all_vars, v) end
+    for _, v in ipairs(GEN_STRING_VARS) do table.insert(all_vars, v) end
+    for _, var_name in ipairs(all_vars) do
+        for depth = 1, GEN_MAX_NEST_DEPTH do
+            local closing = string.rep("end)(...)", depth)
+            local patched = preamble .. "\nreturn " .. var_name .. " " .. closing .. "\n"
+            local fn = e(patched)
+            if fn then
+                local ok, result = pcall(fn)
+                if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
+                    local results = {}
+                    for idx = 1, #result do
+                        local s = result[idx]
+                        if type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$") then
+                            table.insert(results, {idx = idx, val = s})
+                        end
+                    end
+                    if #results >= GEN_MIN_STRING_COUNT then
+                        return results, #result, var_name
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
 -- Finds the longest run of sequential numbered local declarations
 -- (e.g.  local k0 = v0 … local k250 = v250) and converts the overflow
 -- (everything past the first MAX_SAFE locals) into a single table variable
@@ -5784,6 +6123,24 @@ function q.dump_file(eN, eO)
     else
         t.lightcate_string_pool = nil
     end
+    -- Prometheus string extraction: detects env/fenv parameter pattern.
+    local prom_strings, prom_total, prom_var = prometheus_extract_strings(al)
+    if prom_strings and #prom_strings > 0 then
+        B(string.format("[Dumper] Prometheus obfuscation detected (var=%s) — %d/%d strings decoded",
+            prom_var or "?", #prom_strings, prom_total or 0))
+        t.prometheus_string_pool = { strings = prom_strings, var_name = prom_var }
+    else
+        t.prometheus_string_pool = nil
+    end
+    -- MoonSec v3 string extraction.
+    local ms_strings, ms_total, ms_var = moonsec_extract_strings(al)
+    if ms_strings and #ms_strings > 0 then
+        B(string.format("[Dumper] MoonSec obfuscation detected (var=%s) — %d/%d strings decoded",
+            ms_var or "?", #ms_strings, ms_total or 0))
+        t.moonsec_string_pool = { strings = ms_strings, var_name = ms_var }
+    else
+        t.moonsec_string_pool = nil
+    end
     B("[Dumper] Sanitizing Luau and Binary Literals...")
     local eP = I(al)
     local R, eQ = e(eP, "Obfuscated_Script")
@@ -5925,6 +6282,113 @@ function q.dump_file(eN, eO)
     rawset(eR, "cloneref",             function(x) return x end)
     rawset(eR, "compareinstances",     function(a_, b_) return a_ == b_ end)
     rawset(eR, "getinfo",              function() return {} end)
+    -- Additional anti-tamper bypass stubs for MoonSec v3 / Prometheus
+    rawset(eR, "isluau",               function() return true end)
+    rawset(eR, "islua",                function() return false end)
+    rawset(eR, "checkclosure",         function(f) return type(f) == "function" end)
+    rawset(eR, "isourclosure",         function(f) return type(f) == "function" end)
+    rawset(eR, "isnewcclosure",        function() return false end)
+    rawset(eR, "clonefunction",        function(f) return f end)
+    rawset(eR, "copyfunction",         function(f) return f end)
+    rawset(eR, "replaceclosure",       function(f, r_) return r_ end)
+    rawset(eR, "detourfn",             function(f, r_) return r_ end)
+    rawset(eR, "setreadonly",          function(t_, b_) return t_ end)
+    rawset(eR, "iswindowactive",       function() return true end)
+    rawset(eR, "getupvalues",          function(f)
+        if type(f) ~= "function" then return {} end
+        local uvs = {}
+        local i = 1
+        while true do
+            local n, v = debug.getupvalue(f, i)
+            if not n then break end
+            uvs[n] = v
+            i = i + 1
+        end
+        return uvs
+    end)
+    rawset(eR, "getupvalue",           function(f, idx)
+        if type(f) ~= "function" then return nil end
+        local n, v = debug.getupvalue(f, idx)
+        return v
+    end)
+    rawset(eR, "setupvalue",           function(f, idx, val)
+        if type(f) == "function" then debug.setupvalue(f, idx, val) end
+    end)
+    rawset(eR, "getconstants",         function(f) return {} end)
+    rawset(eR, "getprotos",            function(f) return {} end)
+    rawset(eR, "getproto",             function(f, idx) return function() end end)
+    rawset(eR, "getstack",             function(lvl, idx) return nil end)
+    rawset(eR, "setstack",             function(lvl, idx, val) end)
+    rawset(eR, "getscriptbytecode",    function() return "" end)
+    rawset(eR, "getscripthash",        function() return string.rep("0", 64) end)
+    rawset(eR, "getscriptclosure",     function(f) return f end)
+    rawset(eR, "getscriptfunction",    function(f) return f end)
+    rawset(eR, "firehook",             function() end)
+    rawset(eR, "lz4compress",          function(s) return s end)
+    rawset(eR, "lz4decompress",        function(s) return s end)
+    rawset(eR, "protectgui",           function() end)
+    rawset(eR, "gethui",               function() return eR end)
+    rawset(eR, "gethiddenui",          function() return eR end)
+    rawset(eR, "request",              function(o_) return {Success=true,StatusCode=200,StatusMessage="OK",Headers={},Body="{}"} end)
+    rawset(eR, "http_request",         function(o_) return {Success=true,StatusCode=200,StatusMessage="OK",Headers={},Body="{}"} end)
+    rawset(eR, "setclipboard",         function() end)
+    rawset(eR, "getclipboard",         function() return "" end)
+    rawset(eR, "toclipboard",          function() end)
+    rawset(eR, "fromclipboard",        function() return "" end)
+    rawset(eR, "queue_on_teleport",    function() end)
+    rawset(eR, "queueonteleport",      function() end)
+    rawset(eR, "readfile",             function() return "" end)
+    rawset(eR, "writefile",            function() end)
+    rawset(eR, "appendfile",           function() end)
+    rawset(eR, "listfiles",            function() return {} end)
+    rawset(eR, "isfile",               function() return false end)
+    rawset(eR, "isfolder",             function() return false end)
+    rawset(eR, "makefolder",           function() end)
+    rawset(eR, "delfolder",            function() end)
+    rawset(eR, "delfile",              function() end)
+    rawset(eR, "setfpscap",            function() end)
+    rawset(eR, "getfpscap",            function() return 60 end)
+    rawset(eR, "getobjects",           function() return {} end)
+    rawset(eR, "getobject",            function() return nil end)
+    rawset(eR, "getsynasset",          function(p_) return "rbxasset://"..tostring(p_) end)
+    rawset(eR, "getcustomasset",       function(p_) return "rbxasset://"..tostring(p_) end)
+    -- crypt / crypto stubs used by Prometheus anti-tamper
+    rawset(eR, "crypt",                {
+        base64encode = function(s) return s end,
+        base64decode = function(s) return s end,
+        base64_encode = function(s) return s end,
+        base64_decode = function(s) return s end,
+        encrypt  = function(s, k_) return s end,
+        decrypt  = function(s, k_) return s end,
+        hash     = function(s) return string.rep("0", 64) end,
+        generatekey = function(n_) return string.rep("0", n_ or 32) end,
+        generatebytes = function(n_) return string.rep("\0", n_ or 16) end,
+    })
+    rawset(eR, "base64_encode",        function(s) return s end)
+    rawset(eR, "base64_decode",        function(s) return s end)
+    rawset(eR, "base64encode",         function(s) return s end)
+    rawset(eR, "base64decode",         function(s) return s end)
+    -- rconsole stubs
+    rawset(eR, "rconsoleprint",        function() end)
+    rawset(eR, "rconsoleclear",        function() end)
+    rawset(eR, "rconsolecreate",       function() end)
+    rawset(eR, "rconsoledestroy",      function() end)
+    rawset(eR, "rconsoleinput",        function() return "" end)
+    rawset(eR, "rconsoleinfo",         function() end)
+    rawset(eR, "rconsolewarn",         function() end)
+    rawset(eR, "rconsoleerr",          function() end)
+    rawset(eR, "rconsolename",         function() end)
+    rawset(eR, "consoleclear",         function() end)
+    rawset(eR, "consoleprint",         function() end)
+    rawset(eR, "consolewarn",          function() end)
+    rawset(eR, "consoleerror",         function() end)
+    rawset(eR, "consolename",          function() end)
+    rawset(eR, "consoleinput",         function() return "" end)
+    -- Anti-tamper: bit32 must be available inside sandbox too
+    rawset(eR, "bit32",                bit32)
+    rawset(eR, "bit",                  bit)
+    -- table stubs needed by Prometheus (table.freeze check bypass)
+    rawset(eR, "table",                table)
     -- Some scripts use a Luau-style `_G` reference that also goes through getgenv;
     -- expose it inside the sandbox so that `getgenv()["_G"]` round-trips correctly.
     rawset(eR, "_G",                   eR)
@@ -6053,6 +6517,8 @@ function q.dump_file(eN, eO)
     q.dump_xor_strings()
     q.dump_k0lrot_strings()
     q.dump_lightcate_strings()
+    q.dump_prometheus_strings()
+    q.dump_moonsec_strings()
     return q.save(eO or r.OUTPUT_FILE)
 end
 function q.dump_string(al, eO)
@@ -6093,6 +6559,24 @@ function q.dump_string(al, eO)
             t.lightcate_string_pool = { strings = lc_strings2, var_name = lc_var2 }
         else
             t.lightcate_string_pool = nil
+        end
+        -- Prometheus string extraction.
+        local prom_strings2, prom_total2, prom_var2 = prometheus_extract_strings(al)
+        if prom_strings2 and #prom_strings2 > 0 then
+            B(string.format("[Dumper] Prometheus obfuscation detected (var=%s) — %d/%d strings decoded",
+                prom_var2 or "?", #prom_strings2, prom_total2 or 0))
+            t.prometheus_string_pool = { strings = prom_strings2, var_name = prom_var2 }
+        else
+            t.prometheus_string_pool = nil
+        end
+        -- MoonSec v3 string extraction.
+        local ms_strings2, ms_total2, ms_var2 = moonsec_extract_strings(al)
+        if ms_strings2 and #ms_strings2 > 0 then
+            B(string.format("[Dumper] MoonSec obfuscation detected (var=%s) — %d/%d strings decoded",
+                ms_var2 or "?", #ms_strings2, ms_total2 or 0))
+            t.moonsec_string_pool = { strings = ms_strings2, var_name = ms_var2 }
+        else
+            t.moonsec_string_pool = nil
         end
         al = I(al)
     end
@@ -6206,6 +6690,8 @@ function q.dump_string(al, eO)
     q.dump_xor_strings()
     q.dump_k0lrot_strings()
     q.dump_lightcate_strings()
+    q.dump_prometheus_strings()
+    q.dump_moonsec_strings()
     if eO then
         return q.save(eO)
     end
