@@ -87,7 +87,7 @@ def _requests_get(url, **kwargs):
 # ---------------- BOT ----------------
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+bot = commands.Bot(command_prefix=PREFIX, intents=intents, help_command=None)
 
 _executor = ThreadPoolExecutor(max_workers=32)
 
