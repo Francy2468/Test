@@ -973,29 +973,50 @@ def _smart_rename_variables(code: str) -> str:
 
 
 _DEEPSEEK_SYSTEM_PROMPT = """\
-You are an expert Lua/Roblox script formatter. Your only job is to rename \
-poorly-named local variables in the provided Lua code to make them descriptive \
-and readable.
+You are an expert Lua developer and code refactoring assistant.
+Your task is to analyze the provided Lua script and fully repair, refactor, \
+and improve it while preserving its intended functionality.
 
-Rules:
-1. Use the .Name property assignment to name Instance.new() variables.
-   Example: if `frame.Name = "CloseButton"` exists → rename `frame` to `closeButton`.
-2. Use .Text for TextButton / TextLabel / TextBox if .Name is not available.
-   Example: if `textButton.Text = "Fire All"` → rename to `fireAllButton`.
-3. When neither .Name nor .Text is available, use a short descriptive prefix
-   based on the Instance type and a sequential number:
-   Frame→frame, TextButton→button, TextLabel→label, TextBox→textBox,
-   ScrollingFrame→scroll, ScreenGui→gui, UICorner→corner,
-   UIListLayout→listLayout, ImageLabel→imageLabel, ImageButton→imageButton,
-   Part→part, RemoteEvent→remote, Sound→sound, Folder→folder, Model→model.
-   Number duplicates: button, button2, button3 …
-4. Rename generic connection variables (conn, conn_, conn2, connection …)
-   to <connectedVariable>Conn.  Example: `conn = closeButton.MouseButton1Click:Connect(…)`
-   → `closeButtonConn`.
-5. Keep already-descriptive names unchanged.
-6. Do NOT add, remove, or reorder any code — only rename identifiers.
-7. Return ONLY the modified Lua code with no explanation, no markdown fences, \
-and no extra text.\
+Carefully review the entire script and perform a full code improvement process.
+
+Objectives:
+
+1. Detect and fix all syntax errors, runtime errors, and logical issues.
+2. Correct any broken or invalid Lua syntax.
+3. Ensure all parentheses, brackets, and code blocks are properly closed.
+4. Fix incorrect API usage or invalid function calls.
+5. Improve the overall structure and organization of the script.
+6. Refactor messy, duplicated, or poorly structured code into cleaner and more maintainable patterns.
+7. Remove redundant, duplicated, or unnecessary code.
+8. Simplify overly complex or deeply nested logic.
+9. Improve naming of variables, functions, and objects to make them meaningful and readable.
+10. Fix variable scope issues and ensure variables are declared in appropriate places.
+11. Ensure services and commonly used objects are stored properly and reused instead of repeatedly retrieved.
+12. Optimize loops and event connections to prevent performance issues.
+13. Prevent infinite loops, unnecessary event connections, or memory leaks.
+14. Improve GUI creation logic so elements are organized and structured properly.
+15. Ensure all references to objects are validated before use.
+16. Apply good Lua programming practices and consistent formatting.
+17. Improve indentation, spacing, and overall readability of the code.
+18. Reduce excessive nesting and repeated patterns by introducing helper functions if necessary.
+19. Ensure the final script is stable and runs without errors.
+20. Keep the original features and behavior of the script as much as possible.
+
+Additional guidelines:
+
+- Do not remove functionality unless it is clearly broken.
+- Do not leave placeholder code.
+- Do not leave syntax errors.
+- Ensure the final script is clean, readable, and well organized.
+- Prefer clear and maintainable code over overly compact code.
+
+Output requirements:
+
+- Return the FULL corrected and refactored Lua script.
+- Ensure the final code is properly formatted.
+- Ensure the script can run without obvious errors.
+- Do not include explanations unless necessary.
+- No markdown fences, no extra text whatsoever.\
 """
 
 # Lazy-initialised DeepSeek client (None until first use).
@@ -1060,7 +1081,54 @@ def _ai_rename_variables(code: str) -> str:
         return _smart_rename_variables(code)
 
 
-# ---------------- LUA SYNTAX FIXER ----------------
+# .fix uses the same comprehensive prompt as .rename.
+_DEEPSEEK_FIX_SYSTEM_PROMPT = _DEEPSEEK_SYSTEM_PROMPT
+
+
+def _ai_fix_lua(code: str) -> str:
+    """Send *code* to DeepSeek for comprehensive repair and refactoring.
+
+    Applies the full suite of fixes described in ``_DEEPSEEK_FIX_SYSTEM_PROMPT``
+    (syntax repair, naming, structure, formatting).
+
+    Falls back to the heuristic pipeline (``_run_heuristic_fix_pipeline``) if:
+    * The ``openai`` package is not installed.
+    * ``DEEPSEEK_API_KEY`` is not set.
+    * The script exceeds ``AI_RENAME_MAX_CHARS``.
+    * The API call raises any exception.
+    * The response appears to be empty or non-Lua.
+    """
+    if len(code) > AI_RENAME_MAX_CHARS:
+        return _run_heuristic_fix_pipeline(code)
+
+    client = _get_deepseek_client()
+    if client is None:
+        return _run_heuristic_fix_pipeline(code)
+
+    try:
+        response = client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[
+                {"role": "system", "content": _DEEPSEEK_FIX_SYSTEM_PROMPT},
+                {"role": "user", "content": code},
+            ],
+            stream=False,
+            timeout=90,
+        )
+        result = response.choices[0].message.content or ""
+        # Strip accidental markdown code fences the model may emit.
+        result = re.sub(r"^```[a-zA-Z]*\n?", "", result.strip())
+        result = re.sub(r"\n?```$", "", result)
+        result = result.strip()
+        if not result:
+            return _run_heuristic_fix_pipeline(code)
+        return result
+    except Exception as exc:
+        print(f"[DeepSeek] fix failed: {exc}")
+        return _run_heuristic_fix_pipeline(code)
+
+
+
 
 # Keywords that open a new Lua block scope (each requires a matching 'end').
 _LUA_BLOCK_OPEN_RE = re.compile(r"\b(function|do|repeat)\b")
@@ -1504,7 +1572,7 @@ async def process_link(ctx, *, link=None):
 
     # Acknowledge the command immediately so the user sees activity right away
     try:
-        status=await _send_with_retry(lambda: ctx.send("⚙️ dumping"))
+        status=await _send_with_retry(lambda: ctx.send("dumping"))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
@@ -1516,7 +1584,7 @@ async def process_link(ctx, *, link=None):
         original_filename=att.filename
 
         if att.size>MAX_FILE_SIZE:
-            await status.edit(content="❌ File too large")
+            await status.edit(content="File too large")
             return
 
         loop=asyncio.get_event_loop()
@@ -1536,7 +1604,7 @@ async def process_link(ctx, *, link=None):
         if r.status_code==200:
 
             if len(r.content)>MAX_FILE_SIZE:
-                await status.edit(content="❌ File too large")
+                await status.edit(content="File too large")
                 return
 
             content=r.content
@@ -1553,13 +1621,13 @@ async def process_link(ctx, *, link=None):
             return
 
     if not content:
-        await status.edit(content="❌ Failed to get content.")
+        await status.edit(content="Failed to get content.")
         return
 
     dumped,exec_ms,loops,lines,error=await run_dumper(content)
 
     if error:
-        await status.edit(content=f"❌ {error}")
+        await status.edit(content=f"{error}")
         return
 
     dumped_text=dumped.decode("utf-8",errors="ignore")
@@ -1605,8 +1673,8 @@ async def process_link(ctx, *, link=None):
     preview="\n".join(dumped_text.splitlines()[:10])
 
     embed=discord.Embed(
-        title=f"✅ Finished {exec_ms:.2f} ms",
-        description=f"Paste: {raw}" if raw else "⚠️ Paste upload failed",
+        title=f"Finished {exec_ms:.2f} ms",
+        description=f"Paste: {raw}" if raw else "Paste upload failed",
         color=0x2b2d31
     )
 
@@ -1632,7 +1700,7 @@ async def process_link(ctx, *, link=None):
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send result: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
 
@@ -1699,7 +1767,8 @@ def _fix_lua_compat(code: str) -> str:
       !=          ->  ~=     (inequality operator)
       &&          ->  and    (logical AND)
       ||          ->  or     (logical OR)
-      !expr       ->  not    (logical NOT; only bare '!' not followed by '=')
+      !expr       ->  not    (logical NOT; only bare '!' followed by an
+                             identifier or '(' — not punctuation in strings)
       null        ->  nil    (whole word)
       undefined   ->  nil    (whole word)
       else if     ->  elseif (Lua uses a single keyword; see note below)
@@ -1716,9 +1785,11 @@ def _fix_lua_compat(code: str) -> str:
     code = re.sub(r"\s*&&\s*", " and ", code)
     code = re.sub(r"\s*\|\|\s*", " or ", code)
     # Replace bare '!' (logical NOT) — '!=' has already been handled above.
-    # Only match '!' not immediately preceded by a word character so that '!'
-    # inside string literals (e.g. "hello!") is left untouched.
-    code = re.sub(r"(?<!\w)!", "not ", code)
+    # Require '!' to be followed by an identifier character or '(' so that '!'
+    # used as punctuation in string literals (e.g. "hello!", "done!") and at
+    # line endings is left untouched.  This prevents corrupting string values
+    # while still catching all practical uses of the JS logical-NOT operator.
+    code = re.sub(r"(?<!\w)!(?=[a-zA-Z_(])", "not ", code)
     code = re.sub(r"\bnull\b", "nil", code)
     code = re.sub(r"\bundefined\b", "nil", code)
     # Collapse "else if" -> "elseif" but protect "end … else … if" first.
@@ -1732,6 +1803,44 @@ def _fix_lua_compat(code: str) -> str:
     )
     code = re.sub(r"\belse[ \t]+if\b", "elseif", code)
     code = code.replace(_PROTECT, "if")
+    return code
+
+
+
+# ---------------- HEURISTIC FIX PIPELINE ----------------
+
+def _run_heuristic_fix_pipeline(code: str) -> str:
+    """Apply the full heuristic-based Lua repair pipeline without AI.
+
+    This is the fallback used by ``_ai_fix_lua`` when DeepSeek is unavailable
+    or the script is too large for the AI call, and it is also used directly
+    by the ``.fix`` command when no API key is configured.
+
+    Steps (in order):
+    1. Non-Lua operator substitution (!=, &&, ||, !, null, else if)
+    2. Add missing ')' to :Connect(function…end) blocks
+    3. Remove extra / misplaced 'end' keywords
+    4. Append missing 'end' keywords at EOF
+    5. Remove duplicate :Connect() event-handler bindings
+    6. De-shadow re-declared UI-element variable names
+    7. Rename locals using .Name / .Text / type-prefix heuristics
+    8. Fold adjacent string-literal concatenations
+    9. Collapse repeated identical code blocks (loop-unroll artifacts)
+    10. Re-indent (beautify)
+    11. Remove excessive blank lines and trailing whitespace
+    """
+    code = _fix_lua_compat(code)
+    code = _fix_connect_end_parens(code)
+    code = _fix_extra_ends(code)
+    code = _fix_lua_do_end(code)
+    code = _dedup_connections(code)
+    code = _fix_ui_variable_shadowing(code)
+    code = _smart_rename_variables(code)
+    code = _fold_string_concat(code)
+    code = _collapse_loop_unrolls(code)
+    code = _beautify_lua(code)
+    code = _collapse_blank_lines(code)
+    code = _remove_trailing_whitespace(code)
     return code
 
 
@@ -1749,7 +1858,7 @@ async def rename_variables(ctx, *, link=None):
     original_filename = "script"
 
     try:
-        label = "🤖 renaming with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "🔤 renaming"
+        label = "renaming with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "renaming"
         status = await _send_with_retry(lambda: ctx.send(label))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
@@ -1759,7 +1868,7 @@ async def rename_variables(ctx, *, link=None):
         att = ctx.message.attachments[0]
         original_filename = att.filename
         if att.size > MAX_FILE_SIZE:
-            await status.edit(content="❌ File too large")
+            await status.edit(content="File too large")
             return
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
@@ -1773,7 +1882,7 @@ async def rename_variables(ctx, *, link=None):
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
         if r.status_code == 200:
             if len(r.content) > MAX_FILE_SIZE:
-                await status.edit(content="❌ File too large")
+                await status.edit(content="File too large")
                 return
             content = r.content
 
@@ -1789,7 +1898,7 @@ async def rename_variables(ctx, *, link=None):
             return
 
     if not content:
-        await status.edit(content="❌ Failed to get content.")
+        await status.edit(content="Failed to get content.")
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
@@ -1815,7 +1924,7 @@ async def rename_variables(ctx, *, link=None):
 
     preview = "\n".join(renamed.splitlines()[:PREVIEW_LINES])
     embed = discord.Embed(
-        title="✏️ Variables renamed",
+        title="Variables renamed",
         color=0x2b2d31,
     )
     embed.add_field(
@@ -1835,7 +1944,7 @@ async def rename_variables(ctx, *, link=None):
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send renamed result: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
 
@@ -1847,7 +1956,7 @@ async def beautify(ctx, *, link=None):
     original_filename = "script"
 
     try:
-        status = await _send_with_retry(lambda: ctx.send("✨ beautifying"))
+        status = await _send_with_retry(lambda: ctx.send("beautifying"))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
@@ -1856,7 +1965,7 @@ async def beautify(ctx, *, link=None):
         att = ctx.message.attachments[0]
         original_filename = att.filename
         if att.size > MAX_FILE_SIZE:
-            await status.edit(content="❌ File too large")
+            await status.edit(content="File too large")
             return
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
@@ -1870,7 +1979,7 @@ async def beautify(ctx, *, link=None):
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
         if r.status_code == 200:
             if len(r.content) > MAX_FILE_SIZE:
-                await status.edit(content="❌ File too large")
+                await status.edit(content="File too large")
                 return
             content = r.content
 
@@ -1884,7 +1993,7 @@ async def beautify(ctx, *, link=None):
             return
 
     if not content:
-        await status.edit(content="❌ Failed to get content.")
+        await status.edit(content="Failed to get content.")
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
@@ -1903,8 +2012,8 @@ async def beautify(ctx, *, link=None):
     preview = "\n".join(beautified.splitlines()[:PREVIEW_LINES])
 
     embed = discord.Embed(
-        title="✨ Beautified",
-        description=f"Paste: {raw}" if raw else "⚠️ Paste upload failed",
+        title="Beautified",
+        description=f"Paste: {raw}" if raw else "Paste upload failed",
         color=0x2b2d31
     )
     embed.add_field(
@@ -1929,16 +2038,21 @@ async def beautify(ctx, *, link=None):
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send beautified result: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
 
 # ---------------- COMMAND .fix ----------------
 @bot.command(name="fix")
 async def fix_lua(ctx, *, link=None):
-    """Apply a full Roblox/Lua syntax repair pipeline to the supplied script.
+    """Apply a full Roblox/Lua repair and refactoring pipeline to the supplied script.
 
-    Fixes applied (in order):
+    When ``DEEPSEEK_API_KEY`` is set the script is sent to DeepSeek for
+    comprehensive AI-powered repair (syntax fixes, renaming, structure
+    improvements, formatting).  Without an API key the heuristic pipeline is
+    used as a fallback.
+
+    Heuristic pipeline (fallback, applied in order):
     1. Non-Lua operators (``!=``, ``&&``, ``||``, ``!``, ``null``, ``else if``)
     2. Missing ``)`` on ``:Connect(function…end)`` blocks
     3. Extra / misplaced ``end`` keywords
@@ -1957,7 +2071,8 @@ async def fix_lua(ctx, *, link=None):
     original_filename = "script"
 
     try:
-        status = await _send_with_retry(lambda: ctx.send("🔧 fixing"))
+        label = "fixing with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "fixing"
+        status = await _send_with_retry(lambda: ctx.send(label))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
@@ -1966,7 +2081,7 @@ async def fix_lua(ctx, *, link=None):
         att = ctx.message.attachments[0]
         original_filename = att.filename
         if att.size > MAX_FILE_SIZE:
-            await status.edit(content="❌ File too large")
+            await status.edit(content="File too large")
             return
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
@@ -1980,7 +2095,7 @@ async def fix_lua(ctx, *, link=None):
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
         if r.status_code == 200:
             if len(r.content) > MAX_FILE_SIZE:
-                await status.edit(content="❌ File too large")
+                await status.edit(content="File too large")
                 return
             content = r.content
 
@@ -1994,30 +2109,15 @@ async def fix_lua(ctx, *, link=None):
             return
 
     if not content:
-        await status.edit(content="❌ Failed to get content.")
+        await status.edit(content="Failed to get content.")
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
 
-    def _run_fix_pipeline(code: str) -> str:
-        code = _fix_lua_compat(code)
-        code = _fix_connect_end_parens(code)
-        code = _fix_extra_ends(code)
-        code = _fix_lua_do_end(code)
-        code = _dedup_connections(code)
-        code = _fix_ui_variable_shadowing(code)
-        code = _smart_rename_variables(code)
-        code = _fold_string_concat(code)
-        code = _collapse_loop_unrolls(code)
-        code = _beautify_lua(code)
-        code = _collapse_blank_lines(code)
-        code = _remove_trailing_whitespace(code)
-        return code
-
     loop = asyncio.get_event_loop()
     fixed = await loop.run_in_executor(
         _executor,
-        functools.partial(_run_fix_pipeline, lua_text)
+        functools.partial(_ai_fix_lua, lua_text)
     )
 
     paste, raw = await loop.run_in_executor(
@@ -2028,8 +2128,8 @@ async def fix_lua(ctx, *, link=None):
     preview = "\n".join(fixed.splitlines()[:PREVIEW_LINES])
 
     embed = discord.Embed(
-        title="🔧 Fixed",
-        description=f"Paste: {raw}" if raw else "⚠️ Paste upload failed",
+        title="Fixed",
+        description=f"Paste: {raw}" if raw else "Paste upload failed",
         color=0x2b2d31
     )
     embed.add_field(
@@ -2054,7 +2154,7 @@ async def fix_lua(ctx, *, link=None):
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send fixed result: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
 
@@ -2064,7 +2164,7 @@ async def fix_lua(ctx, *, link=None):
 async def get_link_content(ctx,*,link=None):
 
     try:
-        status=await _send_with_retry(lambda: ctx.send("⬇️ downloading"))
+        status=await _send_with_retry(lambda: ctx.send("downloading"))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
@@ -2080,7 +2180,7 @@ async def get_link_content(ctx,*,link=None):
                     fname = os.path.splitext(fname)[0] + ".txt"
                 await status.delete()
                 await _send_with_retry(lambda: ctx.send(
-                    content=f"✅ from reply",
+                    content=f"from reply",
                     file=discord.File(io.BytesIO(ref_content), filename=fname)
                 ))
                 return
@@ -2102,22 +2202,22 @@ async def get_link_content(ctx,*,link=None):
             await status.delete()
 
             await _send_with_retry(lambda: ctx.send(
-                content=f"✅ {link}",
+                content=f"{link}",
                 file=discord.File(io.BytesIO(r.content),filename=filename)
             ))
 
         else:
-            await status.edit(content=f"❌ HTTP {r.status_code}")
+            await status.edit(content=f"HTTP {r.status_code}")
 
     except discord.errors.DiscordServerError as e:
         print(f"Warning: Discord server error in get command: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
     except Exception as e:
         try:
-            await status.edit(content=f"❌ {e}")
+            await status.edit(content=f"{e}")
         except discord.errors.HTTPException:
             pass
 

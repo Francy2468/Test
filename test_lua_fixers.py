@@ -656,6 +656,88 @@ class TestFixPipelineIntegration(unittest.TestCase):
             self.assertEqual(line, line.rstrip())
 
 
+_run_heuristic_fix_pipeline = cat._run_heuristic_fix_pipeline
+_ai_fix_lua = cat._ai_fix_lua
+
+
+class TestFixLuaCompatExclamationMark(unittest.TestCase):
+    """The '!' → 'not' replacement must not corrupt string literals."""
+
+    def test_logical_not_identifier_replaced(self):
+        self.assertEqual(_fix_lua_compat("if !isEnabled then"), "if not isEnabled then")
+
+    def test_logical_not_paren_replaced(self):
+        self.assertEqual(_fix_lua_compat("if !(a and b) then"), "if not (a and b) then")
+
+    def test_exclamation_in_string_preserved(self):
+        """'!' inside a string literal must NOT become 'not'."""
+        code = 'print("hello!")'
+        self.assertEqual(_fix_lua_compat(code), code)
+
+    def test_exclamation_at_end_of_string_preserved(self):
+        code = 'local msg = "done!"'
+        self.assertEqual(_fix_lua_compat(code), code)
+
+    def test_exclamation_punctuation_only_preserved(self):
+        """Bare '!' not followed by identifier/paren must not be replaced."""
+        code = 'local x = "!" .. "?"'
+        self.assertEqual(_fix_lua_compat(code), code)
+
+    def test_mixed_not_and_string(self):
+        """Only the operator '!' is replaced, string '!' is left alone."""
+        code = 'if !isEnabled then print("ok!") end'
+        result = _fix_lua_compat(code)
+        self.assertIn("not isEnabled", result)
+        self.assertIn('"ok!"', result)
+
+
+class TestRunHeuristicFixPipeline(unittest.TestCase):
+    """_run_heuristic_fix_pipeline is a module-level function available as fallback."""
+
+    def test_returns_string(self):
+        code = 'local frame = Instance.new("Frame")\nframe.Name = "Panel"\n'
+        result = _run_heuristic_fix_pipeline(code)
+        self.assertIsInstance(result, str)
+        self.assertTrue(len(result) > 0)
+
+    def test_renames_instance_variable(self):
+        code = 'local frame = Instance.new("Frame")\nframe.Name = "Dashboard"\n'
+        result = _run_heuristic_fix_pipeline(code)
+        self.assertIn("dashboard", result)
+
+    def test_fixes_lua_compat(self):
+        code = "if a != b then\n    return nil\nend\n"
+        result = _run_heuristic_fix_pipeline(code)
+        self.assertIn("~=", result)
+        self.assertNotIn("!=", result)
+
+    def test_empty_string(self):
+        self.assertEqual(_run_heuristic_fix_pipeline(""), "")
+
+
+class TestAiFixLuaFallback(unittest.TestCase):
+    """_ai_fix_lua falls back to heuristic pipeline when no DeepSeek key is set."""
+
+    def test_returns_string_without_key(self):
+        """Without DEEPSEEK_API_KEY the function must still return valid code."""
+        code = 'local frame = Instance.new("Frame")\nframe.Name = "Panel"\n'
+        result = _ai_fix_lua(code)
+        self.assertIsInstance(result, str)
+        self.assertTrue(len(result) > 0)
+
+    def test_fallback_renames_instance(self):
+        code = 'local frame = Instance.new("Frame")\nframe.Name = "Backdrop"\n'
+        result = _ai_fix_lua(code)
+        # Should at least apply heuristic renaming
+        self.assertIn("backdrop", result)
+
+    def test_fallback_fixes_compat(self):
+        code = "if a != b then\n    return nil\nend\n"
+        result = _ai_fix_lua(code)
+        self.assertNotIn("!=", result)
+        self.assertIn("~=", result)
+
+
 if __name__ == "__main__":
     unittest.main()
 
