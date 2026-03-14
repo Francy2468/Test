@@ -4448,11 +4448,9 @@ table.find = table.find or function(t_, val, init)
     end
     return nil
 end
-table.freeze = table.freeze or function(t_) return t_ end  -- no-op stub
-table.isfrozen = table.isfrozen or function(t_) return false end
--- Prometheus uses table.freeze on its constant tables as anti-tamper.
--- Ensure our stub does NOT actually freeze tables so metatables remain writable.
--- Redefine even if already set in native Lua to ensure it is a safe no-op.
+-- table.freeze / table.isfrozen: unconditional no-op so Prometheus anti-tamper
+-- (which calls table.freeze on const tables and later checks isfrozen) cannot
+-- lock tables against instrumentation modifications. Override any native Lua impl.
 table.freeze = function(t_) return t_ end
 table.isfrozen = function(t_) return false end
 _G.table = table
@@ -5848,11 +5846,35 @@ local function moonsec_extract_strings(source_code)
         return nil
     end
     local preamble = source_code:sub(1, boundary - 1)
-    -- Try priority vars first, then fall back to GEN_STRING_VARS
+    -- Try priority vars first, then fall back to GEN_STRING_VARS.
+    -- Deduplicate to avoid re-testing the same name.
     local all_vars = {}
-    for _, v in ipairs(priority_vars) do table.insert(all_vars, v) end
-    for _, v in ipairs(GEN_STRING_VARS) do table.insert(all_vars, v) end
+    local seen_vars = {}
+    for _, v in ipairs(priority_vars) do
+        if not seen_vars[v] then seen_vars[v] = true; table.insert(all_vars, v) end
+    end
+    for _, v in ipairs(GEN_STRING_VARS) do
+        if not seen_vars[v] then seen_vars[v] = true; table.insert(all_vars, v) end
+    end
     for _, var_name in ipairs(all_vars) do
+        -- Try depth=1 first without wrapper (no closing needed).
+        local patched0 = preamble .. "\nreturn " .. var_name .. "\n"
+        local fn0 = e(patched0)
+        if fn0 then
+            local ok0, result0 = pcall(fn0)
+            if ok0 and type(result0) == "table" and #result0 >= GEN_MIN_STRING_COUNT then
+                local results = {}
+                for idx = 1, #result0 do
+                    local s = result0[idx]
+                    if type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$") then
+                        table.insert(results, {idx = idx, val = s})
+                    end
+                end
+                if #results >= GEN_MIN_STRING_COUNT then
+                    return results, #result0, var_name
+                end
+            end
+        end
         for depth = 1, GEN_MAX_NEST_DEPTH do
             local closing = string.rep("end)(...)", depth)
             local patched = preamble .. "\nreturn " .. var_name .. " " .. closing .. "\n"
