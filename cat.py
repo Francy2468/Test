@@ -1709,7 +1709,6 @@ async def on_ready():
 @bot.command(name="help")
 async def show_help(ctx):
     """Show available bot commands."""
-    ai_tag = " (AI)" if (OPENAI_API_KEY and _OPENAI_AVAILABLE) else ""
     embed = discord.Embed(
         title="Commands",
         description=f"Prefix: `{PREFIX}`",
@@ -1732,27 +1731,16 @@ async def show_help(ctx):
         inline=False,
     )
     embed.add_field(
-        name=f"{PREFIX}rename [link]",
-        value=(
-            f"Rename obfuscated variables in a Lua script{ai_tag}.\n"
-            "Attach a file, provide a URL, or reply to a message with a file/link."
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name=f"{PREFIX}fix [link]",
-        value=(
-            f"Apply a full Lua repair pipeline{ai_tag}.\n"
-            "Attach a file, provide a URL, or reply to a message with a file/link."
-        ),
-        inline=False,
-    )
-    embed.add_field(
         name=f"{PREFIX}bf [link]",
         value=(
             "Beautify/reformat a Lua script.\n"
             "Attach a file, provide a URL, or reply to a message with a file/link."
         ),
+        inline=False,
+    )
+    embed.add_field(
+        name=f"{PREFIX}darklua",
+        value="Show information about **darklua** — a Lua code transformation toolkit.",
         inline=False,
     )
     try:
@@ -2001,75 +1989,6 @@ def _run_heuristic_fix_pipeline(code: str) -> str:
     return code
 
 
-# ---------------- COMMAND .rename ----------------
-@bot.command(name="rename")
-async def rename_variables(ctx, *, link=None):
-    """Rename all poorly-named variables in a Lua script using ChatGPT AI.
-
-    Accepts input from:
-      * an attached .lua file
-      * a raw URL passed as argument
-      * a reply to a previous message that contains a file or URL
-    """
-    try:
-        label = "renaming with AI" if (OPENAI_API_KEY and _OPENAI_AVAILABLE) else "renaming"
-        status = await _send_with_retry(lambda: ctx.send(label))
-    except discord.errors.DiscordServerError as e:
-        print(f"Warning: failed to send status message: {e}")
-        return
-
-    content, original_filename, err = await _get_content(ctx, link)
-    if err:
-        await status.edit(content=err)
-        return
-
-    lua_text = content.decode("utf-8", errors="ignore")
-
-    def _rename_pipeline(code: str) -> str:
-        code = _fix_ui_variable_shadowing(code)
-        code = _ai_rename_variables(code)
-        return code
-
-    loop = asyncio.get_event_loop()
-    renamed = await loop.run_in_executor(
-        _executor,
-        functools.partial(_rename_pipeline, lua_text),
-    )
-
-    base = os.path.splitext(original_filename)[0]
-    out_filename = base + "_renamed.lua"
-
-    try:
-        await status.delete()
-    except discord.errors.HTTPException as e:
-        print(f"Warning: failed to delete status message: {e}")
-
-    preview = "\n".join(renamed.splitlines()[:PREVIEW_LINES])
-    embed = discord.Embed(
-        title="Variables renamed",
-        color=0x2b2d31,
-    )
-    embed.add_field(
-        name="Preview",
-        value=f"```lua\n{preview[:PREVIEW_MAX_CHARS]}\n```",
-        inline=False,
-    )
-
-    try:
-        await _send_with_retry(lambda: ctx.send(
-            embed=embed,
-            file=discord.File(
-                io.BytesIO(renamed.encode("utf-8")),
-                filename=out_filename,
-            ),
-        ))
-    except discord.errors.DiscordServerError as e:
-        print(f"Warning: failed to send renamed result: {e}")
-        try:
-            await status.edit(content=f"Discord error, please retry: {e}")
-        except discord.errors.HTTPException:
-            pass
-
 # ---------------- COMMAND .bf ----------------
 @bot.command(name="bf")
 async def beautify(ctx, *, link=None):
@@ -2131,88 +2050,68 @@ async def beautify(ctx, *, link=None):
         except discord.errors.HTTPException:
             pass
 
-# ---------------- COMMAND .fix ----------------
-@bot.command(name="fix")
-async def fix_lua(ctx, *, link=None):
-    """Apply a full Roblox/Lua repair and refactoring pipeline to the supplied script.
-
-    When ``OPENAI_API_KEY`` is set the script is sent to ChatGPT for
-    comprehensive AI-powered repair (syntax fixes, renaming, structure
-    improvements, formatting).  Without an API key the heuristic pipeline is
-    used as a fallback.
-
-    Heuristic pipeline (fallback, applied in order):
-    1. Non-Lua operators (``!=``, ``&&``, ``||``, ``!``, ``null``, ``else if``)
-    2. Missing ``)`` on ``:Connect(function…end)`` blocks
-    3. Extra / misplaced ``end`` keywords
-    4. Remaining missing ``end`` keywords (appended at EOF)
-    5. Duplicate ``:Connect()`` event-handler bindings
-    6. Shadowed UI-element variable names (``local frame = Instance.new(…)``
-       declared more than once)
-    7. Rename locals using ``.Name``, ``.Text``, and type-prefix heuristics
-    8. Fold adjacent string-literal concatenations (``"a" .. "b"`` → ``"ab"``)
-    9. Collapse repeated identical code blocks (loop-unroll artifacts)
-    10. Re-indent (beautify)
-    11. Remove excessive blank lines and trailing whitespace
-    """
-
-    try:
-        label = "fixing with AI" if (OPENAI_API_KEY and _OPENAI_AVAILABLE) else "fixing"
-        status = await _send_with_retry(lambda: ctx.send(label))
-    except discord.errors.DiscordServerError as e:
-        print(f"Warning: failed to send status message: {e}")
-        return
-
-    content, original_filename, err = await _get_content(ctx, link)
-    if err:
-        await status.edit(content=err)
-        return
-
-    lua_text = content.decode("utf-8", errors="ignore")
-
-    loop = asyncio.get_event_loop()
-    fixed = await loop.run_in_executor(
-        _executor,
-        functools.partial(_ai_fix_lua, lua_text)
-    )
-
-    paste, raw = await loop.run_in_executor(
-        _executor,
-        functools.partial(upload_to_pastefy, fixed, title=f"[FIX] {original_filename}")
-    )
-
-    preview = "\n".join(fixed.splitlines()[:PREVIEW_LINES])
-
+# ---------------- COMMAND .darklua ----------------
+@bot.command(name="darklua")
+async def darklua_info(ctx):
+    """Show information about the darklua Lua transformation toolkit."""
     embed = discord.Embed(
-        title="Fixed",
-        description=f"Paste: {raw}" if raw else "Paste upload failed",
-        color=0x2b2d31
+        title="🌑  darklua",
+        description=(
+            "A powerful **Lua code transformation** toolkit built in Rust.\n"
+            "Transform, bundle, and process your Lua/Luau projects with ease."
+        ),
+        url="https://github.com/seaofvoices/darklua",
+        color=0x5865F2,
     )
     embed.add_field(
-        name="Preview",
-        value=f"```lua\n{preview[:PREVIEW_MAX_CHARS]}\n```",
-        inline=False
+        name="✨  Key Features",
+        value=(
+            "• Bundle multiple Lua modules into a single file\n"
+            "• Minify Lua/Luau code\n"
+            "• Inject custom expressions\n"
+            "• Remove unused code & dead branches\n"
+            "• Process `require()` calls automatically\n"
+            "• Full Luau support"
+        ),
+        inline=False,
     )
-
+    embed.add_field(
+        name="⚙️  Installation",
+        value=(
+            "```\n"
+            "# via cargo\n"
+            "cargo install darklua\n\n"
+            "# or download a pre-built binary from Releases\n"
+            "```"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="🚀  Quick Usage",
+        value=(
+            "```sh\n"
+            "# process a file\n"
+            "darklua process input.lua output.lua\n\n"
+            "# minify\n"
+            "darklua minify input.lua output.lua\n"
+            "```"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="🔗  Links",
+        value=(
+            "[GitHub](https://github.com/seaofvoices/darklua)  •  "
+            "[Documentation](https://darklua.com)  •  "
+            "[Releases](https://github.com/seaofvoices/darklua/releases)"
+        ),
+        inline=False,
+    )
+    embed.set_footer(text="seaofvoices/darklua")
     try:
-        await status.delete()
-    except discord.errors.HTTPException as e:
-        print(f"Warning: failed to delete status message: {e}")
-
-    try:
-        await _send_with_retry(lambda: ctx.send(
-            embed=embed,
-            file=discord.File(
-                io.BytesIO(fixed.encode("utf-8")),
-                filename=os.path.splitext(original_filename)[0] + "_fixed.lua"
-            )
-        ))
+        await _send_with_retry(lambda: ctx.send(embed=embed))
     except discord.errors.DiscordServerError as e:
-        print(f"Warning: failed to send fixed result: {e}")
-        try:
-            await status.edit(content=f"Discord error, please retry: {e}")
-        except discord.errors.HTTPException:
-            pass
+        print(f"Warning: failed to send darklua info: {e}")
 
 
 # ---------------- COMMAND GET ----------------
