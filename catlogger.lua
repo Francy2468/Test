@@ -6506,6 +6506,10 @@ function q.dump_file(eN, eO)
     -- Some scripts use a Luau-style `_G` reference that also goes through getgenv;
     -- expose it inside the sandbox so that `getgenv()["_G"]` round-trips correctly.
     rawset(eR, "_G",                   eR)
+    -- Register the sandbox itself so that aZ() returns "getfenv()" rather than
+    -- serializing the entire executor-stub table when a script assigns
+    -- something like `gui.Parent = getfenv()`.
+    t.registry[eR] = "getfenv()"
     if _native_setfenv then
         -- Lua 5.1/5.2: native setfenv properly rebinds the chunk's environment.
         _native_setfenv(R, eR)
