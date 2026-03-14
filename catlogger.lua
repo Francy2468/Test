@@ -42,6 +42,18 @@ local r = {
     EMIT_XOR = false,
     DUMP_UPVALUES = true,
     MAX_UPVALUES_PER_FUNCTION = 200,
+    DUMP_GC_SCAN = true,
+    DUMP_INSTANCE_CREATIONS = true,
+    DUMP_SCRIPT_LOADS = true,
+    DUMP_REMOTE_SUMMARY = true,
+    -- Maximum objects returned by getgc() stubs (limits memory / iteration cost)
+    MAX_GC_OBJECTS = 500,
+    -- Maximum functions scanned by dump_gc_scan() (separate from getgc return limit)
+    MAX_GC_SCAN_FUNCTIONS = 500,
+    MAX_INSTANCE_CREATIONS = 1000,
+    MAX_SCRIPT_LOADS = 200,
+    -- Maximum characters of a loadstring payload kept as a diagnostic snippet
+    MAX_SCRIPT_LOAD_SNIPPET = 80,
     -- Extra collection options
     DUMP_FUNCTIONS = true,
     DUMP_METATABLES = true,
@@ -199,7 +211,11 @@ local t = {
     emit_count = 0,
     -- Loop detection: map of "source:line" → hit count and seen flags
     loop_line_counts = {},
-    loop_detected_lines = {}
+    loop_detected_lines = {},
+    -- Enhanced tracking tables
+    instance_creations = {},
+    script_loads = {},
+    gc_objects = {}
 }
 local u = tonumber(arg and arg[4]) or tonumber(arg and arg[3]) or 123456789
 local v = {}
@@ -3252,8 +3268,14 @@ Instance = {new = function(bX, bS)
             local dp = t.registry[bS] or aZ(bS)
             at(string.format("local %s = Instance.new(%s, %s)", _, aH(bY), dp))
             t.parent_map[x] = bS
+            if #t.instance_creations < r.MAX_INSTANCE_CREATIONS then
+                table.insert(t.instance_creations, {class = bY, var = _, parent = dp})
+            end
         else
             at(string.format("local %s = Instance.new(%s)", _, aH(bY)))
+            if #t.instance_creations < r.MAX_INSTANCE_CREATIONS then
+                table.insert(t.instance_creations, {class = bY, var = _, parent = nil})
+            end
         end
         return x
     end,
@@ -3489,6 +3511,21 @@ local function dz(dA)
     end
     return setmetatable(bh, dd)
 end
+-- Shared helper: collect all registered functions/tables into a GC-like list.
+-- Used by both the exploit_funcs.getgc and sandbox eR.getgc stubs so they remain
+-- in sync without duplicating the collection logic.
+local function _collect_gc_objects()
+    local _gc = {}
+    for obj, _ in D(t.registry) do
+        local _ot = j(obj)
+        if _ot == "function" or _ot == "table" then
+            table.insert(_gc, obj)
+            if #_gc >= r.MAX_GC_OBJECTS then break end
+        end
+    end
+    t.gc_objects = _gc
+    return _gc
+end
 local exploit_funcs = {getgenv = function()
         return dz(nil)
     end, getrenv = function()
@@ -3714,7 +3751,10 @@ local exploit_funcs = {getgenv = function()
     end, getnilinstances = function()
         return {}
     end, getgc = function()
-        return {}
+        -- Return all registered objects collected so far for deobfuscation analysis.
+        -- Scripts that call getgc() to scan for live closures will get a list of
+        -- everything we've captured in the registry (functions, tables, proxies).
+        return _collect_gc_objects()
     end, getscripts = function()
         return {}
     end, getrunningscripts = function()
@@ -4789,6 +4829,9 @@ loadstring = function(al, eu)
             t._loadstring_seen.ok[_al_key] = true
             aA()
             at(string.format("-- loadstring() invoked with compiled Lua code (length=%d)", #al))
+            if #t.script_loads < r.MAX_SCRIPT_LOADS then
+                table.insert(t.script_loads, {kind = "loadstring", status = "ok", length = #al, source = al:sub(1, r.MAX_SCRIPT_LOAD_SNIPPET)})
+            end
         end
         return R
     end
@@ -4798,6 +4841,9 @@ loadstring = function(al, eu)
             t._loadstring_seen.fail[_al_key] = true
             aA()
             at(string.format("-- loadstring() received non-compiling payload (length=%d)", #al))
+            if #t.script_loads < r.MAX_SCRIPT_LOADS then
+                table.insert(t.script_loads, {kind = "loadstring", status = "fail", length = #al, source = al:sub(1, r.MAX_SCRIPT_LOAD_SNIPPET)})
+            end
         end
     end
     local ez = bj("LoadedChunk", false)
@@ -4813,6 +4859,9 @@ require = function(eA)
     local z = bj("RequiredModule", false)
     local _ = aW(z, "module")
     at(string.format("local %s = require(%s)", _, eB))
+    if #t.script_loads < r.MAX_SCRIPT_LOADS then
+        table.insert(t.script_loads, {kind = "require", status = "ok", name = eB})
+    end
     return z
 end
 _G.require = require
@@ -4884,6 +4933,9 @@ function q.reset()
         _loadstring_seen = { ok = {}, fail = {} },
         prometheus_string_pool = nil,
         moonsec_string_pool = nil,
+        instance_creations = {},
+        script_loads = {},
+        gc_objects = {},
     }
     aM = {}
     game = bj("game", true)
@@ -5100,6 +5152,129 @@ function q.dump_moonsec_strings()
     for _, entry in E(pool.strings) do
         at(string.format("local _ms_%d = %s", entry.idx, aH(entry.val)))
     end
+end
+
+-- Emit a deduplicated summary table of all remote calls captured during execution.
+-- Groups calls by remote name and counts invocations, then emits a Lua comment block.
+function q.dump_remote_summary()
+    if not r.DUMP_REMOTE_SUMMARY then return end
+    if not t.call_graph or #t.call_graph == 0 then return end
+    aA()
+    at("-- =========================================================")
+    at("-- REMOTE CALL SUMMARY")
+    at("-- =========================================================")
+    local counts = {}
+    local order = {}
+    for _, entry in E(t.call_graph) do
+        local key = (entry.type or "Remote") .. ":" .. (entry.name or "?")
+        if not counts[key] then
+            counts[key] = {rtype = entry.type or "Remote", name = entry.name or "?", n = 0}
+            table.insert(order, key)
+        end
+        counts[key].n = counts[key].n + 1
+    end
+    for _, key in E(order) do
+        local c = counts[key]
+        at(string.format("-- [%s] %s  (called %d time%s)", c.rtype, c.name, c.n, c.n == 1 and "" or "s"))
+    end
+    at("-- =========================================================")
+end
+
+-- Emit a summary of all Instance.new() calls captured during execution.
+function q.dump_instance_creations()
+    if not r.DUMP_INSTANCE_CREATIONS then return end
+    if not t.instance_creations or #t.instance_creations == 0 then return end
+    aA()
+    at("-- =========================================================")
+    at("-- INSTANCE CREATION TRACKER")
+    at(string.format("-- %d Instance.new() call(s) captured", #t.instance_creations))
+    at("-- =========================================================")
+    local class_counts = {}
+    local class_order = {}
+    for _, ic in E(t.instance_creations) do
+        if not class_counts[ic.class] then
+            class_counts[ic.class] = 0
+            table.insert(class_order, ic.class)
+        end
+        class_counts[ic.class] = class_counts[ic.class] + 1
+    end
+    for _, cls in E(class_order) do
+        at(string.format("-- Instance.new(%q)  x%d", cls, class_counts[cls]))
+    end
+    at("-- =========================================================")
+end
+
+-- Emit a summary of all loadstring() / require() calls captured during execution.
+function q.dump_script_loads()
+    if not r.DUMP_SCRIPT_LOADS then return end
+    if not t.script_loads or #t.script_loads == 0 then return end
+    aA()
+    at("-- =========================================================")
+    at("-- SCRIPT LOADER LOG")
+    at(string.format("-- %d load event(s) captured", #t.script_loads))
+    at("-- =========================================================")
+    for idx, sl in E(t.script_loads) do
+        if sl.kind == "require" then
+            at(string.format("-- [%d] require(%s)", idx, sl.name or "?"))
+        elseif sl.kind == "loadstring" then
+            local snippet = (sl.source or ""):gsub("[\r\n]", " "):sub(1, r.MAX_SCRIPT_LOAD_SNIPPET)
+            at(string.format("-- [%d] loadstring (len=%d, status=%s): %s",
+                idx, sl.length or 0, sl.status or "?", snippet))
+        end
+    end
+    at("-- =========================================================")
+end
+
+-- Scan all objects collected in the GC / registry and emit upvalues + constants
+-- for every function found. Useful for deobfuscating closures that were never called.
+function q.dump_gc_scan()
+    if not r.DUMP_GC_SCAN then return end
+    if not a or not a.getupvalue then return end
+    -- Collect all functions from the registry up to MAX_GC_SCAN_FUNCTIONS.
+    local fns = {}
+    for obj, name in D(t.registry) do
+        if j(obj) == "function" then
+            table.insert(fns, {fn = obj, name = name})
+            if #fns >= r.MAX_GC_SCAN_FUNCTIONS then break end
+        end
+    end
+    if #fns == 0 then return end
+    aA()
+    at("-- =========================================================")
+    at("-- GC SCAN: registered closures / upvalue dump")
+    at(string.format("-- %d function(s) scanned", #fns))
+    at("-- =========================================================")
+    local emitted_any = false
+    for _, entry in E(fns) do
+        local fn = entry.fn
+        local fname = entry.name or "?"
+        local upvals = {}
+        local idx = 1
+        while idx <= r.MAX_UPVALUES_PER_FUNCTION do
+            local uname, uval = a.getupvalue(fn, idx)
+            if not uname then break end
+            local utype = j(uval)
+            -- Skip _ENV (the environment upvalue), anonymous upvalues (empty name),
+            -- function-valued upvalues (they produce unreadable output), and any
+            -- names that are not valid Lua identifiers (compiler-generated temporaries).
+            if uname ~= "_ENV" and uname ~= "" and utype ~= "function"
+                    and uname:match("^[%a_][%w_]*$") then
+                table.insert(upvals, {name = uname, val = uval})
+            end
+            idx = idx + 1
+        end
+        if #upvals > 0 then
+            emitted_any = true
+            at(string.format("-- closure: %s  (%d upvalue(s))", fname, #upvals))
+            for _, uv in E(upvals) do
+                at(string.format("--   upvalue %s = %s", uv.name, aZ(uv.val)))
+            end
+        end
+    end
+    if not emitted_any then
+        at("-- (no interesting upvalues found in scanned closures)")
+    end
+    at("-- =========================================================")
 end
 
 -- Execute deferred hooks/callbacks that were registered via hookfunction/Connect etc.
@@ -6296,7 +6471,7 @@ function q.dump_file(eN, eO)
     rawset(eR, "getsenv",              function() return eR end)
     rawset(eR, "getrenv",              function() return eR end)
     rawset(eR, "getreg",               function() return {} end)
-    rawset(eR, "getgc",                function() return {} end)
+    rawset(eR, "getgc",                function() return _collect_gc_objects() end)
     rawset(eR, "getinstances",         function() return {} end)
     rawset(eR, "getnilinstances",      function() return {} end)
     rawset(eR, "decompile",            function() return "" end)
@@ -6541,6 +6716,10 @@ function q.dump_file(eN, eO)
     q.dump_lightcate_strings()
     q.dump_prometheus_strings()
     q.dump_moonsec_strings()
+    q.dump_remote_summary()
+    q.dump_instance_creations()
+    q.dump_script_loads()
+    q.dump_gc_scan()
     return q.save(eO or r.OUTPUT_FILE)
 end
 function q.dump_string(al, eO)
@@ -6714,6 +6893,10 @@ function q.dump_string(al, eO)
     q.dump_lightcate_strings()
     q.dump_prometheus_strings()
     q.dump_moonsec_strings()
+    q.dump_remote_summary()
+    q.dump_instance_creations()
+    q.dump_script_loads()
+    q.dump_gc_scan()
     if eO then
         return q.save(eO)
     end
