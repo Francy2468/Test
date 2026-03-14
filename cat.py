@@ -1755,6 +1755,14 @@ async def show_help(ctx):
         ),
         inline=False,
     )
+    embed.add_field(
+        name=f"{PREFIX}ms [link]",
+        value=(
+            "Deobfuscate a MoonSec V3 protected Lua script.\n"
+            "Attach a file, provide a URL, or reply to a message with a file/link."
+        ),
+        inline=False,
+    )
     try:
         await _send_with_retry(lambda: ctx.send(embed=embed))
     except discord.errors.DiscordServerError as e:
@@ -2209,6 +2217,180 @@ async def fix_lua(ctx, *, link=None):
         ))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send fixed result: {e}")
+        try:
+            await status.edit(content=f"Discord error, please retry: {e}")
+        except discord.errors.HTTPException:
+            pass
+
+
+# ---------------- MOONSEC V3 DEOBFUSCATOR ----------------
+# Based on https://github.com/hemusuku86/GoonSec (GoonSec - MoonSec V3 Dumper)
+
+def _moonsec_decode_bytecode(enc: str, key: int) -> str:
+    """Decode a MoonSec V3 encrypted bytecode string given a numeric key."""
+    lookup: dict = {}
+    for i in range(256):
+        c = chr(i)
+        lookup[i] = c
+        lookup[c] = i
+    result: list = []
+    buf: dict = {}
+    rolling = key
+    pos = -1
+    idx = 1
+    # Build hex-nibble decode table from first 16 chars of enc
+    while True:
+        pos += 1
+        lookup[enc[idx - 1]] = pos
+        idx += 1
+        if pos == 15:
+            buf_idx = 0
+            break
+    total = len(enc)
+    while idx < total + 1:
+        buf[buf_idx] = enc[idx - 1]
+        idx += 1
+        buf_idx += 1
+        if buf_idx % 2 == 0:
+            buf_idx = 0
+            hi = lookup.get(buf[0], 0)
+            lo = lookup.get(buf[1], 0)
+            result.append(chr((hi * 0x10 + lo + rolling) % 0x100))
+            rolling = key + rolling
+    return "".join(result)
+
+
+def _moonsec_extract_enc_bc(lua: str) -> "str | None":
+    """Extract the encrypted bytecode string from a MoonSec V3 protected script.
+
+    Returns the encoded string on success, or ``None`` if not found.
+    """
+    strings: list = []
+    accum = ""
+    parity = 0
+    for part in lua.split('"'):
+        if parity % 2 == 1:
+            accum += part
+        parity += 1
+        if not accum.endswith("\\"):
+            strings.append(accum)
+            accum = ""
+        else:
+            accum = accum[:-1] + '"'
+            parity -= 1
+    dec_func = ""
+    for s in strings:
+        found_key = False
+        if not s:
+            continue
+        prefix = lua.split(s)[0].split("(")[-1].split(",")[0]
+        if all(ch.isdigit() for ch in prefix):
+            dec_func = lua.split(s)[0].split("(")[-2][-1]
+            found_key = True
+        marker = f'"{s}'
+        pos = lua.find(marker)
+        if (
+            dec_func != ""
+            and f"{dec_func}(" in lua[max(0, pos - 6):pos]
+            and len(s) > 300
+            and not found_key
+        ):
+            return s
+    return None
+
+
+def moonsec_deobfuscate(lua: str) -> "tuple[str | None, str | None]":
+    """Deobfuscate a MoonSec V3 protected Lua script.
+
+    Extracts the encrypted bytecode payload, then brute-forces the single-byte
+    rolling key (0–255) until the decrypted output contains the "MoonSec"
+    watermark.
+
+    Returns ``(decoded_str, None)`` on success or ``(None, error_message)``
+    on failure.
+    """
+    enc_bc = _moonsec_extract_enc_bc(lua)
+    if enc_bc is None:
+        return None, "Could not locate the encrypted bytecode string in the script."
+    for key in range(256):
+        try:
+            dec = _moonsec_decode_bytecode(enc_bc, key)
+            if "MoonSec" in dec:
+                return dec, None
+        except Exception:
+            pass
+    return None, "MoonSec bytecode found but key brute-force failed (key not in 0–255)."
+
+
+# ---------------- COMMAND .ms ----------------
+@bot.command(name="ms")
+async def moonsec_dump(ctx, *, link=None):
+    """Deobfuscate a MoonSec V3 protected Lua script.
+
+    Accepts input from:
+      * an attached .lua file
+      * a raw URL passed as argument
+      * a reply to a previous message that contains a file or URL
+    """
+    try:
+        status = await _send_with_retry(lambda: ctx.send("deobfuscating moonsec"))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send status message: {e}")
+        return
+
+    content, original_filename, err = await _get_content(ctx, link)
+    if err:
+        await status.edit(content=err)
+        return
+
+    lua_text = content.decode("utf-8", errors="ignore")
+
+    loop = asyncio.get_event_loop()
+    decoded, deob_err = await loop.run_in_executor(
+        _executor,
+        functools.partial(moonsec_deobfuscate, lua_text),
+    )
+
+    if deob_err or decoded is None:
+        await status.edit(content=deob_err or "Deobfuscation failed.")
+        return
+
+    base = os.path.splitext(original_filename)[0]
+    out_filename = base + "_moonsec.lua"
+
+    paste, raw = await loop.run_in_executor(
+        _executor,
+        functools.partial(upload_to_pastefy, decoded, title=f"[MS] {original_filename}"),
+    )
+
+    preview = "\n".join(decoded.splitlines()[:PREVIEW_LINES])
+
+    embed = discord.Embed(
+        title="MoonSec V3 deobfuscated",
+        description=f"Paste: {raw}" if raw else "Paste upload failed",
+        color=0x2b2d31,
+    )
+    embed.add_field(
+        name="Preview",
+        value=f"```lua\n{preview[:PREVIEW_MAX_CHARS]}\n```",
+        inline=False,
+    )
+
+    try:
+        await status.delete()
+    except discord.errors.HTTPException as e:
+        print(f"Warning: failed to delete status message: {e}")
+
+    try:
+        await _send_with_retry(lambda: ctx.send(
+            embed=embed,
+            file=discord.File(
+                io.BytesIO(decoded.encode("utf-8")),
+                filename=out_filename,
+            ),
+        ))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send moonsec result: {e}")
         try:
             await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
