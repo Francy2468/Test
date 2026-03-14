@@ -973,70 +973,50 @@ def _smart_rename_variables(code: str) -> str:
 
 
 _DEEPSEEK_SYSTEM_PROMPT = """\
-You are an expert Lua/Roblox script refactoring assistant. Your task is to \
-carefully analyze and fully refactor the provided Lua script to improve its \
-quality, stability, structure, and readability while preserving all existing \
-features and functionality.
+You are an expert Lua developer and code refactoring assistant.
+Your task is to analyze the provided Lua script and fully repair, refactor, \
+and improve it while preserving its intended functionality.
 
-Apply ALL of the following improvements:
+Carefully review the entire script and perform a full code improvement process.
 
-VARIABLE AND FUNCTION RENAMING:
-1. Use the .Name property assignment to name Instance.new() variables.
-   Example: if `frame.Name = "CloseButton"` exists → rename `frame` to `closeButton`.
-2. Use .Text for TextButton / TextLabel / TextBox if .Name is not available.
-   Example: if `textButton.Text = "Fire All"` → rename to `fireAllButton`.
-3. When neither .Name nor .Text is available, use a short descriptive prefix
-   based on the Instance type and a sequential number:
-   Frame→frame, TextButton→button, TextLabel→label, TextBox→textBox,
-   ScrollingFrame→scroll, ScreenGui→gui, UICorner→corner,
-   UIListLayout→listLayout, ImageLabel→imageLabel, ImageButton→imageButton,
-   Part→part, RemoteEvent→remote, Sound→sound, Folder→folder, Model→model.
-   Number duplicates: button, button2, button3 …
-4. Rename generic connection variables (conn, conn_, conn2, connection …)
-   to <connectedVariable>Conn.
-   Example: `conn = closeButton.MouseButton1Click:Connect(…)` → `closeButtonConn`.
-5. Rename anonymous or poorly-named functions to descriptive verb-noun names.
-   Example: `local function f()` → `local function setupGui()` when context allows.
-6. Rename Roblox service variables descriptively.
-   Example: `local a = game:GetService("Players")` → `local Players = game:GetService("Players")`.
-7. Rename single-letter or cryptic loop variables when the role is clear from context.
-   Example: `for i, v in pairs(buttons)` → keep `i`, rename `v` to `button` when clear.
-8. Keep already-descriptive names unchanged.
+Objectives:
 
-SYNTAX FIXES:
-9. Replace JavaScript-style operators: != → ~=, && → and, || → or.
-10. Replace bare logical-NOT `!expr` → `not expr` (only when `!` precedes an
-    identifier or parenthesis, never inside string literals).
-11. Replace null/undefined → nil.
-12. Collapse `else if` → `elseif` (but preserve `end else if` on the same line,
-    which is valid structural Lua, not a collapsible keyword).
-13. Add missing closing `)` to `:Connect(function … end` blocks where the
-    parenthesis from Connect is never closed.
+1. Detect and fix all syntax errors, runtime errors, and logical issues.
+2. Correct any broken or invalid Lua syntax.
+3. Ensure all parentheses, brackets, and code blocks are properly closed.
+4. Fix incorrect API usage or invalid function calls.
+5. Improve the overall structure and organization of the script.
+6. Refactor messy, duplicated, or poorly structured code into cleaner and more maintainable patterns.
+7. Remove redundant, duplicated, or unnecessary code.
+8. Simplify overly complex or deeply nested logic.
+9. Improve naming of variables, functions, and objects to make them meaningful and readable.
+10. Fix variable scope issues and ensure variables are declared in appropriate places.
+11. Ensure services and commonly used objects are stored properly and reused instead of repeatedly retrieved.
+12. Optimize loops and event connections to prevent performance issues.
+13. Prevent infinite loops, unnecessary event connections, or memory leaks.
+14. Improve GUI creation logic so elements are organized and structured properly.
+15. Ensure all references to objects are validated before use.
+16. Apply good Lua programming practices and consistent formatting.
+17. Improve indentation, spacing, and overall readability of the code.
+18. Reduce excessive nesting and repeated patterns by introducing helper functions if necessary.
+19. Ensure the final script is stable and runs without errors.
+20. Keep the original features and behavior of the script as much as possible.
 
-STRUCTURE AND QUALITY IMPROVEMENTS:
-14. Remove duplicate :Connect() event handler bindings for the same event.
-15. Remove duplicate code blocks and collapse repeated patterns.
-16. Extract repeated logic into reusable local functions.
-17. Cache Roblox services and frequently-used objects in local variables
-    at the top of the relevant scope.
-18. Fix variable scope: declare variables as `local` where they do not need
-    to be global.
-19. Remove unnecessary or redundant code (dead assignments, unused variables).
-20. Simplify overly complex or deeply nested logic where possible.
-21. Replace nested if-chains with early-return guards where appropriate.
+Additional guidelines:
 
-CODE STYLE:
-22. Use consistent 4-space indentation throughout.
-23. Remove excessive blank lines (no more than one consecutive blank line).
-24. Remove trailing whitespace from every line.
-25. Ensure clear separation between logical sections using single blank lines.
+- Do not remove functionality unless it is clearly broken.
+- Do not leave placeholder code.
+- Do not leave syntax errors.
+- Ensure the final script is clean, readable, and well organized.
+- Prefer clear and maintainable code over overly compact code.
 
-OUTPUT REQUIREMENTS:
-- Return ONLY the refactored Lua code.
-- No markdown fences, no explanation, no extra text whatsoever.
-- Preserve ALL existing features and functionality.
-- Do NOT remove features unless they are clearly broken or unreachable.
-- Ensure the output is valid, runnable Lua/Roblox code.\
+Output requirements:
+
+- Return the FULL corrected and refactored Lua script.
+- Ensure the final code is properly formatted.
+- Ensure the script can run without obvious errors.
+- Do not include explanations unless necessary.
+- No markdown fences, no extra text whatsoever.\
 """
 
 # Lazy-initialised DeepSeek client (None until first use).
@@ -1101,65 +1081,8 @@ def _ai_rename_variables(code: str) -> str:
         return _smart_rename_variables(code)
 
 
-# System prompt used by _ai_fix_lua for the comprehensive .fix pipeline.
-# This is separate from _DEEPSEEK_SYSTEM_PROMPT (used for .rename) so each
-# command gets a focused instruction set appropriate to its scope.
-_DEEPSEEK_FIX_SYSTEM_PROMPT = """\
-You are an expert Lua/Roblox script repair and refactoring assistant. \
-Your task is to carefully analyze the provided Lua script and apply ALL of \
-the following fixes and improvements while preserving every existing feature \
-and behavior.
-
-SYNTAX REPAIR:
-1. Fix all syntax errors: unbalanced `end`/`until`, missing closing `)` on \
-`:Connect(function … end` blocks, incorrect block structure.
-2. Replace JavaScript-style operators: != → ~=, && → and, || → or.
-3. Replace bare logical-NOT `!expr` → `not expr` only when `!` precedes an \
-identifier or `(` — never inside string literals or at end-of-sentence.
-4. Replace null/undefined → nil.
-5. Collapse `else if` → `elseif` (preserve `end else if` on the same line \
-which is valid structural Lua).
-
-VARIABLE AND FUNCTION NAMING:
-6. Use the .Name property assignment to name Instance.new() variables.
-   Example: `frame.Name = "CloseButton"` → rename `frame` to `closeButton`.
-7. Use .Text for TextButton/TextLabel/TextBox if .Name is not available.
-   Example: `textButton.Text = "Fire All"` → rename to `fireAllButton`.
-8. When neither .Name nor .Text is available, apply a type-prefix + counter:
-   Frame→frame, TextButton→button, TextLabel→label, TextBox→textBox,
-   ScrollingFrame→scroll, ScreenGui→gui, UICorner→corner,
-   UIListLayout→listLayout, ImageLabel→imageLabel, ImageButton→imageButton,
-   Part→part, RemoteEvent→remote, Sound→sound, Folder→folder, Model→model.
-9. Rename generic connection variables (conn, conn_, conn2, connection …) to
-   <connectedVar>Conn.
-10. Rename Roblox service variables: `game:GetService("Players")` variable → `Players`.
-11. Rename single-letter or cryptic function names to descriptive verb-noun names
-    when the purpose is clear from context.
-12. Keep already-descriptive names unchanged.
-
-STRUCTURE AND CODE QUALITY:
-13. Remove duplicate :Connect() event handler bindings for the same event.
-14. Collapse repeated identical code blocks into a loop or function call.
-15. Extract repeated logic into named local functions.
-16. Cache Roblox services and frequently-used objects at the top of their scope.
-17. Make variables `local` wherever they do not need to be global.
-18. Remove dead assignments, unused variables, and unreachable code.
-19. Simplify overly complex or deeply nested conditionals.
-20. Replace deeply nested if-chains with early-return guards where appropriate.
-21. Ensure all game object references are validated before use where appropriate.
-
-FORMATTING:
-22. Use consistent 4-space indentation throughout.
-23. Limit consecutive blank lines to one.
-24. Remove trailing whitespace from every line.
-
-OUTPUT REQUIREMENTS:
-- Return ONLY the corrected and refactored Lua code.
-- No markdown fences, no explanation, no extra text whatsoever.
-- Preserve ALL existing features and functionality.
-- Do NOT remove features unless they are clearly broken or unreachable.
-- Ensure the output is valid, runnable Lua/Roblox code.\
-"""
+# .fix uses the same comprehensive prompt as .rename.
+_DEEPSEEK_FIX_SYSTEM_PROMPT = _DEEPSEEK_SYSTEM_PROMPT
 
 
 def _ai_fix_lua(code: str) -> str:
