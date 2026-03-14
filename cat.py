@@ -2055,7 +2055,7 @@ async def beautify(ctx, *, link=None):
 async def darklua_info(ctx):
     """Show information about the darklua Lua transformation toolkit."""
     embed = discord.Embed(
-        title="🌑  darklua",
+        title="catmio darklua",
         description=(
             "A powerful **Lua code transformation** toolkit built in Rust.\n"
             "Transform, bundle, and process your Lua/Luau projects with ease."
@@ -2107,7 +2107,7 @@ async def darklua_info(ctx):
         ),
         inline=False,
     )
-    embed.set_footer(text="seaofvoices/darklua")
+    embed.set_footer(text="🐱")
     try:
         await _send_with_retry(lambda: ctx.send(embed=embed))
     except discord.errors.DiscordServerError as e:
