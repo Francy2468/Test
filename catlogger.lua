@@ -4686,29 +4686,31 @@ loadstring = function(al, eu)
     end
     -- Non-URL Lua code: try to compile and optionally run in the current sandbox.
     -- Emit a comment recording that loadstring was called and whether it compiled.
-    if type(al) == "string" then
+    -- Skip I() for pre-compiled Lua bytecode (starts with \x1b "ESC" = Lua magic).
+    if type(al) == "string" and #al > 0 and al:byte(1) ~= 0x1b then
         al = I(al)
     end
+    -- Content fingerprint used for deduplication: length + first 32 bytes.
+    -- This avoids collapsing two distinct payloads of the same byte-length into
+    -- a single log entry while still suppressing identical repeated calls.
+    local _al_key = tostring(#al) .. ":" .. al:sub(1, 32)
     local R, an = e(al)
     if R then
         -- Code compiled successfully. Emit a comment noting the invocation so the
         -- analyst knows the VM called loadstring with live Lua code.
-        -- Deduplicate by length to avoid comment spam from decryption-loop patterns.
-        local _al_len = #al
-        if not t._loadstring_seen.ok[_al_len] then
-            t._loadstring_seen.ok[_al_len] = true
+        if not t._loadstring_seen.ok[_al_key] then
+            t._loadstring_seen.ok[_al_key] = true
             aA()
-            at(string.format("-- loadstring() invoked with compiled Lua code (length=%d)", _al_len))
+            at(string.format("-- loadstring() invoked with compiled Lua code (length=%d)", #al))
         end
         return R
     end
     -- Compile failed: emit a comment and return a placeholder.
     if al and #al > 0 then
-        local _al_len = #al
-        if not t._loadstring_seen.fail[_al_len] then
-            t._loadstring_seen.fail[_al_len] = true
+        if not t._loadstring_seen.fail[_al_key] then
+            t._loadstring_seen.fail[_al_key] = true
             aA()
-            at(string.format("-- loadstring() received non-compiling payload (length=%d)", _al_len))
+            at(string.format("-- loadstring() received non-compiling payload (length=%d)", #al))
         end
     end
     local ez = bj("LoadedChunk", false)
@@ -5253,7 +5255,7 @@ local function generic_wrapper_extract_strings(source_code)
                     -- the call into an expression whose value pcall() can capture.
                     local prefix = outer_has_return and "" or "return "
                     local patched = prefix .. preamble .. "\nreturn " .. var_name .. " " .. closing .. "\n"
-                    local fn = load(patched)
+                    local fn = e(patched)
                     if fn then
                         local ok, result = pcall(fn)
                         if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
@@ -5350,7 +5352,7 @@ local function xor_extract_strings(source_code)
     -- Fallback length (fn_def_start + XOR_FN_SCAN_BYTES/2) is used when the
     -- depth tracker could not locate the closing `end` within the scan window.
     local preamble = source_code:sub(1, fn_end_pos or (fn_def_start + XOR_FN_SCAN_BYTES // 2))
-    local get_fn_chunk, _ = load(preamble .. "\nreturn " .. fn_name)
+    local get_fn_chunk, _ = e(preamble .. "\nreturn " .. fn_name)
     if not get_fn_chunk then return nil end
     local ok, decrypt_fn = pcall(get_fn_chunk)
     if not ok or type(decrypt_fn) ~= "function" then return nil end
@@ -5362,7 +5364,7 @@ local function xor_extract_strings(source_code)
         if not seen[args_bal] then
             seen[args_bal] = true
             local eval_code = "local __f = ...; return __f" .. args_bal
-            local eval_fn, _ = load(eval_code)
+            local eval_fn, _ = e(eval_code)
             if eval_fn then
                 local call_ok, result = pcall(eval_fn, decrypt_fn)
                 if call_ok and type(result) == "string" and #result >= XOR_MIN_STRING_LEN then
@@ -5410,7 +5412,7 @@ local function wad_extract_strings(source_code)
     -- Inject "return <str_var>" right after "end end end" so we get the
     -- fully-decoded string table without running the VM itself.
     local patched = source_code:sub(1, boundary + WAD_DECODE_PREFIX_LEN) .. "\nreturn " .. str_var .. "\nend)()\n"
-    local fn, load_err = load(patched)
+    local fn, load_err = e(patched)
     if not fn then
         return nil
     end
@@ -5494,7 +5496,7 @@ local function lightcate_extract_strings(source_code)
     -- Primary strategy: the preamble is flat local declarations (no function
     -- wrapper), so we can simply append "return <var>" and execute it.
     local patched_simple = preamble .. "\nreturn " .. str_var .. "\n"
-    local fn = load(patched_simple)
+    local fn = e(patched_simple)
     if fn then
         local ok, result = pcall(fn)
         if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
@@ -5516,7 +5518,7 @@ local function lightcate_extract_strings(source_code)
     for depth = 1, GEN_MAX_NEST_DEPTH do
         local closing = string.rep("end)(...)", depth)
         local patched = preamble .. "\nreturn " .. str_var .. " " .. closing .. "\n"
-        local fn2 = load(patched)
+        local fn2 = e(patched)
         if fn2 then
             local ok2, result2 = pcall(fn2)
             if ok2 and type(result2) == "table" and #result2 >= GEN_MIN_STRING_COUNT then
