@@ -4964,7 +4964,6 @@ function q.reset()
         char_seen = {},
         _loadstring_seen = { ok = {}, fail = {} },
         prometheus_string_pool = nil,
-        moonsec_string_pool = nil,
         instance_creations = {},
         script_loads = {},
         gc_objects = {},
@@ -5169,21 +5168,6 @@ function q.dump_prometheus_strings()
         pool.var_name or "?", #pool.strings))
     for _, entry in E(pool.strings) do
         at(string.format("local _prom_%d = %s", entry.idx, aH(entry.val)))
-    end
-end
-
--- Emit the decoded MoonSec v3 string pool when available.
--- Only emits when DUMP_DECODED_STRINGS is true; otherwise does nothing.
-function q.dump_moonsec_strings()
-    if not r.DUMP_DECODED_STRINGS then return end
-    if not t.moonsec_string_pool then return end
-    local pool = t.moonsec_string_pool
-    if not pool.strings or #pool.strings == 0 then return end
-    aA()
-    at(string.format("-- Decoded string pool (MoonSec obfuscation, var=%s, %d strings)",
-        pool.var_name or "?", #pool.strings))
-    for _, entry in E(pool.strings) do
-        at(string.format("local _ms_%d = %s", entry.idx, aH(entry.val)))
     end
 end
 
@@ -5433,7 +5417,7 @@ end
 -- We detect the VM dispatcher boundary, patch the source to stop before
 -- it, and run only the decode phase to recover the decoded string table.
 -- The variable name and nesting depth are discovered automatically so
--- this works for K0lrot, Iron Brew, Moonsec, WeAreDevs, Luraph, and
+-- this works for K0lrot, Iron Brew, WeAreDevs, Luraph, and
 -- many AI-generated obfuscators.
 -- ================================================================
 
@@ -5455,8 +5439,6 @@ local GEN_OUTER_PATTERNS = {
     "%(function%([%a_][%w_]*%)",
     -- Lightcate v2.0.0 and similar: return(function(_0x...
     "return%(function%(_0x",
-    -- MoonSec v3: do-block wrapper with local VM function
-    "do%s+local%s+[%w_]+%s*=%s*function",
     -- Prometheus: return((function(env,fenv
     "return%(%(function%(env,",
     -- Prometheus alternate: return (function(env
@@ -5495,17 +5477,6 @@ local GEN_VM_BOUNDARIES = {
     "return%(function%(ENV,FENV,",
     "return%(function%(ProteusEnv,",
     "return%(function%(pEnv,",
-    -- Moonsec v2/v3 (open source: github.com/nicememe/moonsec)
-    "return%(function%(luraph,",
-    "return%(function%(Luraph,",
-    -- Moonsec alternate
-    "return%(function%(obc,",
-    -- Moonsec v3 specific: uses VM/vm as the first parameter
-    "return%(function%(vm,",
-    "return%(function%(VM,",
-    -- Moonsec v3: Instruction-based VM
-    "return%(function%(Instruction,",
-    "return%(function%(instructions,",
     -- Bytexor / LuaEncrypt style (uses `_` or `__` as string table)
     "return%(function%(_,",
     "return%(function%(__,",
@@ -5557,9 +5528,6 @@ local GEN_STRING_VARS = {
     "str","strs","strings","consts","constants","keys","vals",
     -- Prometheus-specific names
     "fenv","penv","ENV","FENV","environment",
-    -- MoonSec v3 specific names
-    "strtable","strTable","StringTable","string_table",
-    "luraph","obc","vm","VM","Luraph",
     -- Underscore variants
     "_","__","___","____","_____","______",
     -- Numbered variants
@@ -5579,7 +5547,6 @@ local GEN_FILTERED_STRINGS = { ["remove"] = true }
 local GEN_MIN_STRING_COUNT = 3
 
 -- Maximum wrapper nesting depth to try (1 = K0lrot standard, up to 6 deep).
--- Increased from 4 to 6 to handle deeply nested MoonSec v3 / Prometheus variants.
 local GEN_MAX_NEST_DEPTH = 6
 
 local function generic_wrapper_extract_strings(source_code)
@@ -5656,11 +5623,6 @@ local function generic_wrapper_extract_strings(source_code)
                                 elseif vm_pat:find("env,fenv,") or vm_pat:find("ENV,FENV,")
                                     or vm_pat:find("ProteusEnv,") or vm_pat:find("pEnv,") then
                                     label = "Prometheus"
-                                elseif vm_pat:find("luraph,") or vm_pat:find("Luraph,") or vm_pat:find("obc,") then
-                                    label = "MoonSec"
-                                elseif vm_pat:find("vm,") or vm_pat:find("VM,")
-                                    or vm_pat:find("Instruction,") or vm_pat:find("instructions,") then
-                                    label = "MoonSecV3"
                                 end
                                 return results, #result, var_name, label
                             end
@@ -6009,103 +5971,6 @@ local function prometheus_extract_strings(source_code)
     return nil
 end
 
--- ---------------------------------------------------------------------------
--- MoonSec v3 specific string extractor.
--- MoonSec v3 (based on Luraph VM) uses a characteristic structure where the
--- outer wrapper populates a string table before passing control to the VM.
--- Detection: typical patterns include `luraph` or `Luraph` param name OR
--- the presence of a `-- Made with MoonSec` / `-- MoonSec` comment.
--- The string variable is typically named after single-letter or `strtable`.
--- ---------------------------------------------------------------------------
-local MOONSEC_DETECT_PATS = {
-    "%-%-.*[Mm]oon[Ss]ec",   -- comment mentioning MoonSec
-    "return%(function%(luraph,",
-    "return%(function%(Luraph,",
-    "return%(function%(obc,",
-    "return%(function%(vm,",
-    "return%(function%(VM,",
-}
-local function moonsec_extract_strings(source_code)
-    local header = source_code:sub(1, GEN_OUTER_HEADER_BYTES)
-    local found = false
-    for _, pat in ipairs(MOONSEC_DETECT_PATS) do
-        if header:find(pat) then
-            found = true
-            break
-        end
-    end
-    if not found then
-        return nil
-    end
-    -- Use the generic extractor with MoonSec-specific variable names as priority.
-    local priority_vars = { "luraph", "Luraph", "obc", "vm", "VM", "strtable", "strTable", "StringTable" }
-    -- Find VM boundary
-    local boundary = nil
-    local vm_pat_used = nil
-    for _, vmpat in ipairs(GEN_VM_BOUNDARIES) do
-        local pos = source_code:find(vmpat)
-        if pos then
-            boundary = pos
-            vm_pat_used = vmpat
-            break
-        end
-    end
-    if not boundary then
-        return nil
-    end
-    local preamble = source_code:sub(1, boundary - 1)
-    -- Try priority vars first, then fall back to GEN_STRING_VARS.
-    -- Deduplicate to avoid re-testing the same name.
-    local all_vars = {}
-    local seen_vars = {}
-    for _, v in ipairs(priority_vars) do
-        if not seen_vars[v] then seen_vars[v] = true; table.insert(all_vars, v) end
-    end
-    for _, v in ipairs(GEN_STRING_VARS) do
-        if not seen_vars[v] then seen_vars[v] = true; table.insert(all_vars, v) end
-    end
-    for _, var_name in ipairs(all_vars) do
-        -- Try depth=1 first without wrapper (no closing needed).
-        local patched0 = preamble .. "\nreturn " .. var_name .. "\n"
-        local fn0 = e(patched0)
-        if fn0 then
-            local ok0, result0 = pcall(fn0)
-            if ok0 and type(result0) == "table" and #result0 >= GEN_MIN_STRING_COUNT then
-                local results = {}
-                for idx = 1, #result0 do
-                    local s = result0[idx]
-                    if type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$") then
-                        table.insert(results, {idx = idx, val = s})
-                    end
-                end
-                if #results >= GEN_MIN_STRING_COUNT then
-                    return results, #result0, var_name
-                end
-            end
-        end
-        for depth = 1, GEN_MAX_NEST_DEPTH do
-            local closing = string.rep("end)(...)", depth)
-            local patched = preamble .. "\nreturn " .. var_name .. " " .. closing .. "\n"
-            local fn = e(patched)
-            if fn then
-                local ok, result = pcall(fn)
-                if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
-                    local results = {}
-                    for idx = 1, #result do
-                        local s = result[idx]
-                        if type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$") then
-                            table.insert(results, {idx = idx, val = s})
-                        end
-                    end
-                    if #results >= GEN_MIN_STRING_COUNT then
-                        return results, #result, var_name
-                    end
-                end
-            end
-        end
-    end
-    return nil
-end
 -- Finds the longest run of sequential numbered local declarations
 -- (e.g.  local k0 = v0 … local k250 = v250) and converts the overflow
 -- (everything past the first MAX_SAFE locals) into a single table variable
@@ -6332,7 +6197,7 @@ function q.dump_file(eN, eO)
         t.xor_string_pool = nil
     end
     -- Generic wrapper string extraction: handles K0lrot, WeAreDevs, Iron Brew,
-    -- Prometheus, Moonsec, Luraph, and AI-generated obfuscators that use any of:
+    -- Prometheus, Luraph, and AI-generated obfuscators that use any of:
     --   return(function(...) ... end)(...)   (function(...) ... end)(...)
     --   return((function(...) ... end))(...)  and nested variants up to 4 levels deep.
     local gw_strings, gw_total, gw_var, gw_label = generic_wrapper_extract_strings(al)
@@ -6361,15 +6226,6 @@ function q.dump_file(eN, eO)
         t.prometheus_string_pool = { strings = prom_strings, var_name = prom_var }
     else
         t.prometheus_string_pool = nil
-    end
-    -- MoonSec v3 string extraction.
-    local ms_strings, ms_total, ms_var = moonsec_extract_strings(al)
-    if ms_strings and #ms_strings > 0 then
-        B(string.format("[Dumper] MoonSec obfuscation detected (var=%s) — %d/%d strings decoded",
-            ms_var or "?", #ms_strings, ms_total or 0))
-        t.moonsec_string_pool = { strings = ms_strings, var_name = ms_var }
-    else
-        t.moonsec_string_pool = nil
     end
     B("[Dumper] Sanitizing Luau and Binary Literals...")
     local eP = I(al)
@@ -6512,7 +6368,7 @@ function q.dump_file(eN, eO)
     rawset(eR, "cloneref",             function(x) return x end)
     rawset(eR, "compareinstances",     function(a_, b_) return a_ == b_ end)
     rawset(eR, "getinfo",              function() return {} end)
-    -- Additional anti-tamper bypass stubs for MoonSec v3 / Prometheus
+    -- Additional anti-tamper bypass stubs for Prometheus
     rawset(eR, "isluau",               function() return true end)
     rawset(eR, "islua",                function() return false end)
     rawset(eR, "checkclosure",         function(f) return type(f) == "function" end)
@@ -6769,7 +6625,6 @@ function q.dump_file(eN, eO)
     q.dump_k0lrot_strings()
     q.dump_lightcate_strings()
     q.dump_prometheus_strings()
-    q.dump_moonsec_strings()
     q.dump_remote_summary()
     q.dump_instance_creations()
     q.dump_script_loads()
@@ -6823,15 +6678,6 @@ function q.dump_string(al, eO)
             t.prometheus_string_pool = { strings = prom_strings2, var_name = prom_var2 }
         else
             t.prometheus_string_pool = nil
-        end
-        -- MoonSec v3 string extraction.
-        local ms_strings2, ms_total2, ms_var2 = moonsec_extract_strings(al)
-        if ms_strings2 and #ms_strings2 > 0 then
-            B(string.format("[Dumper] MoonSec obfuscation detected (var=%s) — %d/%d strings decoded",
-                ms_var2 or "?", #ms_strings2, ms_total2 or 0))
-            t.moonsec_string_pool = { strings = ms_strings2, var_name = ms_var2 }
-        else
-            t.moonsec_string_pool = nil
         end
         al = I(al)
     end
@@ -6946,7 +6792,6 @@ function q.dump_string(al, eO)
     q.dump_k0lrot_strings()
     q.dump_lightcate_strings()
     q.dump_prometheus_strings()
-    q.dump_moonsec_strings()
     q.dump_remote_summary()
     q.dump_instance_creations()
     q.dump_script_loads()
