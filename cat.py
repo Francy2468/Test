@@ -2060,7 +2060,6 @@ async def darklua_info(ctx):
             "A powerful **Lua code transformation** toolkit built in Rust.\n"
             "Transform, bundle, and process your Lua/Luau projects with ease."
         ),
-        url="https://github.com/seaofvoices/darklua",
         color=0x5865F2,
     )
     embed.add_field(
@@ -2098,15 +2097,7 @@ async def darklua_info(ctx):
         ),
         inline=False,
     )
-    embed.add_field(
-        name="🔗  Links",
-        value=(
-            "[GitHub](https://github.com/seaofvoices/darklua)  •  "
-            "[Documentation](https://darklua.com)  •  "
-            "[Releases](https://github.com/seaofvoices/darklua/releases)"
-        ),
-        inline=False,
-    )
+
     embed.set_footer(text="🐱")
     try:
         await _send_with_retry(lambda: ctx.send(embed=embed))
