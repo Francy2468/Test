@@ -31,11 +31,55 @@ class _FakeIntents:
 discord.Intents = _FakeIntents
 discord.File = object
 discord.Embed = object
+discord.Interaction = object
 discord.errors = type("errors", (), {
     "DiscordServerError": Exception,
     "HTTPException": Exception,
 })
 discord.Message = object
+
+# Stubs for UI components used by the interactive .darklua command.
+class _FakeSelectOption:
+    def __init__(self, *, label="", value="", description="", emoji=None):
+        self.label = label
+        self.value = value
+        self.description = description
+        self.emoji = emoji
+
+discord.SelectOption = _FakeSelectOption
+
+class _FakeButtonStyle:
+    primary = 1
+    secondary = 2
+    success = 3
+    danger = 4
+
+discord.ButtonStyle = _FakeButtonStyle
+
+# Minimal discord.ui stub
+_fake_ui = types.ModuleType("discord.ui")
+sys.modules["discord.ui"] = _fake_ui
+
+class _FakeView:
+    def __init__(self, *, timeout=None):
+        self.children = []
+    def stop(self):
+        pass
+    @staticmethod
+    def select(**kwargs):
+        return lambda f: f
+    @staticmethod
+    def button(**kwargs):
+        return lambda f: f
+
+_fake_ui.View = _FakeView
+_fake_ui.Select = object
+_fake_ui.Button = object
+_fake_ui.select = lambda **kwargs: (lambda f: f)
+_fake_ui.button = lambda **kwargs: (lambda f: f)
+
+# Attach ui to the discord stub so `discord.ui.View` etc. resolve correctly.
+discord.ui = _fake_ui
 
 discord_ext = sys.modules["discord.ext"]
 discord_ext_commands = sys.modules["discord.ext.commands"]

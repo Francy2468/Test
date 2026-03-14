@@ -1739,8 +1739,11 @@ async def show_help(ctx):
         inline=False,
     )
     embed.add_field(
-        name=f"{PREFIX}darklua",
-        value="Show information about **darklua** — a Lua code transformation toolkit.",
+        name=f"{PREFIX}darklua [link]",
+        value=(
+            "Apply Lua code transformations interactively.\n"
+            "Attach a file, provide a URL, or reply to a message with a file/link."
+        ),
         inline=False,
     )
     try:
@@ -2051,58 +2054,234 @@ async def beautify(ctx, *, link=None):
             pass
 
 # ---------------- COMMAND .darklua ----------------
+
+# Canonical order in which transformations are applied (regardless of selection order).
+_DARKLUA_TRANSFORM_ORDER = [
+    "strip_comments",
+    "fix_syntax",
+    "rename_vars",
+    "fold_strings",
+    "inline_constants",
+    "beautify",
+]
+
+_DARKLUA_OPTIONS = [
+    discord.SelectOption(
+        label="Remove Comments",
+        value="strip_comments",
+        description="Remove all Lua comments from the code",
+        emoji="✂️",
+    ),
+    discord.SelectOption(
+        label="Rename Variables",
+        value="rename_vars",
+        description="Intelligently rename Instance.new() variables",
+        emoji="🔤",
+    ),
+    discord.SelectOption(
+        label="Fold String Concatenations",
+        value="fold_strings",
+        description='Collapse "a" .. "b" into "ab"',
+        emoji="🔗",
+    ),
+    discord.SelectOption(
+        label="Inline Single-Use Constants",
+        value="inline_constants",
+        description="Inline constants that are referenced only once",
+        emoji="📦",
+    ),
+    discord.SelectOption(
+        label="Beautify / Reformat",
+        value="beautify",
+        description="Normalize indentation and formatting",
+        emoji="✨",
+    ),
+    discord.SelectOption(
+        label="Fix Syntax Errors",
+        value="fix_syntax",
+        description="Apply heuristic Lua syntax repair pipeline",
+        emoji="🔧",
+    ),
+]
+
+
+class _DarkluaView(discord.ui.View):
+    """Interactive view for selecting and applying Lua code transformations."""
+
+    def __init__(self, code: str, filename: str, author_id: int):
+        super().__init__(timeout=120)
+        self.code = code
+        self.filename = filename
+        self.author_id = author_id
+        self.selected: list[str] = []
+        self.message = None  # set after the menu message is sent
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.errors.HTTPException:
+                pass
+
+    @discord.ui.select(
+        placeholder="Choose transformations…",
+        min_values=1,
+        max_values=len(_DARKLUA_OPTIONS),
+        options=_DARKLUA_OPTIONS,
+    )
+    async def select_transforms(
+        self,
+        interaction: discord.Interaction,
+        select: discord.ui.Select,
+    ):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message(
+                "Only the command author can use this menu.", ephemeral=True
+            )
+            return
+        self.selected = select.values
+        await interaction.response.defer()
+
+    @discord.ui.button(label="Apply", style=discord.ButtonStyle.primary, emoji="⚙️")
+    async def apply_button(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message(
+                "Only the command author can use this menu.", ephemeral=True
+            )
+            return
+        if not self.selected:
+            await interaction.response.send_message(
+                "Please select at least one transformation first.", ephemeral=True
+            )
+            return
+
+        # Disable all components and show a processing state.
+        for child in self.children:
+            child.disabled = True
+        await interaction.response.edit_message(content="processing…", view=self)
+        self.stop()
+
+        code = self.code
+        loop = asyncio.get_event_loop()
+        selected_set = set(self.selected)
+
+        # Apply transformations in a fixed canonical order.
+        for key in _DARKLUA_TRANSFORM_ORDER:
+            if key not in selected_set:
+                continue
+            if key == "strip_comments":
+                code = _strip_comments(code)
+            elif key == "fix_syntax":
+                code = await loop.run_in_executor(
+                    _executor, functools.partial(_run_heuristic_fix_pipeline, code)
+                )
+            elif key == "rename_vars":
+                code = await loop.run_in_executor(
+                    _executor, functools.partial(_smart_rename_variables, code)
+                )
+            elif key == "fold_strings":
+                code = _fold_string_concat(code)
+            elif key == "inline_constants":
+                code = _inline_single_use_constants(code)
+            elif key == "beautify":
+                code = await loop.run_in_executor(
+                    _executor, functools.partial(_beautify_lua, code)
+                )
+
+        # Upload result to pastefy.
+        paste, raw = await loop.run_in_executor(
+            _executor,
+            functools.partial(
+                upload_to_pastefy, code, title=f"[darklua] {self.filename}"
+            ),
+        )
+
+        labels = ", ".join(
+            o.label for o in _DARKLUA_OPTIONS if o.value in selected_set
+        )
+        preview = "\n".join(code.splitlines()[:PREVIEW_LINES])
+
+        embed = discord.Embed(
+            title="darklua",
+            description=(
+                f"Applied: **{labels}**\n"
+                + (f"Paste: {raw}" if raw else "Paste upload failed")
+            ),
+            color=0x5865F2,
+        )
+        embed.add_field(
+            name="Preview",
+            value=f"```lua\n{preview[:PREVIEW_MAX_CHARS]}\n```",
+            inline=False,
+        )
+        embed.set_footer(text="🐱")
+
+        out_filename = os.path.splitext(self.filename)[0] + "_darklua.lua"
+        try:
+            await interaction.followup.send(
+                embed=embed,
+                file=discord.File(
+                    io.BytesIO(code.encode("utf-8")),
+                    filename=out_filename,
+                ),
+            )
+        except discord.errors.DiscordServerError as e:
+            print(f"Warning: failed to send darklua result: {e}")
+            try:
+                await interaction.followup.send(
+                    content=f"Discord error, please retry: {e}"
+                )
+            except discord.errors.HTTPException:
+                pass
+
+
 @bot.command(name="darklua")
-async def darklua_info(ctx):
-    """Show information about the darklua Lua transformation toolkit."""
+async def darklua_cmd(ctx, *, link=None):
+    """Apply Lua code transformations interactively."""
+    try:
+        status = await _send_with_retry(lambda: ctx.send("downloading"))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send status message: {e}")
+        return
+
+    content, filename, err = await _get_content(ctx, link)
+    if err:
+        try:
+            await status.edit(content=err)
+        except discord.errors.HTTPException:
+            pass
+        return
+
+    lua_text = content.decode("utf-8", errors="ignore")
+
     embed = discord.Embed(
-        title="catmio darklua",
+        title="darklua",
         description=(
-            "A powerful **Lua code transformation** toolkit built in Rust.\n"
-            "Transform, bundle, and process your Lua/Luau projects with ease."
+            f"File: **{filename}**  •  {len(lua_text):,} chars\n\n"
+            "Select the transformations to apply, then click **Apply**."
         ),
         color=0x5865F2,
     )
-    embed.add_field(
-        name="✨  Key Features",
-        value=(
-            "• Bundle multiple Lua modules into a single file\n"
-            "• Minify Lua/Luau code\n"
-            "• Inject custom expressions\n"
-            "• Remove unused code & dead branches\n"
-            "• Process `require()` calls automatically\n"
-            "• Full Luau support"
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="⚙️  Installation",
-        value=(
-            "```\n"
-            "# via cargo\n"
-            "cargo install darklua\n\n"
-            "# or download a pre-built binary from Releases\n"
-            "```"
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="🚀  Quick Usage",
-        value=(
-            "```sh\n"
-            "# process a file\n"
-            "darklua process input.lua output.lua\n\n"
-            "# minify\n"
-            "darklua minify input.lua output.lua\n"
-            "```"
-        ),
-        inline=False,
-    )
+    embed.set_footer(text="🐱 • Expires in 2 minutes")
 
-    embed.set_footer(text="🐱")
+    view = _DarkluaView(lua_text, filename, ctx.author.id)
+
     try:
-        await _send_with_retry(lambda: ctx.send(embed=embed))
+        await status.delete()
+    except discord.errors.HTTPException as e:
+        print(f"Warning: failed to delete status message: {e}")
+
+    try:
+        msg = await _send_with_retry(lambda: ctx.send(embed=embed, view=view))
+        view.message = msg
     except discord.errors.DiscordServerError as e:
-        print(f"Warning: failed to send darklua info: {e}")
+        print(f"Warning: failed to send darklua menu: {e}")
 
 
 # ---------------- COMMAND GET ----------------
