@@ -1649,7 +1649,7 @@ async def process_link(ctx, *, link=None):
 
     # Acknowledge the command immediately so the user sees activity right away
     try:
-        status=await _send_with_retry(lambda: ctx.send("⚙️ dumping"))
+        status=await _send_with_retry(lambda: ctx.send("dumping"))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
@@ -1661,7 +1661,7 @@ async def process_link(ctx, *, link=None):
         original_filename=att.filename
 
         if att.size>MAX_FILE_SIZE:
-            await status.edit(content="❌ File too large")
+            await status.edit(content="File too large")
             return
 
         loop=asyncio.get_event_loop()
@@ -1681,7 +1681,7 @@ async def process_link(ctx, *, link=None):
         if r.status_code==200:
 
             if len(r.content)>MAX_FILE_SIZE:
-                await status.edit(content="❌ File too large")
+                await status.edit(content="File too large")
                 return
 
             content=r.content
@@ -1698,13 +1698,13 @@ async def process_link(ctx, *, link=None):
             return
 
     if not content:
-        await status.edit(content="❌ Failed to get content.")
+        await status.edit(content="Failed to get content.")
         return
 
     dumped,exec_ms,loops,lines,error=await run_dumper(content)
 
     if error:
-        await status.edit(content=f"❌ {error}")
+        await status.edit(content=f"{error}")
         return
 
     dumped_text=dumped.decode("utf-8",errors="ignore")
@@ -1750,8 +1750,8 @@ async def process_link(ctx, *, link=None):
     preview="\n".join(dumped_text.splitlines()[:10])
 
     embed=discord.Embed(
-        title=f"✅ Finished {exec_ms:.2f} ms",
-        description=f"Paste: {raw}" if raw else "⚠️ Paste upload failed",
+        title=f"Finished {exec_ms:.2f} ms",
+        description=f"Paste: {raw}" if raw else "Paste upload failed",
         color=0x2b2d31
     )
 
@@ -1777,7 +1777,7 @@ async def process_link(ctx, *, link=None):
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send result: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
 
@@ -1935,7 +1935,7 @@ async def rename_variables(ctx, *, link=None):
     original_filename = "script"
 
     try:
-        label = "🤖 renaming with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "🔤 renaming"
+        label = "renaming with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "renaming"
         status = await _send_with_retry(lambda: ctx.send(label))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
@@ -1945,7 +1945,7 @@ async def rename_variables(ctx, *, link=None):
         att = ctx.message.attachments[0]
         original_filename = att.filename
         if att.size > MAX_FILE_SIZE:
-            await status.edit(content="❌ File too large")
+            await status.edit(content="File too large")
             return
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
@@ -1959,7 +1959,7 @@ async def rename_variables(ctx, *, link=None):
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
         if r.status_code == 200:
             if len(r.content) > MAX_FILE_SIZE:
-                await status.edit(content="❌ File too large")
+                await status.edit(content="File too large")
                 return
             content = r.content
 
@@ -1975,7 +1975,7 @@ async def rename_variables(ctx, *, link=None):
             return
 
     if not content:
-        await status.edit(content="❌ Failed to get content.")
+        await status.edit(content="Failed to get content.")
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
@@ -2001,7 +2001,7 @@ async def rename_variables(ctx, *, link=None):
 
     preview = "\n".join(renamed.splitlines()[:PREVIEW_LINES])
     embed = discord.Embed(
-        title="✏️ Variables renamed",
+        title="Variables renamed",
         color=0x2b2d31,
     )
     embed.add_field(
@@ -2021,7 +2021,7 @@ async def rename_variables(ctx, *, link=None):
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send renamed result: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
 
@@ -2033,7 +2033,7 @@ async def beautify(ctx, *, link=None):
     original_filename = "script"
 
     try:
-        status = await _send_with_retry(lambda: ctx.send("✨ beautifying"))
+        status = await _send_with_retry(lambda: ctx.send("beautifying"))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
@@ -2042,7 +2042,7 @@ async def beautify(ctx, *, link=None):
         att = ctx.message.attachments[0]
         original_filename = att.filename
         if att.size > MAX_FILE_SIZE:
-            await status.edit(content="❌ File too large")
+            await status.edit(content="File too large")
             return
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
@@ -2056,7 +2056,7 @@ async def beautify(ctx, *, link=None):
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
         if r.status_code == 200:
             if len(r.content) > MAX_FILE_SIZE:
-                await status.edit(content="❌ File too large")
+                await status.edit(content="File too large")
                 return
             content = r.content
 
@@ -2070,7 +2070,7 @@ async def beautify(ctx, *, link=None):
             return
 
     if not content:
-        await status.edit(content="❌ Failed to get content.")
+        await status.edit(content="Failed to get content.")
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
@@ -2089,8 +2089,8 @@ async def beautify(ctx, *, link=None):
     preview = "\n".join(beautified.splitlines()[:PREVIEW_LINES])
 
     embed = discord.Embed(
-        title="✨ Beautified",
-        description=f"Paste: {raw}" if raw else "⚠️ Paste upload failed",
+        title="Beautified",
+        description=f"Paste: {raw}" if raw else "Paste upload failed",
         color=0x2b2d31
     )
     embed.add_field(
@@ -2115,7 +2115,7 @@ async def beautify(ctx, *, link=None):
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send beautified result: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
 
@@ -2148,7 +2148,7 @@ async def fix_lua(ctx, *, link=None):
     original_filename = "script"
 
     try:
-        label = "🤖 fixing with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "🔧 fixing"
+        label = "fixing with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "fixing"
         status = await _send_with_retry(lambda: ctx.send(label))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
@@ -2158,7 +2158,7 @@ async def fix_lua(ctx, *, link=None):
         att = ctx.message.attachments[0]
         original_filename = att.filename
         if att.size > MAX_FILE_SIZE:
-            await status.edit(content="❌ File too large")
+            await status.edit(content="File too large")
             return
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
@@ -2172,7 +2172,7 @@ async def fix_lua(ctx, *, link=None):
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
         if r.status_code == 200:
             if len(r.content) > MAX_FILE_SIZE:
-                await status.edit(content="❌ File too large")
+                await status.edit(content="File too large")
                 return
             content = r.content
 
@@ -2186,7 +2186,7 @@ async def fix_lua(ctx, *, link=None):
             return
 
     if not content:
-        await status.edit(content="❌ Failed to get content.")
+        await status.edit(content="Failed to get content.")
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
@@ -2205,8 +2205,8 @@ async def fix_lua(ctx, *, link=None):
     preview = "\n".join(fixed.splitlines()[:PREVIEW_LINES])
 
     embed = discord.Embed(
-        title="🔧 Fixed",
-        description=f"Paste: {raw}" if raw else "⚠️ Paste upload failed",
+        title="Fixed",
+        description=f"Paste: {raw}" if raw else "Paste upload failed",
         color=0x2b2d31
     )
     embed.add_field(
@@ -2231,7 +2231,7 @@ async def fix_lua(ctx, *, link=None):
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send fixed result: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
 
@@ -2241,7 +2241,7 @@ async def fix_lua(ctx, *, link=None):
 async def get_link_content(ctx,*,link=None):
 
     try:
-        status=await _send_with_retry(lambda: ctx.send("⬇️ downloading"))
+        status=await _send_with_retry(lambda: ctx.send("downloading"))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
@@ -2257,7 +2257,7 @@ async def get_link_content(ctx,*,link=None):
                     fname = os.path.splitext(fname)[0] + ".txt"
                 await status.delete()
                 await _send_with_retry(lambda: ctx.send(
-                    content=f"✅ from reply",
+                    content=f"from reply",
                     file=discord.File(io.BytesIO(ref_content), filename=fname)
                 ))
                 return
@@ -2279,22 +2279,22 @@ async def get_link_content(ctx,*,link=None):
             await status.delete()
 
             await _send_with_retry(lambda: ctx.send(
-                content=f"✅ {link}",
+                content=f"{link}",
                 file=discord.File(io.BytesIO(r.content),filename=filename)
             ))
 
         else:
-            await status.edit(content=f"❌ HTTP {r.status_code}")
+            await status.edit(content=f"HTTP {r.status_code}")
 
     except discord.errors.DiscordServerError as e:
         print(f"Warning: Discord server error in get command: {e}")
         try:
-            await status.edit(content=f"❌ Discord error, please retry: {e}")
+            await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
             pass
     except Exception as e:
         try:
-            await status.edit(content=f"❌ {e}")
+            await status.edit(content=f"{e}")
         except discord.errors.HTTPException:
             pass
 
