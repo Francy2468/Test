@@ -353,6 +353,13 @@ local function I(J)
                     return _ .. " = " .. _ .. " " .. Z .. " "
                 end
             )
+            R =
+                R:gsub(
+                "(%b()%s*%b[])%s*" .. Y,
+                function(_)
+                    return _ .. " = " .. _ .. " " .. Z .. " "
+                end
+            )
         end
         -- null / undefined → nil (word-boundary safe: require non-identifier context)
         for _, _kw in ipairs({"null", "undefined"}) do
