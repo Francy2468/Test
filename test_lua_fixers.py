@@ -393,6 +393,10 @@ class TestGameClassNameGuardPattern(unittest.TestCase):
 _is_generic_var_for_type = cat._is_generic_var_for_type
 _smart_rename_variables = cat._smart_rename_variables
 _ai_rename_variables = cat._ai_rename_variables
+_fold_string_concat = cat._fold_string_concat
+_collapse_loop_unrolls = cat._collapse_loop_unrolls
+_collapse_blank_lines = cat._collapse_blank_lines
+_remove_trailing_whitespace = cat._remove_trailing_whitespace
 
 
 class TestIsGenericVarForType(unittest.TestCase):
@@ -516,6 +520,140 @@ class TestSmartRenameVariables(unittest.TestCase):
         result = _ai_rename_variables(code)
         self.assertIsInstance(result, str)
         self.assertIn("frame", result)
+
+
+class TestFoldStringConcat(unittest.TestCase):
+
+    def test_adjacent_literals_folded(self):
+        code = '"Hello" .. " " .. "World"'
+        result = _fold_string_concat(code)
+        self.assertIn('"Hello World"', result)
+        self.assertNotIn('..', result)
+
+    def test_single_literal_unchanged(self):
+        code = '"Hello"'
+        self.assertEqual(_fold_string_concat(code), code)
+
+    def test_non_adjacent_unchanged(self):
+        code = '"a" .. x .. "b"'
+        result = _fold_string_concat(code)
+        # x is a variable, not a literal, so no full fold
+        self.assertIn('"a"', result)
+        self.assertIn('"b"', result)
+
+    def test_empty_string(self):
+        self.assertEqual(_fold_string_concat(""), "")
+
+
+class TestCollapseLoopUnrolls(unittest.TestCase):
+
+    def test_repeated_blocks_collapsed(self):
+        # Four identical single-line blocks — first 3 kept, rest collapsed.
+        code = (
+            'tween1:Play()\n'
+            'tween2:Play()\n'
+            'tween3:Play()\n'
+            'tween4:Play()\n'
+            'tween5:Play()\n'
+        )
+        result = _collapse_loop_unrolls(code)
+        self.assertIn('omitted', result.lower())
+
+    def test_unique_lines_unchanged(self):
+        code = 'local a = 1\nlocal b = 2\nlocal c = 3\n'
+        result = _collapse_loop_unrolls(code)
+        self.assertIn('local a = 1', result)
+        self.assertIn('local b = 2', result)
+        self.assertIn('local c = 3', result)
+
+    def test_empty_string(self):
+        self.assertEqual(_collapse_loop_unrolls(""), "")
+
+
+class TestCollapseBlankLines(unittest.TestCase):
+
+    def test_three_blanks_collapsed_to_two(self):
+        code = "a\n\n\n\nb"
+        result = _collapse_blank_lines(code)
+        self.assertNotIn("\n\n\n", result)
+        self.assertIn("a", result)
+        self.assertIn("b", result)
+
+    def test_two_blanks_collapsed_to_one(self):
+        # "a\n\n\nb" has three newlines (two blank lines) → collapsed to two newlines (one blank line).
+        code = "a\n\n\nb"
+        result = _collapse_blank_lines(code)
+        self.assertNotIn("\n\n\n", result)
+
+    def test_no_extra_blanks_unchanged(self):
+        code = "a\n\nb"
+        self.assertEqual(_collapse_blank_lines(code), code)
+
+    def test_empty_string(self):
+        self.assertEqual(_collapse_blank_lines(""), "")
+
+
+class TestRemoveTrailingWhitespace(unittest.TestCase):
+
+    def test_trailing_spaces_stripped(self):
+        code = "local x = 1   \nlocal y = 2  "
+        result = _remove_trailing_whitespace(code)
+        for line in result.splitlines():
+            self.assertEqual(line, line.rstrip())
+
+    def test_no_trailing_whitespace_unchanged(self):
+        code = "local x = 1\nlocal y = 2"
+        self.assertEqual(_remove_trailing_whitespace(code), code)
+
+    def test_empty_string(self):
+        self.assertEqual(_remove_trailing_whitespace(""), "")
+
+
+class TestFixPipelineIntegration(unittest.TestCase):
+    """Integration tests for improvements added to the .fix pipeline:
+    smart renaming, string folding, loop collapse, and formatting cleanup."""
+
+    def test_smart_rename_replaces_generic_frame(self):
+        """_smart_rename_variables renames a generic 'frame' var using .Name."""
+        code = (
+            'local frame = Instance.new("Frame")\n'
+            'frame.Name = "Dashboard"\n'
+        )
+        result = _smart_rename_variables(code)
+        self.assertIn("dashboard", result)
+        self.assertNotIn("local frame ", result)
+
+    def test_smart_rename_uses_text_for_button(self):
+        """_smart_rename_variables renames a generic button using .Text."""
+        code = (
+            'local button = Instance.new("TextButton")\n'
+            'button.Text = "Submit"\n'
+        )
+        result = _smart_rename_variables(code)
+        self.assertIn("submit", result)
+
+    def test_fold_and_collapse_pipeline(self):
+        """_fold_string_concat and _collapse_loop_unrolls work sequentially."""
+        code = (
+            'local msg = "Hello" .. " World"\n'
+            'item1:Do()\n'
+            'item2:Do()\n'
+            'item3:Do()\n'
+            'item4:Do()\n'
+        )
+        code = _fold_string_concat(code)
+        self.assertIn('"Hello World"', code)
+        code = _collapse_loop_unrolls(code)
+        self.assertIn('omitted', code.lower())
+
+    def test_formatting_cleanup(self):
+        """_collapse_blank_lines and _remove_trailing_whitespace work together."""
+        code = "local x = 1   \n\n\n\nlocal y = 2  "
+        code = _collapse_blank_lines(code)
+        code = _remove_trailing_whitespace(code)
+        self.assertNotIn("\n\n\n", code)
+        for line in code.splitlines():
+            self.assertEqual(line, line.rstrip())
 
 
 if __name__ == "__main__":
