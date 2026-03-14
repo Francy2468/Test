@@ -13,10 +13,22 @@ import functools
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 
+try:
+    from openai import OpenAI as _OpenAI
+    _OPENAI_AVAILABLE = True
+except ImportError:
+    _OPENAI_AVAILABLE = False
+
 load_dotenv()
 
 # ---------------- CONFIG ----------------
 TOKEN = os.environ.get("TOKEN_BOT", "")
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+DEEPSEEK_MODEL = "deepseek-chat"
+# Maximum characters to send to the AI renamer; larger scripts use the
+# heuristic fallback to avoid excessive token usage.
+AI_RENAME_MAX_CHARS = 80_000
 
 PREFIX = "."
 DUMPER_PATH = "catlogger.lua"
@@ -688,6 +700,354 @@ def _rename_by_name_property(code: str) -> str:
         )
 
     return result
+
+
+# ---------------- SMART RENAME ----------------
+
+# Maps Roblox Instance types to short, readable camelCase prefixes.
+_INSTANCE_TYPE_PREFIXES: dict[str, str] = {
+    "Frame": "frame",
+    "TextButton": "button",
+    "TextLabel": "label",
+    "TextBox": "textBox",
+    "ScrollingFrame": "scroll",
+    "ScreenGui": "gui",
+    "UICorner": "corner",
+    "UIListLayout": "listLayout",
+    "UIGridLayout": "gridLayout",
+    "UIStroke": "stroke",
+    "UIAspectRatioConstraint": "aspectRatio",
+    "UITableLayout": "tableLayout",
+    "UIPageLayout": "pageLayout",
+    "UIPadding": "padding",
+    "UIScale": "uiScale",
+    "UIGradient": "gradient",
+    "UISizeConstraint": "sizeConstraint",
+    "UITextSizeConstraint": "textConstraint",
+    "UIFlexItem": "flexItem",
+    "ImageLabel": "imageLabel",
+    "ImageButton": "imageButton",
+    "ViewportFrame": "viewport",
+    "BillboardGui": "billboard",
+    "SurfaceGui": "surfaceGui",
+    "Part": "part",
+    "RemoteEvent": "remote",
+    "RemoteFunction": "remoteFunc",
+    "BindableEvent": "bindEvent",
+    "BindableFunction": "bindFunc",
+    "LocalScript": "localScript",
+    "Script": "script",
+    "ModuleScript": "moduleScript",
+    "Folder": "folder",
+    "Model": "model",
+    "Configuration": "config",
+    "StringValue": "strVal",
+    "NumberValue": "numVal",
+    "BoolValue": "boolVal",
+    "IntValue": "intVal",
+    "ObjectValue": "objVal",
+    "SelectionBox": "selBox",
+    "WeldConstraint": "weld",
+    "Motor6D": "motor6D",
+    "Humanoid": "humanoid",
+    "Animator": "animator",
+    "Animation": "animation",
+    "Sound": "sound",
+    "SoundGroup": "soundGroup",
+    "Camera": "camera",
+}
+
+# Instance types that expose a meaningful .Text property.
+_TEXT_PROPERTY_TYPES: frozenset[str] = frozenset({"TextButton", "TextLabel", "TextBox"})
+
+# Suffix pattern that makes a variable name "generic" (auto-dumper artifact).
+# Matches: empty, "_", "__", "2", "_2", "_a", "_b", "_aa" etc.
+# Uses a simple linear character-class (no nested quantifiers) to avoid ReDoS.
+_GENERIC_SUFFIX_RE = re.compile(r"^[_a-z\d]*$")
+
+
+def _is_generic_var_for_type(var: str, type_name: str) -> bool:
+    """Return True when *var* looks like an auto-generated name for *type_name*.
+
+    Detects patterns produced by simple Roblox script dumpers::
+
+        frame, frame_, frame__, frame2, frame_a   →  type Frame
+        textButton, textButton_, textButton__     →  type TextButton
+        uICorner_                                 →  type UICorner
+
+    Human-written descriptive names such as ``mainFrame``, ``closeButton``,
+    or ``searchBox`` return False.
+    """
+    bases = set()
+    prefix = _INSTANCE_TYPE_PREFIXES.get(type_name)
+    if prefix:
+        bases.add(prefix)
+    type_camel = _name_to_camel_id(type_name)
+    if type_camel:
+        bases.add(type_camel)
+    for base in bases:
+        if var.startswith(base) and _GENERIC_SUFFIX_RE.fullmatch(var[len(base):]):
+            return True
+    return False
+
+
+def _smart_rename_variables(code: str) -> str:
+    """Rename poorly-named Lua variables using Instance type information.
+
+    Strategy (in priority order) for each ``local var = Instance.new("Type")``
+    declaration found in *code*:
+
+    1. ``var.Name = "X"`` assignment found anywhere in the script
+       → rename ``var`` to camelCase of X.
+    2. ``var.Text = "X"`` assignment found (TextButton / TextLabel / TextBox
+       only) AND ``var`` looks like an auto-generated name for its type
+       → rename to camelCase of X.
+    3. ``var`` looks like an auto-generated name (e.g. ``frame``, ``frame_``,
+       ``frame__``, ``frame2``) AND the type has a known short prefix
+       → rename to ``prefix``, ``prefix2``, ``prefix3`` … (first free slot).
+    4. Otherwise keep the current name.
+
+    Additionally, connection locals that have generic names (``conn``,
+    ``conn_``, ``conn2`` …) are renamed to ``<resolvedSource>Conn``.
+
+    All renames are applied with word-boundary guards so partial matches
+    inside longer identifiers are never touched.
+    """
+    lines = code.splitlines()
+
+    # Collect every identifier currently present to guard against collisions.
+    existing: set[str] = set()
+    for line in lines:
+        for m in re.finditer(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b", line):
+            existing.add(m.group(1))
+
+    # ── Pass 1: collect Instance.new() declarations ──────────────────────────
+    _INST_RE = re.compile(
+        r'Instance\.new\s*\(\s*"([A-Za-z][A-Za-z0-9]*)"\s*\)'
+    )
+    var_types: dict[str, str] = {}  # var → Instance type name
+    for line in lines:
+        m = re.match(r"^\s*local\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=", line)
+        if not m:
+            continue
+        var = m.group(1)
+        inst_m = _INST_RE.search(line)
+        if inst_m and var not in var_types:
+            var_types[var] = inst_m.group(1)
+
+    # ── Pass 2: scan .Name / .Text property assignments ─────────────────────
+    _PROP_RE = re.compile(
+        r"^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*(Name|Text)\s*=\s*\"([^\"]+)\""
+    )
+    var_name_prop: dict[str, str] = {}  # var → .Name value
+    var_text_prop: dict[str, str] = {}  # var → .Text value
+    for line in lines:
+        pm = _PROP_RE.match(line)
+        if not pm:
+            continue
+        var, prop, val = pm.group(1), pm.group(2), pm.group(3)
+        if var not in var_types:
+            continue
+        if prop == "Name" and var not in var_name_prop:
+            var_name_prop[var] = val
+        elif (
+            prop == "Text"
+            and var not in var_text_prop
+            and var_types.get(var) in _TEXT_PROPERTY_TYPES
+        ):
+            var_text_prop[var] = val
+
+    # ── Pass 3: collect generic connection locals ────────────────────────────
+    _CONN_DECL_RE = re.compile(
+        r"^\s*local\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"
+        r"([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*[A-Za-z][A-Za-z0-9]*\s*:\s*Connect\s*\("
+    )
+    conn_src: dict[str, str] = {}  # conn_var → source_var
+    # Linear pattern: anything that starts with "conn" or "connection"
+    # (case-insensitive).  No nested quantifiers → no ReDoS risk.
+    _GENERIC_CONN_RE = re.compile(r"^conn\w*$", re.IGNORECASE)
+    for line in lines:
+        cm = _CONN_DECL_RE.match(line)
+        if not cm:
+            continue
+        conn_var, src_var = cm.group(1), cm.group(2)
+        if _GENERIC_CONN_RE.match(conn_var) and conn_var not in conn_src:
+            conn_src[conn_var] = src_var
+
+    # ── Pass 4: allocate new names ───────────────────────────────────────────
+    # Seed the pool with every existing name, then free the slots occupied by
+    # variables we might rename so those slots are available as new targets.
+    renameable: set[str] = set(var_types) | set(conn_src)
+    used_names: set[str] = existing - renameable
+
+    def _alloc(base: str) -> str:
+        """Return *base* if free, else *base2*, *base3* … (first free slot).
+
+        A slot is considered free only if it is neither in *used_names* nor a
+        key already present in *renames*.  The second guard prevents the
+        chain-rename trap where variable A is renamed to B and variable C is
+        later also renamed to B (which would then itself get renamed to
+        something else when the B→… substitution is applied).
+        """
+        if base not in used_names and base not in renames:
+            used_names.add(base)
+            return base
+        c = 2
+        while True:
+            candidate = f"{base}{c}"
+            if candidate not in used_names and candidate not in renames:
+                used_names.add(candidate)
+                return candidate
+            c += 1
+
+    renames: dict[str, str] = {}
+
+    for var, type_name in var_types.items():
+        # Priority 1: .Name property
+        if var in var_name_prop:
+            new = _name_to_camel_id(var_name_prop[var])
+            if new:
+                new = _alloc(new)
+                if new != var:
+                    renames[var] = new
+            else:
+                used_names.add(var)  # invalid .Name → keep current
+            continue
+
+        # Priority 2: .Text property (text-capable types, generic names only)
+        if var in var_text_prop and _is_generic_var_for_type(var, type_name):
+            new = _name_to_camel_id(var_text_prop[var])
+            if new:
+                new = _alloc(new)
+                if new != var:
+                    renames[var] = new
+                # else already added to used_names by _alloc
+            else:
+                used_names.add(var)
+            continue
+
+        # Priority 3: type-prefix sequential numbering (generic names only)
+        if _is_generic_var_for_type(var, type_name):
+            prefix = _INSTANCE_TYPE_PREFIXES.get(type_name)
+            if prefix:
+                new = _alloc(prefix)
+                if new != var:
+                    renames[var] = new
+                # else already added to used_names by _alloc
+            else:
+                used_names.add(var)  # unknown type → keep
+        else:
+            # Descriptive name already present → keep
+            used_names.add(var)
+
+    # Connection variables (after instance renames are resolved)
+    for conn_var, src_var in conn_src.items():
+        resolved_src = renames.get(src_var, src_var)
+        new = _alloc(resolved_src + "Conn")
+        if new != conn_var:
+            renames[conn_var] = new
+        # else already added by _alloc
+
+    if not renames:
+        return code
+
+    # ── Pass 5: apply renames with word-boundary guards ──────────────────────
+    result = "\n".join(lines)
+    for old, new in sorted(renames.items(), key=lambda kv: -len(kv[0])):
+        result = re.sub(
+            r"(?<![a-zA-Z0-9_])" + re.escape(old) + r"(?![a-zA-Z0-9_])",
+            new,
+            result,
+        )
+    return result
+
+
+_DEEPSEEK_SYSTEM_PROMPT = """\
+You are an expert Lua/Roblox script formatter. Your only job is to rename \
+poorly-named local variables in the provided Lua code to make them descriptive \
+and readable.
+
+Rules:
+1. Use the .Name property assignment to name Instance.new() variables.
+   Example: if `frame.Name = "CloseButton"` exists → rename `frame` to `closeButton`.
+2. Use .Text for TextButton / TextLabel / TextBox if .Name is not available.
+   Example: if `textButton.Text = "Fire All"` → rename to `fireAllButton`.
+3. When neither .Name nor .Text is available, use a short descriptive prefix
+   based on the Instance type and a sequential number:
+   Frame→frame, TextButton→button, TextLabel→label, TextBox→textBox,
+   ScrollingFrame→scroll, ScreenGui→gui, UICorner→corner,
+   UIListLayout→listLayout, ImageLabel→imageLabel, ImageButton→imageButton,
+   Part→part, RemoteEvent→remote, Sound→sound, Folder→folder, Model→model.
+   Number duplicates: button, button2, button3 …
+4. Rename generic connection variables (conn, conn_, conn2, connection …)
+   to <connectedVariable>Conn.  Example: `conn = closeButton.MouseButton1Click:Connect(…)`
+   → `closeButtonConn`.
+5. Keep already-descriptive names unchanged.
+6. Do NOT add, remove, or reorder any code — only rename identifiers.
+7. Return ONLY the modified Lua code with no explanation, no markdown fences, \
+and no extra text.\
+"""
+
+# Lazy-initialised DeepSeek client (None until first use).
+_deepseek_client = None
+
+
+def _get_deepseek_client():
+    """Return a cached DeepSeek client, or None if unavailable."""
+    global _deepseek_client
+    if _deepseek_client is not None:
+        return _deepseek_client
+    if not _OPENAI_AVAILABLE or not DEEPSEEK_API_KEY:
+        return None
+    try:
+        _deepseek_client = _OpenAI(
+            api_key=DEEPSEEK_API_KEY,
+            base_url=DEEPSEEK_BASE_URL,
+        )
+    except Exception as exc:
+        print(f"[DeepSeek] client init failed: {exc}")
+        _deepseek_client = None
+    return _deepseek_client
+
+
+def _ai_rename_variables(code: str) -> str:
+    """Send *code* to DeepSeek and return the AI-renamed Lua source.
+
+    Falls back to ``_smart_rename_variables`` if:
+    * The ``openai`` package is not installed.
+    * ``DEEPSEEK_API_KEY`` is not set.
+    * The script exceeds ``AI_RENAME_MAX_CHARS``.
+    * The API call raises any exception.
+    * The response appears to be empty or non-Lua.
+    """
+    if len(code) > AI_RENAME_MAX_CHARS:
+        return _smart_rename_variables(code)
+
+    client = _get_deepseek_client()
+    if client is None:
+        return _smart_rename_variables(code)
+
+    try:
+        response = client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[
+                {"role": "system", "content": _DEEPSEEK_SYSTEM_PROMPT},
+                {"role": "user", "content": code},
+            ],
+            stream=False,
+            timeout=60,
+        )
+        result = response.choices[0].message.content or ""
+        # Strip accidental markdown code fences the model may emit.
+        result = re.sub(r"^```[a-zA-Z]*\n?", "", result.strip())
+        result = re.sub(r"\n?```$", "", result)
+        result = result.strip()
+        if not result:
+            return _smart_rename_variables(code)
+        return result
+    except Exception as exc:
+        print(f"[DeepSeek] rename failed: {exc}")
+        return _smart_rename_variables(code)
 
 
 # ---------------- LUA SYNTAX FIXER ----------------
@@ -1367,65 +1727,102 @@ def _fix_lua_compat(code: str) -> str:
 
 # ---------------- COMMAND .rename ----------------
 @bot.command(name="rename")
-async def rename_file(ctx, *, args=None):
+async def rename_variables(ctx, *, link=None):
+    """Rename all poorly-named variables in a Lua script using DeepSeek AI.
 
-    if not args:
-        await ctx.send("Usage: `.rename <new_name>` (with attachment or as a reply) or `.rename <link> <new_name>`")
+    Accepts input from:
+      * an attached .lua file
+      * a raw URL passed as argument
+      * a reply to a previous message that contains a file or URL
+    """
+    content = None
+    original_filename = "script"
+
+    try:
+        label = "🤖 renaming with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "🔤 renaming"
+        status = await _send_with_retry(lambda: ctx.send(label))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send status message: {e}")
         return
 
-    content = None
-    new_name = None
-
     if ctx.message.attachments:
-        new_name = args.strip()
         att = ctx.message.attachments[0]
+        original_filename = att.filename
         if att.size > MAX_FILE_SIZE:
-            await ctx.send("❌ File too large")
+            await status.edit(content="❌ File too large")
             return
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
         if r.status_code == 200:
             content = r.content
-    else:
-        parts = args.split(None, 1)
-        # Check if first token looks like a URL
-        if len(parts) >= 2 and re.match(r"https?://", parts[0]):
-            link, new_name = parts[0], parts[1].strip()
-            loop = asyncio.get_event_loop()
-            r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
-            if r.status_code == 200:
-                if len(r.content) > MAX_FILE_SIZE:
-                    await ctx.send("❌ File too large")
-                    return
-                content = r.content
-        else:
-            # No URL and no attachment — try the referenced message for content
-            new_name = args.strip()
-            ref_content, _ = await _fetch_reference_content(ctx)
-            if ref_content is not None:
-                content = ref_content
-            else:
-                await ctx.send("Usage: `.rename <new_name>` (with attachment or as a reply) or `.rename <link> <new_name>`")
+
+    elif link:
+        link = extract_first_url(link) or link
+        original_filename = get_filename_from_url(link)
+        loop = asyncio.get_event_loop()
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
+        if r.status_code == 200:
+            if len(r.content) > MAX_FILE_SIZE:
+                await status.edit(content="❌ File too large")
                 return
+            content = r.content
+
+    else:
+        ref_content, ref_filename = await _fetch_reference_content(ctx)
+        if ref_content is not None:
+            content = ref_content
+            original_filename = ref_filename or "script"
+        else:
+            await status.edit(
+                content="Provide a link, attach a file, or reply to a message that contains one."
+            )
+            return
 
     if not content:
-        await ctx.send("❌ Failed to get content.")
+        await status.edit(content="❌ Failed to get content.")
         return
 
-    if "." not in new_name:
-        new_name = new_name + ".lua"
+    lua_text = content.decode("utf-8", errors="ignore")
 
-    # Fix Lua-incompatible syntax in the file content before sending
-    try:
-        fixed_text = _fix_lua_compat(content.decode("utf-8", errors="ignore"))
-        content = fixed_text.encode("utf-8")
-    except Exception:
-        pass  # Keep original bytes if processing fails
-
-    await ctx.send(
-        content=f"✅ Renamed to `{new_name}`",
-        file=discord.File(io.BytesIO(content), filename=new_name)
+    loop = asyncio.get_event_loop()
+    renamed = await loop.run_in_executor(
+        _executor,
+        functools.partial(_ai_rename_variables, lua_text),
     )
+
+    base = os.path.splitext(original_filename)[0]
+    out_filename = base + "_renamed.lua"
+
+    try:
+        await status.delete()
+    except discord.errors.HTTPException as e:
+        print(f"Warning: failed to delete status message: {e}")
+
+    preview = "\n".join(renamed.splitlines()[:PREVIEW_LINES])
+    embed = discord.Embed(
+        title="✏️ Variables renamed",
+        color=0x2b2d31,
+    )
+    embed.add_field(
+        name="Preview",
+        value=f"```lua\n{preview[:PREVIEW_MAX_CHARS]}\n```",
+        inline=False,
+    )
+
+    try:
+        await _send_with_retry(lambda: ctx.send(
+            embed=embed,
+            file=discord.File(
+                io.BytesIO(renamed.encode("utf-8")),
+                filename=out_filename,
+            ),
+        ))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send renamed result: {e}")
+        try:
+            await status.edit(content=f"❌ Discord error, please retry: {e}")
+        except discord.errors.HTTPException:
+            pass
 
 # ---------------- COMMAND .bf ----------------
 @bot.command(name="bf")
