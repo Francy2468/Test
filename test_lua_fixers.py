@@ -910,6 +910,35 @@ class TestAiFixLuaFallback(unittest.TestCase):
         self.assertIn("~=", result)
 
 
+class TestIsCatmioProtected(unittest.TestCase):
+    """_is_catmio_protected detects catmio-obfuscated content."""
+
+    _is_catmio_protected = staticmethod(cat._is_catmio_protected)
+
+    def test_detects_catmio_header(self):
+        content = b"-- generated with catmio | https://discord.gg/cq9GkRKX2V\ndo\nend\n"
+        self.assertTrue(self._is_catmio_protected(content))
+
+    def test_detects_catmio_header_case_insensitive(self):
+        content = b"-- Generated With Catmio | https://discord.gg/abc\nlocal x = 1\n"
+        self.assertTrue(self._is_catmio_protected(content))
+
+    def test_rejects_normal_script(self):
+        content = b"local x = 1\nprint(x)\n"
+        self.assertFalse(self._is_catmio_protected(content))
+
+    def test_rejects_unrelated_comment(self):
+        content = b"-- generated with some other tool\nlocal x = 1\n"
+        self.assertFalse(self._is_catmio_protected(content))
+
+    def test_detects_header_not_on_first_line(self):
+        content = b"\n-- generated with catmio v2\nlocal x = 1\n"
+        self.assertTrue(self._is_catmio_protected(content))
+
+    def test_empty_content(self):
+        self.assertFalse(self._is_catmio_protected(b""))
+
+
 if __name__ == "__main__":
     unittest.main()
 

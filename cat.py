@@ -382,6 +382,27 @@ _CATMIO_HEADER_RE = re.compile(
     r"^--\s*generated with catmio\b.*$", re.IGNORECASE
 )
 
+_CATMIO_PROTECTED_MSG = (
+    "❌ This file was obfuscated with **catmio** and cannot be processed."
+)
+
+
+def _is_catmio_protected(content: bytes) -> bool:
+    """Return True if *content* was obfuscated with catmio.
+
+    Checks whether any of the first 20 lines of the decoded text contains the
+    ``-- generated with catmio`` watermark that catmio inserts at the top of
+    every protected file.
+    """
+    try:
+        text = content.decode("utf-8", errors="ignore")
+    except Exception:
+        return False
+    for line in text.splitlines()[:20]:
+        if _CATMIO_HEADER_RE.match(line.lstrip()):
+            return True
+    return False
+
 # Long-bracket Lua comments: --[[ ... ]] or --[=[ ... ]=]  (inline fragments)
 _INLINE_LONG_COMMENT_RE = re.compile(r"--\[=*\[.*?\]=*\]", re.DOTALL)
 
@@ -1768,6 +1789,10 @@ async def process_link(ctx, *, link=None):
         await status.edit(content=err)
         return
 
+    if _is_catmio_protected(content):
+        await status.edit(content=_CATMIO_PROTECTED_MSG)
+        return
+
     dumped,exec_ms,loops,lines,error=await run_dumper(content)
 
     if error:
@@ -2005,6 +2030,10 @@ async def beautify(ctx, *, link=None):
     content, original_filename, err = await _get_content(ctx, link)
     if err:
         await status.edit(content=err)
+        return
+
+    if _is_catmio_protected(content):
+        await status.edit(content=_CATMIO_PROTECTED_MSG)
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
@@ -2254,6 +2283,13 @@ async def darklua_cmd(ctx, *, link=None):
     if err:
         try:
             await status.edit(content=err)
+        except discord.errors.HTTPException:
+            pass
+        return
+
+    if _is_catmio_protected(content):
+        try:
+            await status.edit(content=_CATMIO_PROTECTED_MSG)
         except discord.errors.HTTPException:
             pass
         return
