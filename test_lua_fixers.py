@@ -61,6 +61,8 @@ _fix_extra_ends = cat._fix_extra_ends
 _fix_connect_end_parens = cat._fix_connect_end_parens
 _fix_ui_variable_shadowing = cat._fix_ui_variable_shadowing
 _fix_lua_do_end = cat._fix_lua_do_end
+_fix_for_missing_do = cat._fix_for_missing_do
+_fix_local_missing_assign = cat._fix_local_missing_assign
 _dedup_connections = cat._dedup_connections
 _fix_lua_compat = cat._fix_lua_compat
 extract_first_url = cat.extract_first_url
@@ -227,6 +229,29 @@ class TestFixUiVariableShadowing(unittest.TestCase):
         result = _fix_ui_variable_shadowing(code)
         # No Instance.new — nothing should change.
         self.assertEqual(result, code)
+
+    def test_inline_references_on_redeclaration_line_renamed(self):
+        """Inline property assignments on the same line as the re-declaration are renamed."""
+        code = (
+            'local B=Instance.new("TextButton")B.Text="First"B.Parent=game\n'
+            'local B=Instance.new("TextButton")B.Text="Second"B.Parent=game\n'
+        )
+        result = _fix_ui_variable_shadowing(code)
+        lines = result.splitlines()
+        # Second declaration line should use B_2 throughout (not B)
+        self.assertIn("local B_2=", lines[1])
+        self.assertIn("B_2.Text=", lines[1])
+        self.assertIn("B_2.Parent=", lines[1])
+
+    def test_instance_type_string_not_renamed(self):
+        """Instance.new('Folder') type string must not be mutated when renaming Folder variable."""
+        code = (
+            'local Folder=Instance.new("Folder")Folder.Name="First"\n'
+            'local Folder=Instance.new("Folder")Folder.Name="Second"\n'
+        )
+        result = _fix_ui_variable_shadowing(code)
+        # Both lines should still reference the original type string
+        self.assertIn('Instance.new("Folder")', result)
 
 
 # ---------------------------------------------------------------------------
@@ -439,6 +464,18 @@ class TestIsGenericVarForType(unittest.TestCase):
         # "frame" is not generic for type TextButton
         self.assertFalse(_is_generic_var_for_type("frame", "TextButton"))
 
+    def test_short_name_is_always_generic(self):
+        # Single- or double-character names are treated as abbreviated auto-generated names.
+        self.assertTrue(_is_generic_var_for_type("B", "TextButton"))
+        self.assertTrue(_is_generic_var_for_type("F", "Frame"))
+        self.assertTrue(_is_generic_var_for_type("Gb", "TextButton"))
+        self.assertTrue(_is_generic_var_for_type("x", "Frame"))
+
+    def test_three_char_name_not_auto_generic(self):
+        # Three-character names that don't match the type prefix are NOT generic.
+        self.assertFalse(_is_generic_var_for_type("Foo", "Frame"))
+        self.assertFalse(_is_generic_var_for_type("Bar", "TextButton"))
+
 
 class TestSmartRenameVariables(unittest.TestCase):
 
@@ -520,6 +557,97 @@ class TestSmartRenameVariables(unittest.TestCase):
         result = _ai_rename_variables(code)
         self.assertIsInstance(result, str)
         self.assertIn("frame", result)
+
+    def test_inline_name_property_detected(self):
+        """Inline .Name assignment on the same line as Instance.new() is used for renaming."""
+        code = 'local Gui=Instance.new("ScreenGui")Gui.Name="XGUI"Gui.Parent=game\n'
+        result = _smart_rename_variables(code)
+        self.assertIn("xGUI", result)
+        self.assertNotIn("local Gui=", result)
+
+    def test_inline_text_property_detected(self):
+        """Inline .Text assignment on the same line as Instance.new() is used for renaming."""
+        code = 'local B=Instance.new("TextButton")B.Text="ClickMe"B.Parent=game\n'
+        result = _smart_rename_variables(code)
+        self.assertIn("clickMe", result)
+        self.assertNotIn("local B=", result)
+
+
+class TestFixForMissingDo(unittest.TestCase):
+    """_fix_for_missing_do inserts 'do' into for-loop headers that lack it."""
+
+    def test_numeric_for_missing_do_inserted(self):
+        code = 'for i=1,3 print("Count "..i)end'
+        result = _fix_for_missing_do(code)
+        self.assertIn("for i=1,3 do", result)
+
+    def test_numeric_for_with_step_missing_do_inserted(self):
+        code = 'for i=1,10,2 print(i)end'
+        result = _fix_for_missing_do(code)
+        self.assertIn("do", result)
+
+    def test_numeric_for_already_has_do_unchanged(self):
+        code = 'for i=1,3 do print("Count "..i)end'
+        result = _fix_for_missing_do(code)
+        # Should remain unchanged — exactly one 'do' between 'for' and body
+        self.assertIn("for i=1,3 do", result)
+        self.assertEqual(result.count("do"), 1)
+
+    def test_generic_for_missing_do_inserted(self):
+        code = 'for k,v in pairs(t) print(k,v)end'
+        result = _fix_for_missing_do(code)
+        self.assertIn("do", result)
+        self.assertIn("pairs(t)", result)
+
+    def test_generic_for_already_has_do_unchanged(self):
+        code = 'for k,v in pairs(t) do print(k,v)end'
+        result = _fix_for_missing_do(code)
+        self.assertEqual(result.count("do"), 1)
+
+    def test_two_for_loops_one_missing_do(self):
+        """Only the loop without 'do' is modified."""
+        code = 'for i=1,3 do print(i)end for i=1,3 print("nodo")end'
+        result = _fix_for_missing_do(code)
+        self.assertIn('for i=1,3 do print(i)end', result)
+        self.assertIn('for i=1,3 do print("nodo")end', result)
+
+    def test_non_for_code_unchanged(self):
+        code = 'local x = 10\nprint(x)\n'
+        self.assertEqual(_fix_for_missing_do(code), code)
+
+
+class TestFixLocalMissingAssign(unittest.TestCase):
+    """_fix_local_missing_assign corrects 'local var N' → 'local var = N'."""
+
+    def test_integer_literal_fixed(self):
+        code = 'local y 20'
+        result = _fix_local_missing_assign(code)
+        self.assertEqual(result, 'local y = 20')
+
+    def test_negative_integer_fixed(self):
+        code = 'local y -5'
+        result = _fix_local_missing_assign(code)
+        self.assertEqual(result, 'local y = -5')
+
+    def test_decimal_literal_fixed(self):
+        code = 'local pi 3.14'
+        result = _fix_local_missing_assign(code)
+        self.assertEqual(result, 'local pi = 3.14')
+
+    def test_correct_assignment_unchanged(self):
+        code = 'local y = 20'
+        self.assertEqual(_fix_local_missing_assign(code), code)
+
+    def test_multi_statement_line_fixed(self):
+        code = 'local x=10 local y 20 local z = 30'
+        result = _fix_local_missing_assign(code)
+        self.assertIn('local y = 20', result)
+        self.assertIn('local x=10', result)
+        self.assertIn('local z = 30', result)
+
+    def test_string_value_unchanged(self):
+        code = 'local s = "hello"'
+        self.assertEqual(_fix_local_missing_assign(code), code)
 
 
 class TestFoldStringConcat(unittest.TestCase):
