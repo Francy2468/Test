@@ -973,11 +973,14 @@ def _smart_rename_variables(code: str) -> str:
 
 
 _DEEPSEEK_SYSTEM_PROMPT = """\
-You are an expert Lua/Roblox script formatter. Your only job is to rename \
-poorly-named local variables in the provided Lua code to make them descriptive \
-and readable.
+You are an expert Lua/Roblox script refactoring assistant. Your task is to \
+carefully analyze and fully refactor the provided Lua script to improve its \
+quality, stability, structure, and readability while preserving all existing \
+features and functionality.
 
-Rules:
+Apply ALL of the following improvements:
+
+VARIABLE AND FUNCTION RENAMING:
 1. Use the .Name property assignment to name Instance.new() variables.
    Example: if `frame.Name = "CloseButton"` exists → rename `frame` to `closeButton`.
 2. Use .Text for TextButton / TextLabel / TextBox if .Name is not available.
@@ -990,12 +993,50 @@ Rules:
    Part→part, RemoteEvent→remote, Sound→sound, Folder→folder, Model→model.
    Number duplicates: button, button2, button3 …
 4. Rename generic connection variables (conn, conn_, conn2, connection …)
-   to <connectedVariable>Conn.  Example: `conn = closeButton.MouseButton1Click:Connect(…)`
-   → `closeButtonConn`.
-5. Keep already-descriptive names unchanged.
-6. Do NOT add, remove, or reorder any code — only rename identifiers.
-7. Return ONLY the modified Lua code with no explanation, no markdown fences, \
-and no extra text.\
+   to <connectedVariable>Conn.
+   Example: `conn = closeButton.MouseButton1Click:Connect(…)` → `closeButtonConn`.
+5. Rename anonymous or poorly-named functions to descriptive verb-noun names.
+   Example: `local function f()` → `local function setupGui()` when context allows.
+6. Rename Roblox service variables descriptively.
+   Example: `local a = game:GetService("Players")` → `local Players = game:GetService("Players")`.
+7. Rename single-letter or cryptic loop variables when the role is clear from context.
+   Example: `for i, v in pairs(buttons)` → keep `i`, rename `v` to `button` when clear.
+8. Keep already-descriptive names unchanged.
+
+SYNTAX FIXES:
+9. Replace JavaScript-style operators: != → ~=, && → and, || → or.
+10. Replace bare logical-NOT `!expr` → `not expr` (only when `!` precedes an
+    identifier or parenthesis, never inside string literals).
+11. Replace null/undefined → nil.
+12. Collapse `else if` → `elseif` (but preserve `end else if` on the same line,
+    which is valid structural Lua, not a collapsible keyword).
+13. Add missing closing `)` to `:Connect(function … end` blocks where the
+    parenthesis from Connect is never closed.
+
+STRUCTURE AND QUALITY IMPROVEMENTS:
+14. Remove duplicate :Connect() event handler bindings for the same event.
+15. Remove duplicate code blocks and collapse repeated patterns.
+16. Extract repeated logic into reusable local functions.
+17. Cache Roblox services and frequently-used objects in local variables
+    at the top of the relevant scope.
+18. Fix variable scope: declare variables as `local` where they do not need
+    to be global.
+19. Remove unnecessary or redundant code (dead assignments, unused variables).
+20. Simplify overly complex or deeply nested logic where possible.
+21. Replace nested if-chains with early-return guards where appropriate.
+
+CODE STYLE:
+22. Use consistent 4-space indentation throughout.
+23. Remove excessive blank lines (no more than one consecutive blank line).
+24. Remove trailing whitespace from every line.
+25. Ensure clear separation between logical sections using single blank lines.
+
+OUTPUT REQUIREMENTS:
+- Return ONLY the refactored Lua code.
+- No markdown fences, no explanation, no extra text whatsoever.
+- Preserve ALL existing features and functionality.
+- Do NOT remove features unless they are clearly broken or unreachable.
+- Ensure the output is valid, runnable Lua/Roblox code.\
 """
 
 # Lazy-initialised DeepSeek client (None until first use).
@@ -1060,7 +1101,111 @@ def _ai_rename_variables(code: str) -> str:
         return _smart_rename_variables(code)
 
 
-# ---------------- LUA SYNTAX FIXER ----------------
+# System prompt used by _ai_fix_lua for the comprehensive .fix pipeline.
+# This is separate from _DEEPSEEK_SYSTEM_PROMPT (used for .rename) so each
+# command gets a focused instruction set appropriate to its scope.
+_DEEPSEEK_FIX_SYSTEM_PROMPT = """\
+You are an expert Lua/Roblox script repair and refactoring assistant. \
+Your task is to carefully analyze the provided Lua script and apply ALL of \
+the following fixes and improvements while preserving every existing feature \
+and behavior.
+
+SYNTAX REPAIR:
+1. Fix all syntax errors: unbalanced `end`/`until`, missing closing `)` on \
+`:Connect(function … end` blocks, incorrect block structure.
+2. Replace JavaScript-style operators: != → ~=, && → and, || → or.
+3. Replace bare logical-NOT `!expr` → `not expr` only when `!` precedes an \
+identifier or `(` — never inside string literals or at end-of-sentence.
+4. Replace null/undefined → nil.
+5. Collapse `else if` → `elseif` (preserve `end else if` on the same line \
+which is valid structural Lua).
+
+VARIABLE AND FUNCTION NAMING:
+6. Use the .Name property assignment to name Instance.new() variables.
+   Example: `frame.Name = "CloseButton"` → rename `frame` to `closeButton`.
+7. Use .Text for TextButton/TextLabel/TextBox if .Name is not available.
+   Example: `textButton.Text = "Fire All"` → rename to `fireAllButton`.
+8. When neither .Name nor .Text is available, apply a type-prefix + counter:
+   Frame→frame, TextButton→button, TextLabel→label, TextBox→textBox,
+   ScrollingFrame→scroll, ScreenGui→gui, UICorner→corner,
+   UIListLayout→listLayout, ImageLabel→imageLabel, ImageButton→imageButton,
+   Part→part, RemoteEvent→remote, Sound→sound, Folder→folder, Model→model.
+9. Rename generic connection variables (conn, conn_, conn2, connection …) to
+   <connectedVar>Conn.
+10. Rename Roblox service variables: `game:GetService("Players")` variable → `Players`.
+11. Rename single-letter or cryptic function names to descriptive verb-noun names
+    when the purpose is clear from context.
+12. Keep already-descriptive names unchanged.
+
+STRUCTURE AND CODE QUALITY:
+13. Remove duplicate :Connect() event handler bindings for the same event.
+14. Collapse repeated identical code blocks into a loop or function call.
+15. Extract repeated logic into named local functions.
+16. Cache Roblox services and frequently-used objects at the top of their scope.
+17. Make variables `local` wherever they do not need to be global.
+18. Remove dead assignments, unused variables, and unreachable code.
+19. Simplify overly complex or deeply nested conditionals.
+20. Replace deeply nested if-chains with early-return guards where appropriate.
+21. Ensure all game object references are validated before use where appropriate.
+
+FORMATTING:
+22. Use consistent 4-space indentation throughout.
+23. Limit consecutive blank lines to one.
+24. Remove trailing whitespace from every line.
+
+OUTPUT REQUIREMENTS:
+- Return ONLY the corrected and refactored Lua code.
+- No markdown fences, no explanation, no extra text whatsoever.
+- Preserve ALL existing features and functionality.
+- Do NOT remove features unless they are clearly broken or unreachable.
+- Ensure the output is valid, runnable Lua/Roblox code.\
+"""
+
+
+def _ai_fix_lua(code: str) -> str:
+    """Send *code* to DeepSeek for comprehensive repair and refactoring.
+
+    Applies the full suite of fixes described in ``_DEEPSEEK_FIX_SYSTEM_PROMPT``
+    (syntax repair, naming, structure, formatting).
+
+    Falls back to the heuristic pipeline (``_run_heuristic_fix_pipeline``) if:
+    * The ``openai`` package is not installed.
+    * ``DEEPSEEK_API_KEY`` is not set.
+    * The script exceeds ``AI_RENAME_MAX_CHARS``.
+    * The API call raises any exception.
+    * The response appears to be empty or non-Lua.
+    """
+    if len(code) > AI_RENAME_MAX_CHARS:
+        return _run_heuristic_fix_pipeline(code)
+
+    client = _get_deepseek_client()
+    if client is None:
+        return _run_heuristic_fix_pipeline(code)
+
+    try:
+        response = client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[
+                {"role": "system", "content": _DEEPSEEK_FIX_SYSTEM_PROMPT},
+                {"role": "user", "content": code},
+            ],
+            stream=False,
+            timeout=90,
+        )
+        result = response.choices[0].message.content or ""
+        # Strip accidental markdown code fences the model may emit.
+        result = re.sub(r"^```[a-zA-Z]*\n?", "", result.strip())
+        result = re.sub(r"\n?```$", "", result)
+        result = result.strip()
+        if not result:
+            return _run_heuristic_fix_pipeline(code)
+        return result
+    except Exception as exc:
+        print(f"[DeepSeek] fix failed: {exc}")
+        return _run_heuristic_fix_pipeline(code)
+
+
+
 
 # Keywords that open a new Lua block scope (each requires a matching 'end').
 _LUA_BLOCK_OPEN_RE = re.compile(r"\b(function|do|repeat)\b")
@@ -1699,7 +1844,8 @@ def _fix_lua_compat(code: str) -> str:
       !=          ->  ~=     (inequality operator)
       &&          ->  and    (logical AND)
       ||          ->  or     (logical OR)
-      !expr       ->  not    (logical NOT; only bare '!' not followed by '=')
+      !expr       ->  not    (logical NOT; only bare '!' followed by an
+                             identifier or '(' — not punctuation in strings)
       null        ->  nil    (whole word)
       undefined   ->  nil    (whole word)
       else if     ->  elseif (Lua uses a single keyword; see note below)
@@ -1716,9 +1862,11 @@ def _fix_lua_compat(code: str) -> str:
     code = re.sub(r"\s*&&\s*", " and ", code)
     code = re.sub(r"\s*\|\|\s*", " or ", code)
     # Replace bare '!' (logical NOT) — '!=' has already been handled above.
-    # Only match '!' not immediately preceded by a word character so that '!'
-    # inside string literals (e.g. "hello!") is left untouched.
-    code = re.sub(r"(?<!\w)!", "not ", code)
+    # Require '!' to be followed by an identifier character or '(' so that '!'
+    # used as punctuation in string literals (e.g. "hello!", "done!") and at
+    # line endings is left untouched.  This prevents corrupting string values
+    # while still catching all practical uses of the JS logical-NOT operator.
+    code = re.sub(r"(?<!\w)!(?=[a-zA-Z_(])", "not ", code)
     code = re.sub(r"\bnull\b", "nil", code)
     code = re.sub(r"\bundefined\b", "nil", code)
     # Collapse "else if" -> "elseif" but protect "end … else … if" first.
@@ -1732,6 +1880,44 @@ def _fix_lua_compat(code: str) -> str:
     )
     code = re.sub(r"\belse[ \t]+if\b", "elseif", code)
     code = code.replace(_PROTECT, "if")
+    return code
+
+
+
+# ---------------- HEURISTIC FIX PIPELINE ----------------
+
+def _run_heuristic_fix_pipeline(code: str) -> str:
+    """Apply the full heuristic-based Lua repair pipeline without AI.
+
+    This is the fallback used by ``_ai_fix_lua`` when DeepSeek is unavailable
+    or the script is too large for the AI call, and it is also used directly
+    by the ``.fix`` command when no API key is configured.
+
+    Steps (in order):
+    1. Non-Lua operator substitution (!=, &&, ||, !, null, else if)
+    2. Add missing ')' to :Connect(function…end) blocks
+    3. Remove extra / misplaced 'end' keywords
+    4. Append missing 'end' keywords at EOF
+    5. Remove duplicate :Connect() event-handler bindings
+    6. De-shadow re-declared UI-element variable names
+    7. Rename locals using .Name / .Text / type-prefix heuristics
+    8. Fold adjacent string-literal concatenations
+    9. Collapse repeated identical code blocks (loop-unroll artifacts)
+    10. Re-indent (beautify)
+    11. Remove excessive blank lines and trailing whitespace
+    """
+    code = _fix_lua_compat(code)
+    code = _fix_connect_end_parens(code)
+    code = _fix_extra_ends(code)
+    code = _fix_lua_do_end(code)
+    code = _dedup_connections(code)
+    code = _fix_ui_variable_shadowing(code)
+    code = _smart_rename_variables(code)
+    code = _fold_string_concat(code)
+    code = _collapse_loop_unrolls(code)
+    code = _beautify_lua(code)
+    code = _collapse_blank_lines(code)
+    code = _remove_trailing_whitespace(code)
     return code
 
 
@@ -1936,9 +2122,14 @@ async def beautify(ctx, *, link=None):
 # ---------------- COMMAND .fix ----------------
 @bot.command(name="fix")
 async def fix_lua(ctx, *, link=None):
-    """Apply a full Roblox/Lua syntax repair pipeline to the supplied script.
+    """Apply a full Roblox/Lua repair and refactoring pipeline to the supplied script.
 
-    Fixes applied (in order):
+    When ``DEEPSEEK_API_KEY`` is set the script is sent to DeepSeek for
+    comprehensive AI-powered repair (syntax fixes, renaming, structure
+    improvements, formatting).  Without an API key the heuristic pipeline is
+    used as a fallback.
+
+    Heuristic pipeline (fallback, applied in order):
     1. Non-Lua operators (``!=``, ``&&``, ``||``, ``!``, ``null``, ``else if``)
     2. Missing ``)`` on ``:Connect(function…end)`` blocks
     3. Extra / misplaced ``end`` keywords
@@ -1957,7 +2148,8 @@ async def fix_lua(ctx, *, link=None):
     original_filename = "script"
 
     try:
-        status = await _send_with_retry(lambda: ctx.send("🔧 fixing"))
+        label = "🤖 fixing with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "🔧 fixing"
+        status = await _send_with_retry(lambda: ctx.send(label))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
@@ -1999,25 +2191,10 @@ async def fix_lua(ctx, *, link=None):
 
     lua_text = content.decode("utf-8", errors="ignore")
 
-    def _run_fix_pipeline(code: str) -> str:
-        code = _fix_lua_compat(code)
-        code = _fix_connect_end_parens(code)
-        code = _fix_extra_ends(code)
-        code = _fix_lua_do_end(code)
-        code = _dedup_connections(code)
-        code = _fix_ui_variable_shadowing(code)
-        code = _smart_rename_variables(code)
-        code = _fold_string_concat(code)
-        code = _collapse_loop_unrolls(code)
-        code = _beautify_lua(code)
-        code = _collapse_blank_lines(code)
-        code = _remove_trailing_whitespace(code)
-        return code
-
     loop = asyncio.get_event_loop()
     fixed = await loop.run_in_executor(
         _executor,
-        functools.partial(_run_fix_pipeline, lua_text)
+        functools.partial(_ai_fix_lua, lua_text)
     )
 
     paste, raw = await loop.run_in_executor(
