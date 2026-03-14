@@ -33,7 +33,7 @@ PREFIX = "."
 DUMPER_PATH = "catlogger.lua"
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
-DUMP_TIMEOUT = 130  # Must exceed catlogger.lua TIMEOUT_SECONDS (120) to allow proper cleanup
+DUMP_TIMEOUT = 3620  # Must exceed catlogger.lua TIMEOUT_SECONDS (3600) to allow proper cleanup
 PREVIEW_LINES = 10
 PREVIEW_MAX_CHARS = 900
 
