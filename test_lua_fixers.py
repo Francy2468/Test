@@ -390,6 +390,134 @@ class TestGameClassNameGuardPattern(unittest.TestCase):
         self.assertIn('local y = 2', result)
 
 
+_is_generic_var_for_type = cat._is_generic_var_for_type
+_smart_rename_variables = cat._smart_rename_variables
+_ai_rename_variables = cat._ai_rename_variables
+
+
+class TestIsGenericVarForType(unittest.TestCase):
+
+    def test_exact_prefix_is_generic(self):
+        self.assertTrue(_is_generic_var_for_type("frame", "Frame"))
+        self.assertTrue(_is_generic_var_for_type("button", "TextButton"))
+        self.assertTrue(_is_generic_var_for_type("label", "TextLabel"))
+        self.assertTrue(_is_generic_var_for_type("scroll", "ScrollingFrame"))
+        self.assertTrue(_is_generic_var_for_type("gui", "ScreenGui"))
+
+    def test_underscore_suffix_is_generic(self):
+        self.assertTrue(_is_generic_var_for_type("frame_", "Frame"))
+        self.assertTrue(_is_generic_var_for_type("frame__", "Frame"))
+        self.assertTrue(_is_generic_var_for_type("button_", "TextButton"))
+
+    def test_digit_suffix_is_generic(self):
+        self.assertTrue(_is_generic_var_for_type("frame2", "Frame"))
+        self.assertTrue(_is_generic_var_for_type("frame3", "Frame"))
+        self.assertTrue(_is_generic_var_for_type("button2", "TextButton"))
+
+    def test_letter_suffix_is_generic(self):
+        self.assertTrue(_is_generic_var_for_type("frame_a", "Frame"))
+        self.assertTrue(_is_generic_var_for_type("frame_b", "Frame"))
+        self.assertTrue(_is_generic_var_for_type("button_a", "TextButton"))
+
+    def test_type_camel_is_generic(self):
+        # textButton / textButton_ / textButton__ as produced by dumpers
+        self.assertTrue(_is_generic_var_for_type("textButton", "TextButton"))
+        self.assertTrue(_is_generic_var_for_type("textButton_", "TextButton"))
+        self.assertTrue(_is_generic_var_for_type("textLabel2", "TextLabel"))
+
+    def test_descriptive_name_is_not_generic(self):
+        self.assertFalse(_is_generic_var_for_type("mainFrame", "Frame"))
+        self.assertFalse(_is_generic_var_for_type("closeButton", "TextButton"))
+        self.assertFalse(_is_generic_var_for_type("searchBox", "TextBox"))
+        self.assertFalse(_is_generic_var_for_type("copyAllButton", "TextButton"))
+
+    def test_wrong_type_prefix_is_not_generic(self):
+        # "frame" is not generic for type TextButton
+        self.assertFalse(_is_generic_var_for_type("frame", "TextButton"))
+
+
+class TestSmartRenameVariables(unittest.TestCase):
+
+    def test_name_property_used(self):
+        code = (
+            'local frame = Instance.new("Frame")\n'
+            'frame.Name = "ClosePanel"\n'
+        )
+        result = _smart_rename_variables(code)
+        self.assertIn("closePanel", result)
+        self.assertNotIn("local frame ", result)
+
+    def test_text_property_used_for_button(self):
+        code = (
+            'local textButton = Instance.new("TextButton")\n'
+            'textButton.Text = "Fire All"\n'
+        )
+        result = _smart_rename_variables(code)
+        self.assertIn("fireAll", result)
+
+    def test_type_prefix_fallback(self):
+        code = (
+            'local frame = Instance.new("Frame")\n'
+            'local frame_ = Instance.new("Frame")\n'
+            'local frame__ = Instance.new("Frame")\n'
+        )
+        result = _smart_rename_variables(code)
+        # Three frames → frame, frame2, frame3
+        self.assertIn("frame", result)
+        self.assertIn("frame2", result)
+        self.assertIn("frame3", result)
+        # Generic suffixed names should be gone
+        self.assertNotIn("frame_ ", result)
+        self.assertNotIn("frame__", result)
+
+    def test_descriptive_name_unchanged(self):
+        code = (
+            'local mainFrame = Instance.new("Frame")\n'
+            'mainFrame.Size = UDim2.new(1,0,1,0)\n'
+        )
+        result = _smart_rename_variables(code)
+        self.assertIn("mainFrame", result)
+
+    def test_connection_renamed(self):
+        code = (
+            'local button = Instance.new("TextButton")\n'
+            'button.Name = "Close"\n'
+            'local conn = button.MouseButton1Click:Connect(function()\n'
+            'end)\n'
+        )
+        result = _smart_rename_variables(code)
+        self.assertNotIn("local conn ", result)
+        self.assertIn("Conn", result)
+
+    def test_no_instance_code_unchanged(self):
+        code = "local x = 42\nlocal y = x + 1\n"
+        self.assertEqual(_smart_rename_variables(code), code)
+
+    def test_name_priority_over_text(self):
+        code = (
+            'local textButton = Instance.new("TextButton")\n'
+            'textButton.Name = "ActionBtn"\n'
+            'textButton.Text = "Click Me"\n'
+        )
+        result = _smart_rename_variables(code)
+        # .Name wins over .Text
+        self.assertIn("actionBtn", result)
+        self.assertNotIn("clickMe", result)
+
+    def test_no_rename_without_key_falls_back(self):
+        """_ai_rename_variables falls back to _smart_rename_variables when
+        no DeepSeek client is available (key not set in this test env)."""
+        code = (
+            'local frame = Instance.new("Frame")\n'
+            'local frame_ = Instance.new("Frame")\n'
+        )
+        # In the test environment DEEPSEEK_API_KEY may not be set.
+        # The function must still return valid renamed code.
+        result = _ai_rename_variables(code)
+        self.assertIsInstance(result, str)
+        self.assertIn("frame", result)
+
+
 if __name__ == "__main__":
     unittest.main()
 
