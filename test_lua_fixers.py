@@ -112,6 +112,7 @@ _fix_lua_compat = cat._fix_lua_compat
 extract_first_url = cat.extract_first_url
 _fold_string_concat = cat._fold_string_concat
 _strip_loop_markers = cat._strip_loop_markers
+_remove_useless_do_blocks = cat._remove_useless_do_blocks
 
 
 class TestFixExtraEnds(unittest.TestCase):
@@ -908,6 +909,87 @@ class TestAiFixLuaFallback(unittest.TestCase):
         result = _ai_fix_lua(code)
         self.assertNotIn("!=", result)
         self.assertIn("~=", result)
+
+
+# ---------------------------------------------------------------------------
+# Tests for _remove_useless_do_blocks
+# ---------------------------------------------------------------------------
+
+class TestRemoveUselessDoBlocks(unittest.TestCase):
+    """_remove_useless_do_blocks must unwrap ``do…end`` blocks that contain
+    only variable declarations or a single statement, merging their contents
+    into the enclosing scope."""
+
+    def test_single_local_declaration_unwrapped(self):
+        """A ``do`` block containing a single ``local`` is removed."""
+        code = "do\n    local x = 1\nend"
+        result = _remove_useless_do_blocks(code)
+        self.assertNotIn("do", result)
+        self.assertNotIn("end", result)
+        self.assertIn("local x = 1", result)
+
+    def test_multiple_local_declarations_unwrapped(self):
+        """A ``do`` block containing only ``local`` lines is removed."""
+        code = "do\n    local x = 1\n    local y = 2\nend"
+        result = _remove_useless_do_blocks(code)
+        self.assertNotIn("\ndo\n", "\n" + result + "\n")
+        self.assertIn("local x = 1", result)
+        self.assertIn("local y = 2", result)
+
+    def test_single_statement_unwrapped(self):
+        """A ``do`` block containing exactly one non-local statement is removed."""
+        code = "do\n    print('hello')\nend"
+        result = _remove_useless_do_blocks(code)
+        self.assertNotIn("do", result)
+        self.assertIn("print('hello')", result)
+
+    def test_necessary_do_block_kept(self):
+        """A ``do`` block with multiple mixed statements is kept."""
+        code = "do\n    local x = 1\n    x = x + 1\n    print(x)\nend"
+        result = _remove_useless_do_blocks(code)
+        self.assertIn("do", result)
+        self.assertIn("end", result)
+
+    def test_for_loop_do_not_removed(self):
+        """``do`` that is part of a ``for`` header must not be removed."""
+        code = "for i = 1, 10 do\n    print(i)\nend"
+        result = _remove_useless_do_blocks(code)
+        self.assertIn("for i = 1, 10 do", result)
+
+    def test_while_do_not_removed(self):
+        """``do`` that is part of a ``while`` header must not be removed."""
+        code = "while true do\n    break\nend"
+        result = _remove_useless_do_blocks(code)
+        self.assertIn("while true do", result)
+
+    def test_empty_do_block_removed(self):
+        """An empty ``do … end`` block is treated as a single (absent) statement
+        and is therefore removed."""
+        code = "do\nend"
+        result = _remove_useless_do_blocks(code)
+        self.assertNotIn("do", result)
+
+    def test_surrounding_code_preserved(self):
+        """Lines before and after the useless block are kept intact."""
+        code = "local a = 1\ndo\n    local b = 2\nend\nlocal c = 3"
+        result = _remove_useless_do_blocks(code)
+        self.assertIn("local a = 1", result)
+        self.assertIn("local b = 2", result)
+        self.assertIn("local c = 3", result)
+        self.assertNotIn("\ndo\n", "\n" + result + "\n")
+
+    def test_empty_string_unchanged(self):
+        self.assertEqual(_remove_useless_do_blocks(""), "")
+
+    def test_no_do_blocks_unchanged(self):
+        code = "local x = 1\nprint(x)"
+        self.assertEqual(_remove_useless_do_blocks(code), code)
+
+    def test_nested_function_do_kept(self):
+        """A ``do`` block that contains a function definition is kept."""
+        code = "do\n    local function helper()\n        return 1\n    end\nend"
+        result = _remove_useless_do_blocks(code)
+        self.assertIn("function helper", result)
 
 
 if __name__ == "__main__":

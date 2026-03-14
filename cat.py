@@ -1005,34 +1005,27 @@ def _smart_rename_variables(code: str) -> str:
 
 
 _AI_SYSTEM_PROMPT = """\
-You are an expert Lua developer and code refactoring assistant.
-Your task is to analyze the provided Lua script and fully repair, refactor, \
-and improve it while preserving its intended functionality.
+You are a Lua/Luau code cleaner and deobfuscator.
 
-Carefully review the entire script and perform a full code improvement process.
+Your job is to fix, format, and clean Lua code while preserving the exact behavior.
 
-Objectives:
+STRICT RULES:
 
-1. Detect and fix all syntax errors, runtime errors, and logical issues.
-2. Correct any broken or invalid Lua syntax.
-3. Ensure all parentheses, brackets, and code blocks are properly closed.
-4. Fix incorrect API usage or invalid function calls.
-5. Improve the overall structure and organization of the script.
-6. Refactor messy, duplicated, or poorly structured code into cleaner and more maintainable patterns.
-7. Remove redundant, duplicated, or unnecessary code.
-8. Simplify overly complex or deeply nested logic.
-9. Improve naming of variables, functions, and objects to make them meaningful and readable.
-10. Fix variable scope issues and ensure variables are declared in appropriate places.
-11. Ensure services and commonly used objects are stored properly and reused instead of repeatedly retrieved.
-12. Optimize loops and event connections to prevent performance issues.
-13. Prevent infinite loops, unnecessary event connections, or memory leaks.
-14. Improve GUI creation logic so elements are organized and structured properly.
-15. Ensure all references to objects are validated before use.
-16. Apply good Lua programming practices and consistent formatting.
-17. Improve indentation, spacing, and overall readability of the code.
-18. Reduce excessive nesting and repeated patterns by introducing helper functions if necessary.
-19. Ensure the final script is stable and runs without errors.
-20. Keep the original features and behavior of the script as much as possible.
+1. NEVER wrap code inside "do ... end" blocks unless it is absolutely required for syntax.
+2. DO NOT create new scopes with "do".
+3. Keep the original scope structure.
+4. Only add "end" when it is required to correctly close:
+   - functions
+   - if statements
+   - loops
+   - events
+5. Do NOT insert unnecessary "do" blocks.
+6. Merge useless scopes into the main scope.
+7. Preserve variables so they remain accessible globally within the script.
+8. Fix missing "end", parentheses, commas, or syntax errors.
+9. Reformat the code cleanly with proper indentation.
+10. Do NOT change variable names unless they break syntax.
+11. If a "do ... end" block only contains variable declarations or a single statement, remove the "do" block and keep the contents.
 
 Additional guidelines:
 
@@ -1044,10 +1037,12 @@ Additional guidelines:
 
 Output requirements:
 
-- Return the FULL corrected and refactored Lua script.
+- Output ONLY the fixed Lua code.
+- Do not explain anything.
+- Do not add comments unless they fix syntax issues.
+- Return the FULL corrected Lua script.
 - Ensure the final code is properly formatted.
 - Ensure the script can run without obvious errors.
-- Do not include explanations unless necessary.
 - No markdown fences, no extra text whatsoever.\
 """
 
@@ -1209,6 +1204,124 @@ def _fix_lua_do_end(code: str) -> str:
     if depth > 0:
         code = code.rstrip() + "\n" + "end\n" * depth
     return code
+
+
+def _remove_useless_do_blocks(code: str) -> str:
+    """Remove ``do ... end`` blocks that contain only variable declarations or
+    a single statement, merging their contents into the enclosing scope.
+
+    Bare ``do … end`` blocks that serve no structural purpose (i.e. they do
+    not wrap a loop, function, or conditionally-executed body) violate the
+    strict Lua-cleaner rules:
+
+    * Never wrap code in ``do … end`` unless syntax absolutely requires it.
+    * If a ``do … end`` block contains only variable declarations or a single
+      statement, remove the ``do`` block and keep the contents.
+    * Merge useless scopes into the main scope so variables remain accessible
+      globally within the script.
+
+    The function only removes ``do`` lines that are *standalone* openers
+    (i.e. the word ``do`` is the only non-comment, non-whitespace token on
+    that line).  ``do`` keywords that are part of ``for``/``while`` headers or
+    ``function`` bodies are left untouched.
+
+    A block is considered *useless* when every non-blank, non-comment line
+    inside it is either:
+
+    * A ``local`` variable declaration (``local x = …``), or
+    * Any single statement (when there is exactly one such line).
+
+    The ``do`` and the matching ``end`` are removed; the inner lines are kept
+    with their indentation reduced by one level (4 spaces or 1 tab).
+    """
+    lines = code.splitlines()
+    result: list[str] = []
+    i = 0
+    n = len(lines)
+
+    # Regex for a standalone ``do`` opener (the whole trimmed line is just ``do``
+    # optionally followed by a comment).
+    _STANDALONE_DO_RE = re.compile(r"^\s*do\s*(?:--.*)?$")
+
+    def _dedent_line(line: str) -> str:
+        """Remove one level of indentation (4 spaces or 1 tab)."""
+        if line.startswith("\t"):
+            return line[1:]
+        if line.startswith("    "):
+            return line[4:]
+        return line
+
+    while i < n:
+        line = lines[i]
+        if not _STANDALONE_DO_RE.match(line):
+            result.append(line)
+            i += 1
+            continue
+
+        # Found a standalone ``do``.  Scan forward to find its matching ``end``.
+        depth = 1
+        j = i + 1
+        # Track inner openers/closers (we only need the depth to find the match).
+        _INNER_OPEN_RE = re.compile(r"\b(function|do|repeat)\b")
+        _INNER_COND_RE = re.compile(r"^\s*(if|for|while)\b.*\b(then|do)\s*(?:--.*)?$")
+        _INNER_CLOSE_RE = re.compile(r"^\s*(end|until)\b")
+
+        while j < n and depth > 0:
+            inner = lines[j].strip()
+            if not inner or inner.startswith("--"):
+                j += 1
+                continue
+            # Closers come before openers (a line like ``end`` closes before
+            # we check for new openers on the same line).
+            if _INNER_CLOSE_RE.match(lines[j]):
+                depth -= 1
+                if depth == 0:
+                    break
+            # Count openers on this inner line.
+            m_cond = _INNER_COND_RE.match(lines[j])
+            if m_cond:
+                depth += 1
+            elif _INNER_OPEN_RE.search(lines[j]):
+                depth += 1
+            j += 1
+
+        # ``j`` now points to the matching ``end`` line (depth==0) or past EOF.
+        end_idx = j  # index of the ``end`` that closes this ``do``
+
+        # Collect the body lines (between ``do`` and ``end``).
+        body = lines[i + 1:end_idx]
+
+        # Decide whether this block is useless.
+        non_empty_body = [l for l in body if l.strip() and not l.strip().startswith("--")]
+
+        def _is_single_simple_statement(bl: list) -> bool:
+            """True when bl is a single statement (no sub-blocks)."""
+            if len(bl) != 1:
+                return False
+            t = bl[0].strip()
+            # Must not itself be a block-opener keyword.
+            return not re.match(r"\b(function|do|repeat|if|for|while)\b", t)
+
+        is_useless = (
+            # Empty block or all inner non-empty lines are ``local`` declarations.
+            not non_empty_body
+            or all(l.strip().startswith("local ") for l in non_empty_body)
+            # Exactly one non-empty statement.
+            or _is_single_simple_statement(non_empty_body)
+        )
+
+        if is_useless:
+            # Emit body without the surrounding ``do``/``end``, dedented one level.
+            for bl in body:
+                result.append(_dedent_line(bl))
+            # Skip the ``end`` line.
+            i = end_idx + 1
+        else:
+            # Keep the block as-is.
+            result.append(line)
+            i += 1
+
+    return "\n".join(result)
 
 
 def _fix_for_missing_do(code: str) -> str:
@@ -1802,8 +1915,8 @@ async def process_link(ctx, *, link=None):
     # then run collapse again — after normalisation many more blocks are identical.
     dumped_text=_normalize_all_counters(dumped_text)
     dumped_text=_collapse_loop_unrolls(dumped_text)
-    # Wrap ephemeral local groups in do…end so the output is directly executable.
-    dumped_text=_scope_group_locals(dumped_text)
+    # Remove useless do…end blocks (variable-only or single-statement wrappers).
+    dumped_text=_remove_useless_do_blocks(dumped_text)
     dumped_text=_strip_comments(dumped_text)
     dumped_text=_collapse_blank_lines(dumped_text)
     dumped_text=_remove_trailing_whitespace(dumped_text)
@@ -1967,13 +2080,14 @@ def _run_heuristic_fix_pipeline(code: str) -> str:
     4. Add missing ')' to :Connect(function…end) blocks
     5. Remove extra / misplaced 'end' keywords
     6. Append missing 'end' keywords at EOF
-    7. Remove duplicate :Connect() event-handler bindings
-    8. De-shadow re-declared UI-element variable names
-    9. Rename locals using .Name / .Text / type-prefix heuristics
-    10. Fold adjacent string-literal concatenations
-    11. Collapse repeated identical code blocks (loop-unroll artifacts)
-    12. Re-indent (beautify)
-    13. Remove excessive blank lines and trailing whitespace
+    7. Remove useless ``do … end`` blocks (variable-only / single-statement)
+    8. Remove duplicate :Connect() event-handler bindings
+    9. De-shadow re-declared UI-element variable names
+    10. Rename locals using .Name / .Text / type-prefix heuristics
+    11. Fold adjacent string-literal concatenations
+    12. Collapse repeated identical code blocks (loop-unroll artifacts)
+    13. Re-indent (beautify)
+    14. Remove excessive blank lines and trailing whitespace
     """
     code = _fix_lua_compat(code)
     code = _fix_for_missing_do(code)
@@ -1981,6 +2095,7 @@ def _run_heuristic_fix_pipeline(code: str) -> str:
     code = _fix_connect_end_parens(code)
     code = _fix_extra_ends(code)
     code = _fix_lua_do_end(code)
+    code = _remove_useless_do_blocks(code)
     code = _dedup_connections(code)
     code = _fix_ui_variable_shadowing(code)
     code = _smart_rename_variables(code)
