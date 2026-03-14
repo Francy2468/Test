@@ -1498,20 +1498,21 @@ def _dedup_connections(code: str) -> str:
 async def _fetch_reference_content(ctx):
     """Return (content_bytes, filename) from the message that ctx.message replies to.
 
+    Always fetches the referenced message fresh (rather than using the cached
+    ``ref.resolved``) so that Discord attachment CDN tokens are up-to-date.
+
     Returns (None, None) if:
     - The message is not a reply.
     - The referenced message has no attachments and no detectable URL in its content.
+    - Any network or API error occurs.
     """
     ref = ctx.message.reference
     if not ref:
         return None, None
 
-    # Resolve the referenced message (may already be cached).
+    # Always fetch the message fresh to ensure CDN attachment URLs are valid.
     try:
-        if ref.resolved and isinstance(ref.resolved, discord.Message):
-            ref_msg = ref.resolved
-        else:
-            ref_msg = await ctx.channel.fetch_message(ref.message_id)
+        ref_msg = await ctx.channel.fetch_message(ref.message_id)
     except Exception:
         return None, None
 
@@ -1522,7 +1523,7 @@ async def _fetch_reference_content(ctx):
             return None, None
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
-        if r.status_code == 200:
+        if r.status_code == 200 and r.content:
             return r.content, att.filename
         return None, None
 
@@ -1532,12 +1533,63 @@ async def _fetch_reference_content(ctx):
         filename = get_filename_from_url(url)
         loop = asyncio.get_event_loop()
         r = await loop.run_in_executor(_executor, functools.partial(_requests_get, url))
-        if r.status_code == 200:
+        if r.status_code == 200 and r.content:
             if len(r.content) > MAX_FILE_SIZE:
                 return None, None
             return r.content, filename
 
     return None, None
+
+
+async def _get_content(ctx, link=None):
+    """Resolve script content bytes + filename from the invoking message.
+
+    Priority order:
+      1. Attachment attached to the current message.
+      2. Explicit URL provided as ``link``.
+         If the URL download fails but the message is also a reply, falls back
+         to step 3 before giving up.
+      3. Attachment or URL found in the replied-to message.
+
+    Returns ``(content, filename, error)`` where:
+      - ``content`` is ``bytes`` on success, ``None`` on failure.
+      - ``filename`` is a best-effort filename string.
+      - ``error`` is ``None`` on success, or a human-readable error string.
+    """
+    loop = asyncio.get_event_loop()
+
+    # 1. Attachment in the current message.
+    if ctx.message.attachments:
+        att = ctx.message.attachments[0]
+        if att.size > MAX_FILE_SIZE:
+            return None, att.filename, "File too large"
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
+        if r.status_code == 200 and r.content:
+            return r.content, att.filename, None
+        return None, att.filename, f"Failed to download attachment (HTTP {r.status_code})"
+
+    # 2. Explicit URL provided in the command argument.
+    if link:
+        url = extract_first_url(link) or link
+        filename = get_filename_from_url(url)
+        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, url))
+        if r.status_code == 200 and r.content:
+            if len(r.content) > MAX_FILE_SIZE:
+                return None, filename, "File too large"
+            return r.content, filename, None
+        # URL failed — try reply as fallback before reporting failure.
+        url_err = f"HTTP {r.status_code}" if r.status_code != 0 else "network error"
+        ref_content, ref_filename = await _fetch_reference_content(ctx)
+        if ref_content:
+            return ref_content, ref_filename or filename, None
+        return None, filename, f"Failed to get content ({url_err})"
+
+    # 3. Reply to another message.
+    ref_content, ref_filename = await _fetch_reference_content(ctx)
+    if ref_content:
+        return ref_content, ref_filename or "file", None
+
+    return None, "file", "Provide a link, file, or reply to a message that contains one."
 
 # ---------------- PASTEFY ----------------
 def upload_to_pastefy(content, title="Dumped Script"):
@@ -1653,12 +1705,65 @@ async def run_dumper(lua_content):
 async def on_ready():
     print(f"Logged as {bot.user} | Lua {_lua_interp}")
 
+# ---------------- COMMAND .help ----------------
+@bot.command(name="help")
+async def show_help(ctx):
+    """Show available bot commands."""
+    ai_tag = " (AI)" if (OPENAI_API_KEY and _OPENAI_AVAILABLE) else ""
+    embed = discord.Embed(
+        title="Commands",
+        description=f"Prefix: `{PREFIX}`",
+        color=0x2b2d31,
+    )
+    embed.add_field(
+        name=f"{PREFIX}l [link]",
+        value=(
+            "Deobfuscate/dump a Lua script.\n"
+            "Attach a file, provide a URL, or reply to a message with a file/link."
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name=f"{PREFIX}get [link]",
+        value=(
+            "Fetch a file from a URL and send it as a text attachment.\n"
+            "Attach a file, provide a URL, or reply to a message with a file/link."
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name=f"{PREFIX}rename [link]",
+        value=(
+            f"Rename obfuscated variables in a Lua script{ai_tag}.\n"
+            "Attach a file, provide a URL, or reply to a message with a file/link."
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name=f"{PREFIX}fix [link]",
+        value=(
+            f"Apply a full Lua repair pipeline{ai_tag}.\n"
+            "Attach a file, provide a URL, or reply to a message with a file/link."
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name=f"{PREFIX}bf [link]",
+        value=(
+            "Beautify/reformat a Lua script.\n"
+            "Attach a file, provide a URL, or reply to a message with a file/link."
+        ),
+        inline=False,
+    )
+    try:
+        await _send_with_retry(lambda: ctx.send(embed=embed))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send help message: {e}")
+
+
 # ---------------- COMMAND .l ----------------
 @bot.command(name="l")
 async def process_link(ctx, *, link=None):
-
-    content=None
-    original_filename="file"
 
     # Acknowledge the command immediately so the user sees activity right away
     try:
@@ -1667,51 +1772,9 @@ async def process_link(ctx, *, link=None):
         print(f"Warning: failed to send status message: {e}")
         return
 
-    if ctx.message.attachments:
-
-        att=ctx.message.attachments[0]
-
-        original_filename=att.filename
-
-        if att.size>MAX_FILE_SIZE:
-            await status.edit(content="File too large")
-            return
-
-        loop=asyncio.get_event_loop()
-        r=await loop.run_in_executor(_executor,functools.partial(_requests_get,att.url))
-
-        if r.status_code==200:
-            content=r.content
-
-    elif link:
-
-        link=extract_first_url(link) or link
-        original_filename=get_filename_from_url(link)
-
-        loop=asyncio.get_event_loop()
-        r=await loop.run_in_executor(_executor,functools.partial(_requests_get,link))
-
-        if r.status_code==200:
-
-            if len(r.content)>MAX_FILE_SIZE:
-                await status.edit(content="File too large")
-                return
-
-            content=r.content
-
-    else:
-        # No attachment or link provided — check if this is a reply to a message
-        # that contains a file or link.
-        ref_content, ref_filename = await _fetch_reference_content(ctx)
-        if ref_content is not None:
-            content = ref_content
-            original_filename = ref_filename or "file"
-        else:
-            await status.edit(content="Provide a link, file, or reply to a message that contains one.")
-            return
-
-    if not content:
-        await status.edit(content="Failed to get content.")
+    content, original_filename, err = await _get_content(ctx, link)
+    if err:
+        await status.edit(content=err)
         return
 
     dumped,exec_ms,loops,lines,error=await run_dumper(content)
@@ -1948,9 +2011,6 @@ async def rename_variables(ctx, *, link=None):
       * a raw URL passed as argument
       * a reply to a previous message that contains a file or URL
     """
-    content = None
-    original_filename = "script"
-
     try:
         label = "renaming with AI" if (OPENAI_API_KEY and _OPENAI_AVAILABLE) else "renaming"
         status = await _send_with_retry(lambda: ctx.send(label))
@@ -1958,41 +2018,9 @@ async def rename_variables(ctx, *, link=None):
         print(f"Warning: failed to send status message: {e}")
         return
 
-    if ctx.message.attachments:
-        att = ctx.message.attachments[0]
-        original_filename = att.filename
-        if att.size > MAX_FILE_SIZE:
-            await status.edit(content="File too large")
-            return
-        loop = asyncio.get_event_loop()
-        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
-        if r.status_code == 200:
-            content = r.content
-
-    elif link:
-        link = extract_first_url(link) or link
-        original_filename = get_filename_from_url(link)
-        loop = asyncio.get_event_loop()
-        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
-        if r.status_code == 200:
-            if len(r.content) > MAX_FILE_SIZE:
-                await status.edit(content="File too large")
-                return
-            content = r.content
-
-    else:
-        ref_content, ref_filename = await _fetch_reference_content(ctx)
-        if ref_content is not None:
-            content = ref_content
-            original_filename = ref_filename or "script"
-        else:
-            await status.edit(
-                content="Provide a link, attach a file, or reply to a message that contains one."
-            )
-            return
-
-    if not content:
-        await status.edit(content="Failed to get content.")
+    content, original_filename, err = await _get_content(ctx, link)
+    if err:
+        await status.edit(content=err)
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
@@ -2046,48 +2074,15 @@ async def rename_variables(ctx, *, link=None):
 @bot.command(name="bf")
 async def beautify(ctx, *, link=None):
 
-    content = None
-    original_filename = "script"
-
     try:
         status = await _send_with_retry(lambda: ctx.send("beautifying"))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
 
-    if ctx.message.attachments:
-        att = ctx.message.attachments[0]
-        original_filename = att.filename
-        if att.size > MAX_FILE_SIZE:
-            await status.edit(content="File too large")
-            return
-        loop = asyncio.get_event_loop()
-        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
-        if r.status_code == 200:
-            content = r.content
-
-    elif link:
-        link = extract_first_url(link) or link
-        original_filename = get_filename_from_url(link)
-        loop = asyncio.get_event_loop()
-        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
-        if r.status_code == 200:
-            if len(r.content) > MAX_FILE_SIZE:
-                await status.edit(content="File too large")
-                return
-            content = r.content
-
-    else:
-        ref_content, ref_filename = await _fetch_reference_content(ctx)
-        if ref_content is not None:
-            content = ref_content
-            original_filename = ref_filename or "script"
-        else:
-            await status.edit(content="Provide a link, file, or reply to a message that contains one.")
-            return
-
-    if not content:
-        await status.edit(content="Failed to get content.")
+    content, original_filename, err = await _get_content(ctx, link)
+    if err:
+        await status.edit(content=err)
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
@@ -2161,9 +2156,6 @@ async def fix_lua(ctx, *, link=None):
     11. Remove excessive blank lines and trailing whitespace
     """
 
-    content = None
-    original_filename = "script"
-
     try:
         label = "fixing with AI" if (OPENAI_API_KEY and _OPENAI_AVAILABLE) else "fixing"
         status = await _send_with_retry(lambda: ctx.send(label))
@@ -2171,39 +2163,9 @@ async def fix_lua(ctx, *, link=None):
         print(f"Warning: failed to send status message: {e}")
         return
 
-    if ctx.message.attachments:
-        att = ctx.message.attachments[0]
-        original_filename = att.filename
-        if att.size > MAX_FILE_SIZE:
-            await status.edit(content="File too large")
-            return
-        loop = asyncio.get_event_loop()
-        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, att.url))
-        if r.status_code == 200:
-            content = r.content
-
-    elif link:
-        link = extract_first_url(link) or link
-        original_filename = get_filename_from_url(link)
-        loop = asyncio.get_event_loop()
-        r = await loop.run_in_executor(_executor, functools.partial(_requests_get, link))
-        if r.status_code == 200:
-            if len(r.content) > MAX_FILE_SIZE:
-                await status.edit(content="File too large")
-                return
-            content = r.content
-
-    else:
-        ref_content, ref_filename = await _fetch_reference_content(ctx)
-        if ref_content is not None:
-            content = ref_content
-            original_filename = ref_filename or "script"
-        else:
-            await status.edit(content="Provide a link, file, or reply to a message that contains one.")
-            return
-
-    if not content:
-        await status.edit(content="Failed to get content.")
+    content, original_filename, err = await _get_content(ctx, link)
+    if err:
+        await status.edit(content=err)
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
@@ -2255,53 +2217,30 @@ async def fix_lua(ctx, *, link=None):
 
 # ---------------- COMMAND GET ----------------
 @bot.command(name="get")
-async def get_link_content(ctx,*,link=None):
+async def get_link_content(ctx, *, link=None):
 
     try:
-        status=await _send_with_retry(lambda: ctx.send("downloading"))
+        status = await _send_with_retry(lambda: ctx.send("downloading"))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
         return
 
     try:
-
-        # If no link given, try to pull the URL from a replied-to message.
-        if not link:
-            ref_content, ref_filename = await _fetch_reference_content(ctx)
-            if ref_content is not None:
-                fname = ref_filename or "file.txt"
-                if not fname.endswith(".txt"):
-                    fname = os.path.splitext(fname)[0] + ".txt"
-                await status.delete()
-                await _send_with_retry(lambda: ctx.send(
-                    content=f"from reply",
-                    file=discord.File(io.BytesIO(ref_content), filename=fname)
-                ))
-                return
-            await status.edit(content="Usage: .get <link>  (or reply to a message with a file/link)")
+        content, filename, err = await _get_content(ctx, link)
+        if err:
+            await status.edit(content=err)
             return
 
-        link=extract_first_url(link) or link
+        if not filename.endswith(".txt"):
+            filename = os.path.splitext(filename)[0] + ".txt"
 
-        loop=asyncio.get_event_loop()
-        r=await loop.run_in_executor(_executor,functools.partial(_requests_get,link))
+        await status.delete()
 
-        if r.status_code==200:
-
-            filename=get_filename_from_url(link)
-
-            if not filename.endswith(".txt"):
-                filename=os.path.splitext(filename)[0]+".txt"
-
-            await status.delete()
-
-            await _send_with_retry(lambda: ctx.send(
-                content=f"{link}",
-                file=discord.File(io.BytesIO(r.content),filename=filename)
-            ))
-
-        else:
-            await status.edit(content=f"HTTP {r.status_code}")
+        source_label = link if link else "from reply"
+        await _send_with_retry(lambda: ctx.send(
+            content=source_label,
+            file=discord.File(io.BytesIO(content), filename=filename)
+        ))
 
     except discord.errors.DiscordServerError as e:
         print(f"Warning: Discord server error in get command: {e}")
