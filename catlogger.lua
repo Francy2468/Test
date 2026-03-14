@@ -38,6 +38,7 @@ local r = {
     DUMP_ALL_STRINGS = false,
     DUMP_WAD_STRINGS = false,
     DUMP_DECODED_STRINGS = false,
+    DUMP_LIGHTCATE_STRINGS = true,
     EMIT_XOR = false,
     DUMP_UPVALUES = true,
     MAX_UPVALUES_PER_FUNCTION = 200,
@@ -4916,6 +4917,19 @@ function q.dump_k0lrot_strings()
     end
 end
 
+-- Emit the decoded Lightcate v2.0.0 string pool when available.
+function q.dump_lightcate_strings()
+    if not r.DUMP_LIGHTCATE_STRINGS then return end
+    if not t.lightcate_string_pool then return end
+    local pool = t.lightcate_string_pool
+    if not pool.strings or #pool.strings == 0 then return end
+    aA()
+    at(string.format("-- Lightcate v2.0.0 decoded string constants (var=%s)", pool.var_name or "?"))
+    for _, entry in E(pool.strings) do
+        at(string.format("local _lc_%d = %s", entry.idx, aH(entry.val)))
+    end
+end
+
 -- Execute deferred hooks/callbacks that were registered via hookfunction/Connect etc.
 -- This greatly improves extraction completeness for scripts that register many hooks.
 -- NOTE: hooks list is cleared before processing to prevent infinite re-entrancy.
@@ -5059,6 +5073,8 @@ local GEN_OUTER_PATTERNS = {
     -- Variants that omit the vararg and take explicit arg lists
     "return%(function%([%a_][%w_]*%)",
     "%(function%([%a_][%w_]*%)",
+    -- Lightcate v2.0.0 and similar: return(function(_0x...
+    "return%(function%(_0x",
 }
 -- How many bytes from the start of the file to scan for the outer wrapper.
 local GEN_OUTER_HEADER_BYTES = 1024
@@ -5097,6 +5113,8 @@ local GEN_VM_BOUNDARIES = {
     -- Obfuscators using `keys` / `vals` as the string table name
     "return%(function%(keys,",
     "return%(function%(vals,",
+    -- Lightcate v2.0.0 and similar obfuscators using _0x hex-prefixed param names
+    "return%(function%(_0x",
     -- Generic long-argument dispatcher heuristic: ≥8 consecutive single-letter
     -- comma-separated params suggests a VM dispatch table (built programmatically
     -- to avoid repetitive literals).
@@ -5374,7 +5392,94 @@ local function wad_extract_strings(source_code)
 end
 
 -- ---------------------------------------------------------------------------
--- _reduce_locals(src) → transformed_src
+-- Lightcate v2.0.0 obfuscation detector and string-table extractor.
+-- Detects scripts obfuscated with Lightcate by checking for the "Lightcate"
+-- signature string and a VM dispatcher boundary that uses _0x hex-prefixed
+-- parameter names (e.g. return(function(_0xABCD, _0xEF01, ...)).
+-- The decoded string table variable is discovered dynamically by scanning
+-- the preamble for the last local table with a _0x-prefixed name, or by
+-- matching the first argument passed to the outer VM call at the end of the
+-- file.  The preamble is executed in a sandboxed chunk and the resulting
+-- table is returned so that q.dump_lightcate_strings() can emit it as
+-- _lc_N local declarations.
+-- ---------------------------------------------------------------------------
+local LIGHTCATE_DETECT_STR = "Lightcate"
+local LIGHTCATE_VM_BOUNDARY_PAT = "return%(function%(_0x[%w_]+"
+
+local function lightcate_extract_strings(source_code)
+    -- Quick early-out: must contain the Lightcate signature string.
+    if not source_code:find(LIGHTCATE_DETECT_STR, 1, true) then
+        return nil
+    end
+    -- Find the VM dispatcher boundary.
+    local boundary = source_code:find(LIGHTCATE_VM_BOUNDARY_PAT)
+    if not boundary then
+        return nil
+    end
+    local preamble = source_code:sub(1, boundary - 1)
+    -- Helper: accept strings that are non-empty and consist only of printable
+    -- characters (including whitespace) to filter out raw binary/address noise.
+    local function is_valid_lc_str(s)
+        return type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$")
+    end
+    -- Discover the string table variable name dynamically.
+    -- Strategy 1: The variable is the first argument passed to the outer call
+    -- at the end of the file.  Pattern: end)(_0xXXXX, ...) or end)(_0xXXXX).
+    -- Require at least one closing delimiter before the opening parenthesis to
+    -- avoid spurious matches (e.g. plain assignment with a _0x name on the rhs).
+    local str_var = source_code:match("[%)%]]+%s*%((_0x[%w_]+)%s*[,%)]")
+    -- Strategy 2: Fallback — find the last local _0x-named variable in the preamble.
+    if not str_var then
+        for v in preamble:gmatch("local%s+(_0x[%w_]+)%s*=") do
+            str_var = v
+        end
+    end
+    if not str_var then
+        return nil
+    end
+    -- Primary strategy: the preamble is flat local declarations (no function
+    -- wrapper), so we can simply append "return <var>" and execute it.
+    local patched_simple = preamble .. "\nreturn " .. str_var .. "\n"
+    local fn = load(patched_simple)
+    if fn then
+        local ok, result = pcall(fn)
+        if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
+            local results = {}
+            for idx = 1, #result do
+                if is_valid_lc_str(result[idx]) then
+                    table.insert(results, {idx = idx, val = result[idx]})
+                end
+            end
+            if #results >= GEN_MIN_STRING_COUNT then
+                return results, #result, str_var
+            end
+        end
+    end
+    -- Fallback: try with wrapper closings in case the preamble contains an
+    -- outer function wrapper (nested Lightcate or custom variant).
+    -- `(...)` is passed to satisfy potential variadic parameters expected by
+    -- any wrapper function that opens before the VM boundary.
+    for depth = 1, GEN_MAX_NEST_DEPTH do
+        local closing = string.rep("end)(...)", depth)
+        local patched = preamble .. "\nreturn " .. str_var .. " " .. closing .. "\n"
+        local fn2 = load(patched)
+        if fn2 then
+            local ok2, result2 = pcall(fn2)
+            if ok2 and type(result2) == "table" and #result2 >= GEN_MIN_STRING_COUNT then
+                local results = {}
+                for idx = 1, #result2 do
+                    if is_valid_lc_str(result2[idx]) then
+                        table.insert(results, {idx = idx, val = result2[idx]})
+                    end
+                end
+                if #results >= GEN_MIN_STRING_COUNT then
+                    return results, #result2, str_var
+                end
+            end
+        end
+    end
+    return nil
+end
 -- Handles obfuscated scripts that exceed Lua's 200-local-variable limit.
 -- Finds the longest run of sequential numbered local declarations
 -- (e.g.  local k0 = v0 … local k250 = v250) and converts the overflow
@@ -5613,6 +5718,16 @@ function q.dump_file(eN, eO)
     else
         t.k0lrot_string_pool = nil
     end
+    -- Lightcate v2.0.0 string extraction: detects "Lightcate" signature and
+    -- _0x hex-prefixed VM boundary, then recovers the decoded string table.
+    local lc_strings, lc_total, lc_var = lightcate_extract_strings(al)
+    if lc_strings and #lc_strings > 0 then
+        B(string.format("[Dumper] Lightcate v2.0.0 wrapper detected (var=%s) — %d/%d strings decoded",
+            lc_var or "?", #lc_strings, lc_total or 0))
+        t.lightcate_string_pool = { strings = lc_strings, var_name = lc_var }
+    else
+        t.lightcate_string_pool = nil
+    end
     B("[Dumper] Sanitizing Luau and Binary Literals...")
     local eP = I(al)
     local R, eQ = e(eP, "Obfuscated_Script")
@@ -5821,6 +5936,7 @@ function q.dump_file(eN, eO)
     q.dump_wad_strings()
     q.dump_xor_strings()
     q.dump_k0lrot_strings()
+    q.dump_lightcate_strings()
     return q.save(eO or r.OUTPUT_FILE)
 end
 function q.dump_string(al, eO)
@@ -5852,6 +5968,15 @@ function q.dump_string(al, eO)
             t.k0lrot_string_pool = { strings = gw_strings, var_name = gw_var, label = gw_label }
         else
             t.k0lrot_string_pool = nil
+        end
+        -- Lightcate v2.0.0 string extraction.
+        local lc_strings2, lc_total2, lc_var2 = lightcate_extract_strings(al)
+        if lc_strings2 and #lc_strings2 > 0 then
+            B(string.format("[Dumper] Lightcate v2.0.0 wrapper detected (var=%s) — %d/%d strings decoded",
+                lc_var2 or "?", #lc_strings2, lc_total2 or 0))
+            t.lightcate_string_pool = { strings = lc_strings2, var_name = lc_var2 }
+        else
+            t.lightcate_string_pool = nil
         end
         al = I(al)
     end
@@ -5964,6 +6089,7 @@ function q.dump_string(al, eO)
     q.dump_wad_strings()
     q.dump_xor_strings()
     q.dump_k0lrot_strings()
+    q.dump_lightcate_strings()
     if eO then
         return q.save(eO)
     end
