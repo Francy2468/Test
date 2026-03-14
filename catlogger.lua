@@ -4950,51 +4950,34 @@ function q.dump_xor_strings()
 end
 
 -- Emit the decoded generic-wrapper string pool when available.
--- Always emits printable strings as informational comments so the analyst can
--- see what the obfuscator decoded even when DUMP_DECODED_STRINGS is false.
--- When DUMP_DECODED_STRINGS is true, also emits full `local _s_N = …` locals.
+-- Only emits when DUMP_DECODED_STRINGS is true; otherwise does nothing.
 function q.dump_k0lrot_strings()
+    if not r.DUMP_DECODED_STRINGS then return end
     if not t.k0lrot_string_pool then return end
     local pool = t.k0lrot_string_pool
     if not pool.strings or #pool.strings == 0 then return end
     aA()
     local label = pool.label or "generic-wrapper"
-    -- Always emit a summary comment so the analyst knows strings were decoded.
     at(string.format("-- Decoded string pool (%s obfuscation, var=%s, %d strings)",
         label, pool.var_name or "?", #pool.strings))
-    if r.DUMP_DECODED_STRINGS then
-        -- Full emission as Lua locals.
-        for _, entry in E(pool.strings) do
-            local lit = entry.binary and aH_binary(entry.val) or aH(entry.val)
-            at(string.format("local _s_%d = %s", entry.idx, lit))
-        end
-    else
-        -- Lightweight: emit only printable (non-binary) strings as comments.
-        for _, entry in E(pool.strings) do
-            if not entry.binary then
-                at(string.format("-- [%d] %s", entry.idx, aH(entry.val)))
-            end
-        end
+    for _, entry in E(pool.strings) do
+        local lit = entry.binary and aH_binary(entry.val) or aH(entry.val)
+        at(string.format("local _s_%d = %s", entry.idx, lit))
     end
 end
 
 -- Emit the decoded Lightcate v2.0.0 string pool when available.
--- Always emits printable strings as comments; full locals only when flag is set.
+-- Only emits when DUMP_LIGHTCATE_STRINGS is true; otherwise does nothing.
 function q.dump_lightcate_strings()
+    if not r.DUMP_LIGHTCATE_STRINGS then return end
     if not t.lightcate_string_pool then return end
     local pool = t.lightcate_string_pool
     if not pool.strings or #pool.strings == 0 then return end
     aA()
     at(string.format("-- Decoded string pool (Lightcate v2.0.0, var=%s, %d strings)",
         pool.var_name or "?", #pool.strings))
-    if r.DUMP_LIGHTCATE_STRINGS then
-        for _, entry in E(pool.strings) do
-            at(string.format("local _lc_%d = %s", entry.idx, aH(entry.val)))
-        end
-    else
-        for _, entry in E(pool.strings) do
-            at(string.format("-- [%d] %s", entry.idx, aH(entry.val)))
-        end
+    for _, entry in E(pool.strings) do
+        at(string.format("local _lc_%d = %s", entry.idx, aH(entry.val)))
     end
 end
 
