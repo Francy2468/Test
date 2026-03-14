@@ -473,9 +473,8 @@ _LUA_STR_VAL = r'"(?:[^"\\]|\\.)*"'
 
 # Constants that are runtime-captured (not pre-extracted string pools).
 # _ref_N / _url_N / _webhook_N come from actual execution and may be referenced
-# in the VM output above them; _s_N / _wad_N are pre-extracted pools that are
-# intentional reference tables and should be preserved as-is.
-# _xor_N constants are inlined by _rename_by_name_property and the inline pass.
+# in the VM output above them; _s_N / _wad_N / _xor_N / _lc_N are pre-extracted
+# pools that are intentional reference tables and should be preserved as-is.
 _RUNTIME_CONST_RE = re.compile(
     r"^[ \t]*local\s+(_ref_\d+|_url_\d+|_webhook_\d+)\s*=\s*(\"(?:[^\"\\]|\\.)*\")\s*$",
     re.MULTILINE,
@@ -497,7 +496,7 @@ def _inline_single_use_constants(code: str) -> str:
       immediately clear what the value is without a separate lookup.
     * Constants referenced **two or more** times are kept as-is.
 
-    Note: pre-extracted string pools (_s_N, _xor_N, _wad_N) are intentional
+    Note: pre-extracted string pools (_s_N, _xor_N, _wad_N, _lc_N) are intentional
     reference tables and are deliberately left untouched by this function.
     """
     constants: dict[str, str] = {}
@@ -1760,7 +1759,7 @@ async def process_link(ctx, *, link=None):
         functools.partial(upload_to_pastefy,dumped_text,title=original_filename)
     )
 
-    preview="\n".join(dumped_text.splitlines()[:10])
+    preview="\n".join(dumped_text.splitlines()[:PREVIEW_LINES])
 
     embed=discord.Embed(
         title=f"Finished {exec_ms:.2f} ms",
