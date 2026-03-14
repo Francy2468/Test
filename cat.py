@@ -552,6 +552,34 @@ _LUA_KEYWORDS = frozenset({
     "repeat", "return", "then", "true", "until", "while",
 })
 
+# Matches Lua double- or single-quoted string literals (with simple escape handling).
+_LUA_STRING_LITERAL_RE = re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'')
+
+
+def _sub_identifier_outside_strings(old: str, new: str, code: str) -> str:
+    """Replace the identifier *old* with *new* in *code*, skipping string literals.
+
+    Applies a word-boundary–aware substitution (``old`` must appear as a
+    complete identifier token) but leaves occurrences of *old* that appear
+    inside quoted Lua string literals untouched.  This prevents renaming a
+    variable from accidentally mutating the type-name argument of
+    ``Instance.new("OldName")`` or similar string values.
+    """
+    pat = re.compile(
+        r"(?<![a-zA-Z0-9_])" + re.escape(old) + r"(?![a-zA-Z0-9_])"
+    )
+    segments: list[str] = []
+    pos = 0
+    for m in _LUA_STRING_LITERAL_RE.finditer(code):
+        # Replace in the code segment before this string literal.
+        segments.append(pat.sub(new, code[pos:m.start()]))
+        # Preserve the string literal verbatim.
+        segments.append(m.group(0))
+        pos = m.end()
+    # Replace in the code after the last string literal.
+    segments.append(pat.sub(new, code[pos:]))
+    return "".join(segments)
+
 
 def _name_to_camel_id(raw: str) -> str:
     """Convert an arbitrary Name string (e.g. ``"ScanBeam"``) to a
@@ -785,9 +813,15 @@ def _is_generic_var_for_type(var: str, type_name: str) -> bool:
         textButton, textButton_, textButton__     →  type TextButton
         uICorner_                                 →  type UICorner
 
+    Very short names (1–2 characters) such as ``B``, ``F``, or ``Gb`` are
+    always treated as auto-generated abbreviations regardless of type.
+
     Human-written descriptive names such as ``mainFrame``, ``closeButton``,
     or ``searchBox`` return False.
     """
+    # Single- or double-character names are always abbreviated/auto-generated.
+    if len(var) <= 2:
+        return True
     bases = set()
     prefix = _INSTANCE_TYPE_PREFIXES.get(type_name)
     if prefix:
@@ -846,26 +880,27 @@ def _smart_rename_variables(code: str) -> str:
             var_types[var] = inst_m.group(1)
 
     # ── Pass 2: scan .Name / .Text property assignments ─────────────────────
+    # Use finditer (not match) so assignments on the same line as the
+    # Instance.new() declaration are also detected, e.g.:
+    #   local Gui=Instance.new("ScreenGui")Gui.Name="XGUI"Gui.Parent=...
     _PROP_RE = re.compile(
-        r"^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*(Name|Text)\s*=\s*\"([^\"]+)\""
+        r"(?<![a-zA-Z0-9_])([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*(Name|Text)\s*=\s*\"([^\"]+)\""
     )
     var_name_prop: dict[str, str] = {}  # var → .Name value
     var_text_prop: dict[str, str] = {}  # var → .Text value
     for line in lines:
-        pm = _PROP_RE.match(line)
-        if not pm:
-            continue
-        var, prop, val = pm.group(1), pm.group(2), pm.group(3)
-        if var not in var_types:
-            continue
-        if prop == "Name" and var not in var_name_prop:
-            var_name_prop[var] = val
-        elif (
-            prop == "Text"
-            and var not in var_text_prop
-            and var_types.get(var) in _TEXT_PROPERTY_TYPES
-        ):
-            var_text_prop[var] = val
+        for pm in _PROP_RE.finditer(line):
+            var, prop, val = pm.group(1), pm.group(2), pm.group(3)
+            if var not in var_types:
+                continue
+            if prop == "Name" and var not in var_name_prop:
+                var_name_prop[var] = val
+            elif (
+                prop == "Text"
+                and var not in var_text_prop
+                and var_types.get(var) in _TEXT_PROPERTY_TYPES
+            ):
+                var_text_prop[var] = val
 
     # ── Pass 3: collect generic connection locals ────────────────────────────
     _CONN_DECL_RE = re.compile(
@@ -962,13 +997,11 @@ def _smart_rename_variables(code: str) -> str:
         return code
 
     # ── Pass 5: apply renames with word-boundary guards ──────────────────────
+    # Substitution skips string literals so that type-name arguments such as
+    # Instance.new("Folder") are never mutated when the variable is renamed.
     result = "\n".join(lines)
     for old, new in sorted(renames.items(), key=lambda kv: -len(kv[0])):
-        result = re.sub(
-            r"(?<![a-zA-Z0-9_])" + re.escape(old) + r"(?![a-zA-Z0-9_])",
-            new,
-            result,
-        )
+        result = _sub_identifier_outside_strings(old, new, result)
     return result
 
 
@@ -1180,6 +1213,62 @@ def _fix_lua_do_end(code: str) -> str:
     return code
 
 
+def _fix_for_missing_do(code: str) -> str:
+    """Insert a missing ``do`` keyword into *for*-loop headers.
+
+    Handles numeric for loops of the form::
+
+        for i = 1, 10 body   →   for i = 1, 10 do body
+
+    and generic for loops whose ``in``-expression ends with a closing
+    parenthesis::
+
+        for k, v in pairs(t) body   →   for k, v in pairs(t) do body
+
+    For-loop headers that already contain ``do`` are left unchanged.
+
+    This pass must run **before** ``_fix_extra_ends`` and ``_fix_lua_do_end``
+    so that those passes count the newly-opened for blocks correctly.
+    """
+    # Numeric for: for var = start, limit [, step] <body without do>
+    # Each range token is matched with \S+ (non-whitespace) so that simple
+    # literals, variables, and short expressions (e.g. #t, -1) are handled.
+    # Complex range expressions containing spaces are not modified; those
+    # cases are expected to already have a valid 'do' keyword.
+    _NUM_FOR_NO_DO_RE = re.compile(
+        r"(\bfor\s+[a-zA-Z_]\w*\s*=\s*\S+\s*,\s*\S+(?:\s*,\s*\S+)?)"
+        r"(\s+)(?!\s*\bdo\b)"
+    )
+    # Generic for: for vars in expr <body without do>
+    # The iterator expression is matched greedily up to the last ')' on the
+    # line to handle common patterns like pairs(t), ipairs(t), etc.
+    _GEN_FOR_NO_DO_RE = re.compile(
+        r"(\bfor\s+(?:[a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)\s+in\s+[^\n]+\))"
+        r"(\s+)(?!\s*\bdo\b)"
+    )
+    code = _NUM_FOR_NO_DO_RE.sub(r"\1 do\2", code)
+    code = _GEN_FOR_NO_DO_RE.sub(r"\1 do\2", code)
+    return code
+
+
+def _fix_local_missing_assign(code: str) -> str:
+    """Fix ``local var N`` declarations where the ``=`` sign is absent.
+
+    Detects patterns of the form::
+
+        local y 20   →   local y = 20
+
+    where a bare numeric literal (integer or decimal) follows a variable name
+    without the required assignment operator.  Only simple numeric literals
+    are handled; multi-variable declarations and non-numeric initialisers are
+    left untouched.
+    """
+    _LOCAL_MISSING_ASSIGN_RE = re.compile(
+        r"\blocal\s+([a-zA-Z_]\w*)\s+(-?\d+(?:\.\d+)?)\b"
+    )
+    return _LOCAL_MISSING_ASSIGN_RE.sub(r"local \1 = \2", code)
+
+
 def _fix_extra_ends(code: str) -> str:
     """Remove 'end' (or 'end)') lines that exceed the current nesting depth.
 
@@ -1338,7 +1427,14 @@ def _fix_ui_variable_shadowing(code: str) -> str:
             if count > 0:
                 # This is a re-declaration — give it a unique name.
                 new_name = f"{var_name}_{count + 1}"
-                raw_line = prefix + new_name + suffix + raw_line[m.end():]
+                # Also update any inline references to var_name in the rest of
+                # this same line (e.g. "B.Text=..." following the declaration).
+                # String literals are skipped so Instance.new("Folder") is not
+                # corrupted when renaming the variable called Folder.
+                rest_of_line = _sub_identifier_outside_strings(
+                    var_name, new_name, raw_line[m.end():]
+                )
+                raw_line = prefix + new_name + suffix + rest_of_line
                 renames.append((var_name, new_name, idx))
 
         # Apply active renames: replace uses of the original name in lines
@@ -1351,11 +1447,7 @@ def _fix_ui_variable_shadowing(code: str) -> str:
                 active[orig] = new  # later rename wins
 
         for orig, new in sorted(active.items(), key=lambda kv: -len(kv[0])):
-            raw_line = re.sub(
-                r"(?<![a-zA-Z0-9_])" + re.escape(orig) + r"(?![a-zA-Z0-9_])",
-                new,
-                raw_line,
-            )
+            raw_line = _sub_identifier_outside_strings(orig, new, raw_line)
 
         result.append(raw_line)
 
@@ -1818,18 +1910,22 @@ def _run_heuristic_fix_pipeline(code: str) -> str:
 
     Steps (in order):
     1. Non-Lua operator substitution (!=, &&, ||, !, null, else if)
-    2. Add missing ')' to :Connect(function…end) blocks
-    3. Remove extra / misplaced 'end' keywords
-    4. Append missing 'end' keywords at EOF
-    5. Remove duplicate :Connect() event-handler bindings
-    6. De-shadow re-declared UI-element variable names
-    7. Rename locals using .Name / .Text / type-prefix heuristics
-    8. Fold adjacent string-literal concatenations
-    9. Collapse repeated identical code blocks (loop-unroll artifacts)
-    10. Re-indent (beautify)
-    11. Remove excessive blank lines and trailing whitespace
+    2. Insert missing 'do' into for-loop headers
+    3. Fix 'local var N' → 'local var = N' (missing assignment operator)
+    4. Add missing ')' to :Connect(function…end) blocks
+    5. Remove extra / misplaced 'end' keywords
+    6. Append missing 'end' keywords at EOF
+    7. Remove duplicate :Connect() event-handler bindings
+    8. De-shadow re-declared UI-element variable names
+    9. Rename locals using .Name / .Text / type-prefix heuristics
+    10. Fold adjacent string-literal concatenations
+    11. Collapse repeated identical code blocks (loop-unroll artifacts)
+    12. Re-indent (beautify)
+    13. Remove excessive blank lines and trailing whitespace
     """
     code = _fix_lua_compat(code)
+    code = _fix_for_missing_do(code)
+    code = _fix_local_missing_assign(code)
     code = _fix_connect_end_parens(code)
     code = _fix_extra_ends(code)
     code = _fix_lua_do_end(code)
