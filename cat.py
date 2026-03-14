@@ -23,9 +23,8 @@ load_dotenv()
 
 # ---------------- CONFIG ----------------
 TOKEN = os.environ.get("TOKEN_BOT", "")
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
-DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-DEEPSEEK_MODEL = "deepseek-chat"
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = "gpt-4o-mini"
 # Maximum characters to send to the AI renamer; larger scripts use the
 # heuristic fallback to avoid excessive token usage.
 AI_RENAME_MAX_CHARS = 80_000
@@ -1005,7 +1004,7 @@ def _smart_rename_variables(code: str) -> str:
     return result
 
 
-_DEEPSEEK_SYSTEM_PROMPT = """\
+_AI_SYSTEM_PROMPT = """\
 You are an expert Lua developer and code refactoring assistant.
 Your task is to analyze the provided Lua script and fully repair, refactor, \
 and improve it while preserving its intended functionality.
@@ -1052,34 +1051,33 @@ Output requirements:
 - No markdown fences, no extra text whatsoever.\
 """
 
-# Lazy-initialised DeepSeek client (None until first use).
-_deepseek_client = None
+# Lazy-initialised OpenAI client (None until first use).
+_openai_client = None
 
 
-def _get_deepseek_client():
-    """Return a cached DeepSeek client, or None if unavailable."""
-    global _deepseek_client
-    if _deepseek_client is not None:
-        return _deepseek_client
-    if not _OPENAI_AVAILABLE or not DEEPSEEK_API_KEY:
+def _get_openai_client():
+    """Return a cached OpenAI client, or None if unavailable."""
+    global _openai_client
+    if _openai_client is not None:
+        return _openai_client
+    if not _OPENAI_AVAILABLE or not OPENAI_API_KEY:
         return None
     try:
-        _deepseek_client = _OpenAI(
-            api_key=DEEPSEEK_API_KEY,
-            base_url=DEEPSEEK_BASE_URL,
+        _openai_client = _OpenAI(
+            api_key=OPENAI_API_KEY,
         )
     except Exception as exc:
-        print(f"[DeepSeek] client init failed: {exc}")
-        _deepseek_client = None
-    return _deepseek_client
+        print(f"[OpenAI] client init failed: {exc}")
+        _openai_client = None
+    return _openai_client
 
 
 def _ai_rename_variables(code: str) -> str:
-    """Send *code* to DeepSeek and return the AI-renamed Lua source.
+    """Send *code* to ChatGPT and return the AI-renamed Lua source.
 
     Falls back to ``_smart_rename_variables`` if:
     * The ``openai`` package is not installed.
-    * ``DEEPSEEK_API_KEY`` is not set.
+    * ``OPENAI_API_KEY`` is not set.
     * The script exceeds ``AI_RENAME_MAX_CHARS``.
     * The API call raises any exception.
     * The response appears to be empty or non-Lua.
@@ -1087,15 +1085,15 @@ def _ai_rename_variables(code: str) -> str:
     if len(code) > AI_RENAME_MAX_CHARS:
         return _smart_rename_variables(code)
 
-    client = _get_deepseek_client()
+    client = _get_openai_client()
     if client is None:
         return _smart_rename_variables(code)
 
     try:
         response = client.chat.completions.create(
-            model=DEEPSEEK_MODEL,
+            model=OPENAI_MODEL,
             messages=[
-                {"role": "system", "content": _DEEPSEEK_SYSTEM_PROMPT},
+                {"role": "system", "content": _AI_SYSTEM_PROMPT},
                 {"role": "user", "content": code},
             ],
             stream=False,
@@ -1110,23 +1108,23 @@ def _ai_rename_variables(code: str) -> str:
             return _smart_rename_variables(code)
         return result
     except Exception as exc:
-        print(f"[DeepSeek] rename failed: {exc}")
+        print(f"[OpenAI] rename failed: {exc}")
         return _smart_rename_variables(code)
 
 
 # .fix uses the same comprehensive prompt as .rename.
-_DEEPSEEK_FIX_SYSTEM_PROMPT = _DEEPSEEK_SYSTEM_PROMPT
+_AI_FIX_SYSTEM_PROMPT = _AI_SYSTEM_PROMPT
 
 
 def _ai_fix_lua(code: str) -> str:
-    """Send *code* to DeepSeek for comprehensive repair and refactoring.
+    """Send *code* to ChatGPT for comprehensive repair and refactoring.
 
-    Applies the full suite of fixes described in ``_DEEPSEEK_FIX_SYSTEM_PROMPT``
+    Applies the full suite of fixes described in ``_AI_FIX_SYSTEM_PROMPT``
     (syntax repair, naming, structure, formatting).
 
     Falls back to the heuristic pipeline (``_run_heuristic_fix_pipeline``) if:
     * The ``openai`` package is not installed.
-    * ``DEEPSEEK_API_KEY`` is not set.
+    * ``OPENAI_API_KEY`` is not set.
     * The script exceeds ``AI_RENAME_MAX_CHARS``.
     * The API call raises any exception.
     * The response appears to be empty or non-Lua.
@@ -1134,15 +1132,15 @@ def _ai_fix_lua(code: str) -> str:
     if len(code) > AI_RENAME_MAX_CHARS:
         return _run_heuristic_fix_pipeline(code)
 
-    client = _get_deepseek_client()
+    client = _get_openai_client()
     if client is None:
         return _run_heuristic_fix_pipeline(code)
 
     try:
         response = client.chat.completions.create(
-            model=DEEPSEEK_MODEL,
+            model=OPENAI_MODEL,
             messages=[
-                {"role": "system", "content": _DEEPSEEK_FIX_SYSTEM_PROMPT},
+                {"role": "system", "content": _AI_FIX_SYSTEM_PROMPT},
                 {"role": "user", "content": code},
             ],
             stream=False,
@@ -1157,7 +1155,7 @@ def _ai_fix_lua(code: str) -> str:
             return _run_heuristic_fix_pipeline(code)
         return result
     except Exception as exc:
-        print(f"[DeepSeek] fix failed: {exc}")
+        print(f"[OpenAI] fix failed: {exc}")
         return _run_heuristic_fix_pipeline(code)
 
 
@@ -1904,7 +1902,7 @@ def _fix_lua_compat(code: str) -> str:
 def _run_heuristic_fix_pipeline(code: str) -> str:
     """Apply the full heuristic-based Lua repair pipeline without AI.
 
-    This is the fallback used by ``_ai_fix_lua`` when DeepSeek is unavailable
+    This is the fallback used by ``_ai_fix_lua`` when ChatGPT is unavailable
     or the script is too large for the AI call, and it is also used directly
     by the ``.fix`` command when no API key is configured.
 
@@ -1943,7 +1941,7 @@ def _run_heuristic_fix_pipeline(code: str) -> str:
 # ---------------- COMMAND .rename ----------------
 @bot.command(name="rename")
 async def rename_variables(ctx, *, link=None):
-    """Rename all poorly-named variables in a Lua script using DeepSeek AI.
+    """Rename all poorly-named variables in a Lua script using ChatGPT AI.
 
     Accepts input from:
       * an attached .lua file
@@ -1954,7 +1952,7 @@ async def rename_variables(ctx, *, link=None):
     original_filename = "script"
 
     try:
-        label = "renaming with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "renaming"
+        label = "renaming with AI" if (OPENAI_API_KEY and _OPENAI_AVAILABLE) else "renaming"
         status = await _send_with_retry(lambda: ctx.send(label))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
@@ -2143,7 +2141,7 @@ async def beautify(ctx, *, link=None):
 async def fix_lua(ctx, *, link=None):
     """Apply a full Roblox/Lua repair and refactoring pipeline to the supplied script.
 
-    When ``DEEPSEEK_API_KEY`` is set the script is sent to DeepSeek for
+    When ``OPENAI_API_KEY`` is set the script is sent to ChatGPT for
     comprehensive AI-powered repair (syntax fixes, renaming, structure
     improvements, formatting).  Without an API key the heuristic pipeline is
     used as a fallback.
@@ -2167,7 +2165,7 @@ async def fix_lua(ctx, *, link=None):
     original_filename = "script"
 
     try:
-        label = "fixing with AI" if (DEEPSEEK_API_KEY and _OPENAI_AVAILABLE) else "fixing"
+        label = "fixing with AI" if (OPENAI_API_KEY and _OPENAI_AVAILABLE) else "fixing"
         status = await _send_with_retry(lambda: ctx.send(label))
     except discord.errors.DiscordServerError as e:
         print(f"Warning: failed to send status message: {e}")
