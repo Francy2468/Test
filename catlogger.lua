@@ -4684,12 +4684,32 @@ loadstring = function(al, eu)
             return ez
         end
     end
+    -- Non-URL Lua code: try to compile and optionally run in the current sandbox.
+    -- Emit a comment recording that loadstring was called and whether it compiled.
     if type(al) == "string" then
         al = I(al)
     end
     local R, an = e(al)
     if R then
+        -- Code compiled successfully. Emit a comment noting the invocation so the
+        -- analyst knows the VM called loadstring with live Lua code.
+        -- Deduplicate by length to avoid comment spam from decryption-loop patterns.
+        local _al_len = #al
+        if not t._loadstring_seen.ok[_al_len] then
+            t._loadstring_seen.ok[_al_len] = true
+            aA()
+            at(string.format("-- loadstring() invoked with compiled Lua code (length=%d)", _al_len))
+        end
         return R
+    end
+    -- Compile failed: emit a comment and return a placeholder.
+    if al and #al > 0 then
+        local _al_len = #al
+        if not t._loadstring_seen.fail[_al_len] then
+            t._loadstring_seen.fail[_al_len] = true
+            aA()
+            at(string.format("-- loadstring() received non-compiling payload (length=%d)", _al_len))
+        end
     end
     local ez = bj("LoadedChunk", false)
     return function()
@@ -4771,7 +4791,8 @@ function q.reset()
         loop_detected_lines = {},
         captured_constants = {},
         deferred_hooks = {},
-        char_seen = {}
+        char_seen = {},
+        _loadstring_seen = { ok = {}, fail = {} },
     }
     aM = {}
     game = bj("game", true)
@@ -4929,32 +4950,51 @@ function q.dump_xor_strings()
 end
 
 -- Emit the decoded generic-wrapper string pool when available.
+-- Always emits printable strings as informational comments so the analyst can
+-- see what the obfuscator decoded even when DUMP_DECODED_STRINGS is false.
+-- When DUMP_DECODED_STRINGS is true, also emits full `local _s_N = …` locals.
 function q.dump_k0lrot_strings()
-    if not r.DUMP_DECODED_STRINGS then return end
     if not t.k0lrot_string_pool then return end
     local pool = t.k0lrot_string_pool
     if not pool.strings or #pool.strings == 0 then return end
     aA()
     local label = pool.label or "generic-wrapper"
-    at(string.format("-- Decoded string constants (%s obfuscation, var=%s)",
-        label, pool.var_name or "?"))
-    for _, entry in E(pool.strings) do
-        -- Binary blobs use hex-escaped literals; printable strings use normal quoting.
-        local lit = entry.binary and aH_binary(entry.val) or aH(entry.val)
-        at(string.format("local _s_%d = %s", entry.idx, lit))
+    -- Always emit a summary comment so the analyst knows strings were decoded.
+    at(string.format("-- Decoded string pool (%s obfuscation, var=%s, %d strings)",
+        label, pool.var_name or "?", #pool.strings))
+    if r.DUMP_DECODED_STRINGS then
+        -- Full emission as Lua locals.
+        for _, entry in E(pool.strings) do
+            local lit = entry.binary and aH_binary(entry.val) or aH(entry.val)
+            at(string.format("local _s_%d = %s", entry.idx, lit))
+        end
+    else
+        -- Lightweight: emit only printable (non-binary) strings as comments.
+        for _, entry in E(pool.strings) do
+            if not entry.binary then
+                at(string.format("-- [%d] %s", entry.idx, aH(entry.val)))
+            end
+        end
     end
 end
 
 -- Emit the decoded Lightcate v2.0.0 string pool when available.
+-- Always emits printable strings as comments; full locals only when flag is set.
 function q.dump_lightcate_strings()
-    if not r.DUMP_LIGHTCATE_STRINGS then return end
     if not t.lightcate_string_pool then return end
     local pool = t.lightcate_string_pool
     if not pool.strings or #pool.strings == 0 then return end
     aA()
-    at(string.format("-- Lightcate v2.0.0 decoded string constants (var=%s)", pool.var_name or "?"))
-    for _, entry in E(pool.strings) do
-        at(string.format("local _lc_%d = %s", entry.idx, aH(entry.val)))
+    at(string.format("-- Decoded string pool (Lightcate v2.0.0, var=%s, %d strings)",
+        pool.var_name or "?", #pool.strings))
+    if r.DUMP_LIGHTCATE_STRINGS then
+        for _, entry in E(pool.strings) do
+            at(string.format("local _lc_%d = %s", entry.idx, aH(entry.val)))
+        end
+    else
+        for _, entry in E(pool.strings) do
+            at(string.format("-- [%d] %s", entry.idx, aH(entry.val)))
+        end
     end
 end
 
@@ -6010,6 +6050,14 @@ function q.dump_file(eN, eO)
     b()
     if not eo and eU then
         B("[VM_ERROR] " .. eU)
+        -- Emit the VM error as a comment in the dump output so the analyst sees it.
+        aA()
+        local _errline = eU or "unknown error"
+        if _errline:find("Tamper", 1, true) then
+            at("-- [ANTI_TAMPER] Script raised tamper-detection error: " .. _errline)
+        else
+            at("-- [VM_ERROR] " .. _errline)
+        end
     end
     -- Post-execution: run deferred hooks first (more code captured), then supplemental data.
     q.run_deferred_hooks()
