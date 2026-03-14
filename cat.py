@@ -2070,37 +2070,31 @@ _DARKLUA_OPTIONS = [
         label="Remove Comments",
         value="strip_comments",
         description="Remove all Lua comments from the code",
-        emoji="✂️",
     ),
     discord.SelectOption(
         label="Rename Variables",
         value="rename_vars",
         description="Intelligently rename Instance.new() variables",
-        emoji="🔤",
     ),
     discord.SelectOption(
         label="Fold String Concatenations",
         value="fold_strings",
         description='Collapse "a" .. "b" into "ab"',
-        emoji="🔗",
     ),
     discord.SelectOption(
         label="Inline Single-Use Constants",
         value="inline_constants",
         description="Inline constants that are referenced only once",
-        emoji="📦",
     ),
     discord.SelectOption(
         label="Beautify / Reformat",
         value="beautify",
         description="Normalize indentation and formatting",
-        emoji="✨",
     ),
     discord.SelectOption(
         label="Fix Syntax Errors",
         value="fix_syntax",
         description="Apply heuristic Lua syntax repair pipeline",
-        emoji="🔧",
     ),
 ]
 
@@ -2144,7 +2138,7 @@ class _DarkluaView(discord.ui.View):
         self.selected = select.values
         await interaction.response.defer()
 
-    @discord.ui.button(label="Apply", style=discord.ButtonStyle.primary, emoji="⚙️")
+    @discord.ui.button(label="Apply", style=discord.ButtonStyle.primary)
     async def apply_button(
         self,
         interaction: discord.Interaction,
