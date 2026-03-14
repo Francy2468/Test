@@ -10,6 +10,7 @@ import time
 import re
 import asyncio
 import functools
+import aiohttp
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 
@@ -30,6 +31,10 @@ LUA_INTERPRETERS = ["luau", "lua5.4", "luajit", "lua"]
 
 DISCORD_RETRY_ATTEMPTS = 3
 DISCORD_RETRY_DELAY = 2.0  # seconds between retries on 503
+
+# Reconnect settings for gateway-level connection resets
+GATEWAY_RECONNECT_ATTEMPTS = 5
+GATEWAY_RECONNECT_BASE_DELAY = 5.0  # seconds; doubled on each attempt (exponential backoff)
 
 async def _send_with_retry(coro_factory):
     """Call a coroutine that sends a Discord message, retrying up to
@@ -1703,10 +1708,48 @@ async def get_link_content(ctx,*,link=None):
             pass
 
 # ---------------- START ----------------
+async def _run_bot():
+    """Start the bot with exponential-backoff reconnection on gateway resets.
+
+    ``bot.run()`` internally calls ``bot.start()`` inside its own event loop
+    and does not expose retry logic for low-level transport errors such as
+    ``aiohttp.ClientConnectionResetError``.  Replacing it with a thin async
+    runner lets us catch those errors and reconnect after a short back-off
+    delay, matching the behaviour already seen in the gateway logs (the
+    session is invalidated and then successfully re-established).
+    """
+    # delay grows exponentially across attempts (5s -> 10s -> 20s -> ...)
+    delay = GATEWAY_RECONNECT_BASE_DELAY
+    for attempt in range(1, GATEWAY_RECONNECT_ATTEMPTS + 1):
+        try:
+            async with bot:
+                await bot.start(TOKEN)
+            # Clean exit (e.g. KeyboardInterrupt propagated as SystemExit
+            # inside bot.start) -- stop retrying.
+            return
+        except aiohttp.ClientConnectionResetError as exc:
+            # The async-with context manager already called bot.close() when
+            # the exception propagated out of the block, so no extra cleanup
+            # is needed here.
+            if attempt < GATEWAY_RECONNECT_ATTEMPTS:
+                print(
+                    f"[gateway] Connection reset ({exc}); "
+                    f"reconnecting in {delay:.0f}s "
+                    f"(attempt {attempt}/{GATEWAY_RECONNECT_ATTEMPTS}) ..."
+                )
+                await asyncio.sleep(delay)
+                delay *= 2
+            else:
+                print(
+                    f"[gateway] Connection reset ({exc}); "
+                    f"giving up after {GATEWAY_RECONNECT_ATTEMPTS} attempts."
+                )
+                raise
+
 if __name__=="__main__":
 
     if not TOKEN:
         print("BOT_TOKEN missing")
         exit()
 
-    bot.run(TOKEN)
+    asyncio.run(_run_bot())
