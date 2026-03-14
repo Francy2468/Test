@@ -1794,10 +1794,15 @@ async def rename_variables(ctx, *, link=None):
 
     lua_text = content.decode("utf-8", errors="ignore")
 
+    def _rename_pipeline(code: str) -> str:
+        code = _fix_ui_variable_shadowing(code)
+        code = _ai_rename_variables(code)
+        return code
+
     loop = asyncio.get_event_loop()
     renamed = await loop.run_in_executor(
         _executor,
-        functools.partial(_ai_rename_variables, lua_text),
+        functools.partial(_rename_pipeline, lua_text),
     )
 
     base = os.path.splitext(original_filename)[0]
@@ -1941,8 +1946,11 @@ async def fix_lua(ctx, *, link=None):
     5. Duplicate ``:Connect()`` event-handler bindings
     6. Shadowed UI-element variable names (``local frame = Instance.new(…)``
        declared more than once)
-    7. Rename locals to reflect their ``.Name`` property assignment
-    8. Re-indent (beautify)
+    7. Rename locals using ``.Name``, ``.Text``, and type-prefix heuristics
+    8. Fold adjacent string-literal concatenations (``"a" .. "b"`` → ``"ab"``)
+    9. Collapse repeated identical code blocks (loop-unroll artifacts)
+    10. Re-indent (beautify)
+    11. Remove excessive blank lines and trailing whitespace
     """
 
     content = None
@@ -1998,8 +2006,12 @@ async def fix_lua(ctx, *, link=None):
         code = _fix_lua_do_end(code)
         code = _dedup_connections(code)
         code = _fix_ui_variable_shadowing(code)
-        code = _rename_by_name_property(code)
+        code = _smart_rename_variables(code)
+        code = _fold_string_concat(code)
+        code = _collapse_loop_unrolls(code)
         code = _beautify_lua(code)
+        code = _collapse_blank_lines(code)
+        code = _remove_trailing_whitespace(code)
         return code
 
     loop = asyncio.get_event_loop()
