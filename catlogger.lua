@@ -653,6 +653,32 @@ local function aH(aF)
          :gsub("%z", "\\0")
     return '"' .. aI .. '"'
 end
+-- aH_binary: like aH but handles non-printable bytes with \xNN escaping.
+-- Used when emitting binary string constants (e.g. decoded obfuscator string
+-- tables that contain encryption keys or other raw byte sequences).
+local function aH_binary(s)
+    if type(s) ~= "string" then s = aE(s) end
+    local out = {}
+    for i = 1, #s do
+        local b = s:byte(i)
+        if b == 34 then       -- "
+            out[i] = '\\"'
+        elseif b == 92 then   -- \
+            out[i] = '\\\\'
+        elseif b == 10 then   -- \n
+            out[i] = '\\n'
+        elseif b == 13 then   -- \r
+            out[i] = '\\r'
+        elseif b == 9 then    -- \t
+            out[i] = '\\t'
+        elseif b >= 32 and b <= 126 then
+            out[i] = string.char(b)
+        else
+            out[i] = string.format("\\x%02x", b)
+        end
+    end
+    return '"' .. table.concat(out) .. '"'
+end
 local aJ = {
     Players = "Players",
     Workspace = "Workspace",
@@ -4913,7 +4939,9 @@ function q.dump_k0lrot_strings()
     at(string.format("-- Decoded string constants (%s obfuscation, var=%s)",
         label, pool.var_name or "?"))
     for _, entry in E(pool.strings) do
-        at(string.format("local _s_%d = %s", entry.idx, aH(entry.val)))
+        -- Binary blobs use hex-escaped literals; printable strings use normal quoting.
+        local lit = entry.binary and aH_binary(entry.val) or aH(entry.val)
+        at(string.format("local _s_%d = %s", entry.idx, lit))
     end
 end
 
@@ -5206,18 +5234,21 @@ local function generic_wrapper_extract_strings(source_code)
                     if fn then
                         local ok, result = pcall(fn)
                         if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
-                            -- Collect only printable-ASCII strings; binary blobs
-                            -- (non-printable bytes) are skipped.  `%g` matches any
-                            -- printable non-space character; `%s` matches whitespace.
+                            -- Collect printable-ASCII strings and binary blobs.
+                            -- Binary strings (non-printable bytes) are kept with
+                            -- a `binary = true` flag so the emitter can use
+                            -- hex-escaped literals instead of plain quotes.
                             local results = {}
                             for idx = 1, #result do
                                 local s = result[idx]
-                                if type(s) == "string" and #s >= 1
-                                        and s:match("^[%g%s]+$")
-                                        -- Skip strings that are explicitly excluded
-                                        -- from the output (see GEN_FILTERED_STRINGS).
-                                        and not GEN_FILTERED_STRINGS[s] then
-                                    table.insert(results, {idx = idx, val = s})
+                                if type(s) == "string" and #s >= 1 then
+                                    local is_printable = s:match("^[%g%s]+$")
+                                    if is_printable and not GEN_FILTERED_STRINGS[s] then
+                                        table.insert(results, {idx = idx, val = s})
+                                    elseif not is_printable then
+                                        -- Binary blob: store with hex escaping
+                                        table.insert(results, {idx = idx, val = s, binary = true})
+                                    end
                                 end
                             end
                             if #results >= GEN_MIN_STRING_COUNT then
@@ -5820,6 +5851,58 @@ function q.dump_file(eN, eO)
     -- `getfenv and getfenv() or _ENV` or `getgenv()` gets back our full sandbox.
     rawset(eR, "getfenv", function() return eR end)
     rawset(eR, "getgenv", function() return eR end)
+    -- Common Roblox exploit-executor globals.  Many obfuscated scripts check for
+    -- these to verify they are running inside a trusted executor before executing
+    -- their real payload.  Providing stub implementations prevents the script from
+    -- taking an anti-dump code path due to missing executor APIs.
+    rawset(eR, "getidentity",          function() return 8 end)  -- 8 = maximum trust/identity level
+    rawset(eR, "getthreadidentity",    function() return 8 end)  -- same; alias used by some executors
+    rawset(eR, "setidentity",          function() end)
+    rawset(eR, "setthreadidentity",    function() end)
+    rawset(eR, "getexecutorname",      function() return "ExploitExecutor" end)
+    rawset(eR, "identifyexecutor",     function() return "ExploitExecutor", "1.0" end)
+    rawset(eR, "hookfunction",         function(f, r_) return f end)
+    rawset(eR, "hookmetamethod",       function(obj, m_, r_) return function() end end)
+    rawset(eR, "newcclosure",          function(f) return f end)
+    rawset(eR, "iscclosure",           function() return false end)
+    rawset(eR, "islclosure",           function() return true end)
+    rawset(eR, "isexecutorclosure",    function() return false end)
+    rawset(eR, "checkcaller",          function() return false end)
+    rawset(eR, "isreadonly",           function() return false end)
+    rawset(eR, "make_writeable",       function() end)
+    rawset(eR, "make_readonly",        function() end)
+    rawset(eR, "getrawmetatable",      function(x) return k(x) end)
+    rawset(eR, "setrawmetatable",      function(x, mt) return a.setmetatable(x, mt) end)
+    rawset(eR, "getnamecallmethod",    function() return "" end)
+    rawset(eR, "setnamecallmethod",    function() end)
+    rawset(eR, "fireclickdetector",    function() end)
+    rawset(eR, "fireproximityprompt",  function() end)
+    rawset(eR, "firetouchinterest",    function() end)
+    rawset(eR, "mousemoverel",         function() end)
+    rawset(eR, "mouse1click",          function() end)
+    rawset(eR, "mouse2click",          function() end)
+    rawset(eR, "keypress",             function() end)
+    rawset(eR, "keyrelease",           function() end)
+    rawset(eR, "isrbxactive",          function() return true end)
+    rawset(eR, "isgameactive",         function() return true end)
+    rawset(eR, "getconnections",       function() return {} end)
+    rawset(eR, "getcallbackvalue",     function() return nil end)
+    rawset(eR, "getscripts",           function() return {} end)
+    rawset(eR, "getloadedmodules",     function() return {} end)
+    rawset(eR, "getsenv",              function() return eR end)
+    rawset(eR, "getrenv",              function() return eR end)
+    rawset(eR, "getreg",               function() return {} end)
+    rawset(eR, "getgc",                function() return {} end)
+    rawset(eR, "getinstances",         function() return {} end)
+    rawset(eR, "getnilinstances",      function() return {} end)
+    rawset(eR, "decompile",            function() return "" end)
+    rawset(eR, "replicatesignal",      function() end)
+    rawset(eR, "cloneref",             function(x) return x end)
+    rawset(eR, "compareinstances",     function(a_, b_) return a_ == b_ end)
+    rawset(eR, "getinfo",              function() return {} end)
+    -- Some scripts use a Luau-style `_G` reference that also goes through getgenv;
+    -- expose it inside the sandbox so that `getgenv()["_G"]` round-trips correctly.
+    rawset(eR, "_G",                   eR)
     if _native_setfenv then
         -- Lua 5.1/5.2: native setfenv properly rebinds the chunk's environment.
         _native_setfenv(R, eR)
