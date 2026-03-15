@@ -38,7 +38,7 @@ DUMP_TIMEOUT = 130  # Must exceed catlogger.lua TIMEOUT_SECONDS (120) to allow p
 PREVIEW_LINES = 10
 PREVIEW_MAX_CHARS = 900
 
-LUA_INTERPRETERS = ["luau", "lua5.1", "lua5.4", "luajit", "lua"]
+LUA_INTERPRETERS = ["lua5.3", "lua5.1", "lua5.4", "luajit", "lua"]
 
 DISCORD_RETRY_ATTEMPTS = 3
 DISCORD_RETRY_DELAY = 2.0  # seconds between retries on 503
