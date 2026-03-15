@@ -4584,7 +4584,7 @@ string.char = function(...)
     if _script_executing
             and type(result) == "string"
             and #result >= _CHAR_HOOK_MIN_LEN
-            and result:match("^[%g%s]+$") then
+            and result:match("^[%w%p%s]+$") then
         if not t.char_seen then t.char_seen = {} end
         if not t.char_seen[result] then
             t.char_seen[result] = true
@@ -5609,7 +5609,7 @@ local function generic_wrapper_extract_strings(source_code)
                             for idx = 1, #result do
                                 local s = result[idx]
                                 if type(s) == "string" and #s >= 1 then
-                                    local is_printable = s:match("^[%g%s]+$")
+                                    local is_printable = s:match("^[%w%p%s]+$")
                                     if is_printable and not GEN_FILTERED_STRINGS[s] then
                                         table.insert(results, {idx = idx, val = s})
                                     elseif not is_printable then
@@ -5692,7 +5692,7 @@ local function xor_extract_strings(source_code)
     -- then return the function so we can call it from Lua.
     -- Fallback length (fn_def_start + XOR_FN_SCAN_BYTES/2) is used when the
     -- depth tracker could not locate the closing `end` within the scan window.
-    local preamble = source_code:sub(1, fn_end_pos or (fn_def_start + XOR_FN_SCAN_BYTES // 2))
+    local preamble = source_code:sub(1, fn_end_pos or (fn_def_start + math.floor(XOR_FN_SCAN_BYTES / 2)))
     local get_fn_chunk, _ = e(preamble .. "\nreturn " .. fn_name)
     if not get_fn_chunk then return nil end
     local ok, decrypt_fn = pcall(get_fn_chunk)
@@ -5710,7 +5710,7 @@ local function xor_extract_strings(source_code)
                 local call_ok, result = pcall(eval_fn, decrypt_fn)
                 if call_ok and type(result) == "string" and #result >= XOR_MIN_STRING_LEN then
                     -- Keep only strings that consist of printable / whitespace chars.
-                    if result:match("^[%g%s]+$") then
+                    if result:match("^[%w%p%s]+$") then
                         table.insert(results, result)
                     end
                 end
@@ -5817,7 +5817,7 @@ local function lightcate_extract_strings(source_code)
     -- Helper: accept strings that are non-empty and consist only of printable
     -- characters (including whitespace) to filter out raw binary/address noise.
     local function is_valid_lc_str(s)
-        return type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$")
+        return type(s) == "string" and #s >= 1 and s:match("^[%w%p%s]+$")
     end
     -- Discover the string table variable name dynamically.
     -- Strategy 1: The variable is the first argument passed to the outer call
@@ -5944,7 +5944,7 @@ local function prometheus_extract_strings(source_code)
             local results = {}
             for idx = 1, #result do
                 local s = result[idx]
-                if type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$") then
+                if type(s) == "string" and #s >= 1 and s:match("^[%w%p%s]+$") then
                     table.insert(results, {idx = idx, val = s})
                 end
             end
@@ -5964,7 +5964,7 @@ local function prometheus_extract_strings(source_code)
                     local results = {}
                     for idx = 1, #result2 do
                         local s = result2[idx]
-                        if type(s) == "string" and #s >= 1 and s:match("^[%g%s]+$") then
+                        if type(s) == "string" and #s >= 1 and s:match("^[%w%p%s]+$") then
                             table.insert(results, {idx = idx, val = s})
                         end
                     end
@@ -6587,7 +6587,7 @@ function q.dump_file(eN, eO)
                 end
             end,
             "",
-            30
+            300
         )
     else
         b(
