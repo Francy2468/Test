@@ -1,6 +1,7 @@
 """Unit tests for the Lua syntax-repair helper functions added to cat.py."""
 
 import sys
+import subprocess
 import types
 import unittest
 
@@ -990,6 +991,48 @@ class TestRemoveUselessDoBlocks(unittest.TestCase):
         code = "do\n    local function helper()\n        return 1\n    end\nend"
         result = _remove_useless_do_blocks(code)
         self.assertIn("function helper", result)
+
+
+class TestStdinEntrypoint(unittest.TestCase):
+    """Tests for the '-' stdin mode in the __main__ block."""
+
+    def _run_with_stdin(self, lua_code: str) -> str:
+        """Run cat.py with '-' argument, feed lua_code via stdin, return stdout."""
+        result = subprocess.run(
+            [sys.executable, "cat.py", "-"],
+            input=lua_code.encode(),
+            capture_output=True,
+            timeout=30,
+        )
+        return result.stdout.decode("utf-8", errors="ignore")
+
+    def test_dash_reads_stdin_and_exits(self):
+        """'-' causes the script to read stdin, process it, and exit cleanly."""
+        lua_code = "local x = 1\nprint(x)\n"
+        output = self._run_with_stdin(lua_code)
+        self.assertIn("local x", output)
+        self.assertIn("print", output)
+
+    def test_dash_applies_fix_pipeline(self):
+        """'-' applies the heuristic fix pipeline (e.g., != -> ~=)."""
+        lua_code = "if x != nil then\nend\n"
+        output = self._run_with_stdin(lua_code)
+        self.assertIn("~=", output)
+        self.assertNotIn("!=", output)
+
+    def test_dash_does_not_start_bot(self):
+        """'-' mode exits without requiring BOT_TOKEN or starting the bot."""
+        lua_code = "return 1\n"
+        result = subprocess.run(
+            [sys.executable, "cat.py", "-"],
+            input=lua_code.encode(),
+            capture_output=True,
+            timeout=30,
+            env={**__import__("os").environ, "BOT_TOKEN": ""},
+        )
+        # Must exit cleanly (code 0) and must NOT print "BOT_TOKEN missing"
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn(b"BOT_TOKEN missing", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
