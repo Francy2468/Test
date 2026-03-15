@@ -103,7 +103,23 @@ def _find_lua() -> str:
             continue
     return LUA_INTERPRETERS[0]
 
+def _check_lua_has_E(interp: str) -> bool:
+    """Return True if *interp* accepts the -E flag (Lua 5.2+).
+
+    Lua 5.1 and LuaJIT do not recognize -E and will exit with a non-zero
+    return code while printing their usage help to stderr.  Passing -E to
+    those interpreters is therefore the direct cause of the
+    "Output not generated: -        execute stdin and stop handling options"
+    error that users see when the bot tries to dump a script.
+    """
+    try:
+        r = subprocess.run([interp, "-E", "-v"], capture_output=True, timeout=3)
+        return r.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
 _lua_interp = _find_lua()
+_lua_has_E = _check_lua_has_E(_lua_interp)
 
 
 # ---------------- HELPERS ----------------
@@ -1747,8 +1763,12 @@ def _run_dumper_blocking(lua_content):
 
         start=time.time()
 
+        cmd = [_lua_interp]
+        if _lua_has_E:
+            cmd.append("-E")
+        cmd.extend([DUMPER_PATH, input_file, output_file])
         result=subprocess.run(
-            [_lua_interp,"-E",DUMPER_PATH,input_file,output_file],
+            cmd,
             capture_output=True,
             timeout=DUMP_TIMEOUT
         )
@@ -1817,7 +1837,7 @@ async def run_dumper(lua_content):
 # ---------------- EVENTS ----------------
 @bot.event
 async def on_ready():
-    print(f"Logged as {bot.user} | Lua {_lua_interp}")
+    print(f"Logged as {bot.user} | Lua {_lua_interp} | -E {'yes' if _lua_has_E else 'no'}")
 
 # ---------------- COMMAND .help ----------------
 @bot.command(name="help")
