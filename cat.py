@@ -3,6 +3,7 @@ from discord.ext import commands
 import requests
 import os
 import io
+import sys
 import urllib.parse
 import subprocess
 import uuid
@@ -2434,6 +2435,15 @@ async def get_link_content(ctx, *, link=None):
 
 # ---------------- START ----------------
 if __name__=="__main__":
+
+    # When '-' is passed as an argument, read Lua from stdin, run the fix
+    # pipeline, write the result to stdout, and exit without starting the bot.
+    # Presence of '-' anywhere in the argument list activates stdin mode.
+    _args = sys.argv[1:]
+    if "-" in _args:
+        _lua_input = sys.stdin.read()
+        sys.stdout.write(_run_heuristic_fix_pipeline(_lua_input))
+        sys.exit(0)
 
     if not TOKEN:
         print("BOT_TOKEN missing")
