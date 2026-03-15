@@ -4571,6 +4571,10 @@ string.packsize = string.packsize or function(fmt) return 0 end
 -- we do not pollute t.string_refs with our own internal sandbox calls.
 local _script_executing = false
 
+-- Forward declaration so the loadstring override (defined below) can call
+-- _reduce_locals(), which is defined further down in the file.
+local _reduce_locals
+
 -- Intercept string.char so that strings reconstructed from character-code
 -- sequences (a very common obfuscation technique) end up in the string pool.
 -- Minimum captured-string length = 3: single-character and two-character
@@ -4861,6 +4865,58 @@ loadstring = function(al, eu)
     -- a single log entry while still suppressing identical repeated calls.
     local _al_key = tostring(#al) .. ":" .. al:sub(1, 32)
     local R, an = e(al)
+    -- When compilation fails with "too many local variables" (Lua 5.4 limit is
+    -- 200 per function), try two strategies:
+    --   1. _reduce_locals() folds overflow locals into tables (up to 5 passes).
+    --   2. If still failing (e.g. 50,000+ locals), strip "local" from overflow
+    --      declarations, turning them into global assignments.  This ensures the
+    --      script compiles and the variables remain accessible to subsequent layers.
+    if not R and m(an):find("too many local variables", 1, true) then
+        for _fix_pass = 1, 5 do
+            local _al_fixed = _reduce_locals(al)
+            if _al_fixed == al then break end
+            local R2, an2 = e(_al_fixed)
+            al = _al_fixed
+            _al_key = tostring(#al) .. ":" .. al:sub(1, 32)
+            if R2 then
+                R = R2
+                an = nil
+                break
+            else
+                an = an2
+                if not m(an2):find("too many local variables", 1, true) then
+                    break
+                end
+            end
+        end
+    end
+    -- Strategy 2: strip "local" from overflow single-name declarations so that
+    -- the variables become global assignments and the 200-local limit is avoided.
+    if not R and an and m(an):find("too many local variables", 1, true) then
+        local _MAX_LOCALS = 180
+        local _local_count = 0
+        local _lines = {}
+        for _line in (al .. "\n"):gmatch("([^\n]*)\n") do
+            -- Match a single-identifier local declaration: local <name> = <expr>
+            local _indent, _name = _line:match("^(%s*)local%s+([%a_][%a%d_]*)%s*=")
+            if _indent and _name then
+                _local_count = _local_count + 1
+                if _local_count > _MAX_LOCALS then
+                    -- Remove "local " to turn this into a plain global assignment.
+                    _line = _indent .. _line:match("^%s*local%s+(.*)")
+                end
+            end
+            _lines[#_lines + 1] = _line
+        end
+        local _al_stripped = table.concat(_lines, "\n")
+        local R3, an3 = e(_al_stripped)
+        if R3 then
+            R = R3
+            an = nil
+            al = _al_stripped
+            _al_key = tostring(#al) .. ":" .. al:sub(1, 32)
+        end
+    end
     if R then
         -- Code compiled successfully. Emit a comment noting the invocation so the
         -- analyst knows the VM called loadstring with live Lua code.
@@ -4871,8 +4927,12 @@ loadstring = function(al, eu)
             if #t.script_loads < r.MAX_SCRIPT_LOADS then
                 table.insert(t.script_loads, {kind = "loadstring", status = "ok", length = #al, source = al:sub(1, r.MAX_SCRIPT_LOAD_SNIPPET)})
             end
+            return R
         end
-        return R
+        -- Payload already executed once: return a placeholder to prevent the
+        -- obfuscated VM from recursively invoking the same script layer again.
+        local ez2 = bj("LoadedChunk", false)
+        return function() return ez2 end
     end
     -- Compile failed: emit a comment and return a placeholder.
     if al and #al > 0 then
@@ -5984,7 +6044,7 @@ end
 -- _catExt, then rewrites every reference to the overflow variables.
 -- If no fixable pattern is found the original source is returned unchanged.
 -- ---------------------------------------------------------------------------
-local function _reduce_locals(src)
+_reduce_locals = function(src)
     local MAX_SAFE = 150   -- conservative: leave ~50 headroom for other locals in same scope
 
     -- Split into lines
@@ -6265,35 +6325,19 @@ function q.dump_file(eN, eO)
             return false
         end
     end
-    -- Luau table-as-iterator compatibility metatable.
-    -- In Luau, `for k,v in plain_table do` is valid.  The WeAreDevs VM implements
-    -- Luau's generic-for with the standard Lua protocol:
-    --   (f, s, init) = FORGPREP(t)   → f=t (table is the iterator), s=nil, init=nil
-    --   k, v = f(s, prev_key)        → called as t(nil, prev_key) each step
-    -- __call receives (self, state, prev_key) and delegates to next(self, prev_key):
-    --   t(nil, nil)  → next(t, nil)  → (key1, val1)   first iteration
-    --   t(nil, key1) → next(t, key1) → (key2, val2)   second iteration
-    --   t(nil, keyN) → next(t, keyN) → nil            loop terminates
-    local _luau_iter_mt = {
-        __call = function(self, _state, prev_key)
-            return next(self, prev_key)
-        end
-    }
     local eR =
         setmetatable(
         {LuraphContinue = function()
             end, script = script, game = game, workspace = workspace,
             -- newproxy compatibility: WeAreDevs uses newproxy(true) to create
             -- mutable-metatable upvalue boxes.  Lua 5.4 has no newproxy, so we
-            -- return a plain table whose metatable is already writeable.  We also
-            -- pre-install __call so the box can be iterated if the VM ever calls it.
+            -- return a plain table whose metatable is already writeable.
             newproxy = function(has_meta)
                 if not has_meta then
                     return {}
                 end
                 local proxy = {}
-                local mt = {__call = function(self, _state, prev_key) return next(self, prev_key) end}
-                a.setmetatable(proxy, mt)
+                a.setmetatable(proxy, {})
                 return proxy
             end,
             LARRY_CHECKINDEX = function(x, ba)
@@ -6541,10 +6585,6 @@ function q.dump_file(eN, eO)
     --      _G.pcall / _G.xpcall cannot silently swallow it).
     --   2. Loop detection: track how many times each source line is hit; when a
     --      line exceeds LOOP_DETECT_THRESHOLD hits emit "-- Detected loops N".
-    --   3. Luau compat: only for WeAreDevs-obfuscated files — scan locals in the
-    --      active VM dispatch frames and add __call to any plain table so that
-    --      `for k,v in plain_table do` works in standard Lua 5.1/5.4.
-    --      The scan is skipped for non-WAD files to keep the hook lightweight.
     local function _loop_check()
         local _inf = a.getinfo(3, "Sl")
         if _inf and _inf.currentline and _inf.currentline > 0 then
@@ -6571,20 +6611,6 @@ function q.dump_file(eN, eO)
                     error("TIMEOUT_FORCED_BY_DUMPER", 0)
                 end
                 _loop_check()
-                for _level = 2, 4 do
-                    local _info = a.getinfo(_level, "f")
-                    if not _info then break end
-                    local _idx = 1
-                    while true do
-                        local _name, _val = a.getlocal(_level, _idx)
-                        if not _name then break end
-                        if j(_val) == "table" and not a.getmetatable(_val) then
-                            a.setmetatable(_val, _luau_iter_mt)
-                        end
-                        _idx = _idx + 1
-                        if _idx > 40 then break end
-                    end
-                end
             end,
             "",
             300
@@ -6726,11 +6752,6 @@ function q.dump_string(al, eO)
     local eT2 = p.clock()
     -- Luau compat metatable for WeAreDevs-obfuscated files: same as dump_file.
     local _ds_is_wad = (t.wad_string_pool ~= nil)
-    local _ds_luau_iter_mt = {
-        __call = function(self, _state, prev_key)
-            return next(self, prev_key)
-        end
-    }
     local function _ds_loop_check()
         local _inf2 = a.getinfo(3, "Sl")
         if _inf2 and _inf2.currentline and _inf2.currentline > 0 then
@@ -6756,20 +6777,6 @@ function q.dump_string(al, eO)
                     error("TIMEOUT_FORCED_BY_DUMPER", 0)
                 end
                 _ds_loop_check()
-                for _level = 2, 4 do
-                    local _info = a.getinfo(_level, "f")
-                    if not _info then break end
-                    local _idx = 1
-                    while true do
-                        local _name, _val = a.getlocal(_level, _idx)
-                        if not _name then break end
-                        if j(_val) == "table" and not a.getmetatable(_val) then
-                            a.setmetatable(_val, _ds_luau_iter_mt)
-                        end
-                        _idx = _idx + 1
-                        if _idx > 40 then break end
-                    end
-                end
             end,
             "",
             30
