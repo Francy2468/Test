@@ -15,9 +15,13 @@ def _make_stub(name):
     return mod
 
 
-for module_name in ("discord", "discord.ext", "discord.ext.commands", "requests", "dotenv"):
+for module_name in ("discord", "discord.ext", "discord.ext.commands", "requests", "dotenv", "aiohttp"):
     if module_name not in sys.modules:
         _make_stub(module_name)
+
+# aiohttp stub
+aiohttp_stub = sys.modules["aiohttp"]
+aiohttp_stub.ClientConnectionResetError = type("ClientConnectionResetError", (Exception,), {})
 
 # discord stubs
 discord = sys.modules["discord"]
