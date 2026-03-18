@@ -30,25 +30,6 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = "gpt-4o-mini"
 # Maximum characters to send to the AI renamer; larger scripts use the
 # heuristic fallback to avoid excessive token usage
-app = Flask('')
-
-@app.route('/')
-
-def home():
-
-return "Bot activo"
-
-def run():
-
-# Render usa el puerto asignado por la variable PORT
-
-port = int(os.environ.get("PORT", app.run(host='0.0.0.0', port=port)
-
-10000))
-
-def keep_alive(): t = Thread(target=run) t.start()
-
-# Llama a keep_alive antes de iniciar el bot keep_alive()
 AI_RENAME_MAX_CHARS = 80_000
 
 PREFIX = "."
@@ -63,6 +44,23 @@ LUA_INTERPRETERS = ["lua5.3", "lua5.1", "lua5.4", "luajit", "lua"]
 
 DISCORD_RETRY_ATTEMPTS = 3
 DISCORD_RETRY_DELAY = 2.0  # seconds between retries on 503
+# ---------------- KEEP-ALIVE ----------------
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot activo"
+
+def run():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# Llamamos a keep_alive una sola vez ANTES del bot
+keep_alive()
 
 async def _send_with_retry(coro_factory):
     """Call a coroutine that sends a Discord message, retrying up to
