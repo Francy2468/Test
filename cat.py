@@ -13,6 +13,8 @@ import asyncio
 import functools
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
+from flask import Flask
+from threading import Thread
 
 try:
     from openai import OpenAI as _OpenAI
@@ -27,7 +29,26 @@ TOKEN = os.environ.get("TOKEN_BOT", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = "gpt-4o-mini"
 # Maximum characters to send to the AI renamer; larger scripts use the
-# heuristic fallback to avoid excessive token usage.
+# heuristic fallback to avoid excessive token usage
+app = Flask('')
+
+@app.route('/')
+
+def home():
+
+return "Bot activo"
+
+def run():
+
+# Render usa el puerto asignado por la variable PORT
+
+port = int(os.environ.get("PORT", app.run(host='0.0.0.0', port=port)
+
+10000))
+
+def keep_alive(): t = Thread(target=run) t.start()
+
+# Llama a keep_alive antes de iniciar el bot keep_alive()
 AI_RENAME_MAX_CHARS = 80_000
 
 PREFIX = "."
