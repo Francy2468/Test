@@ -25,7 +25,7 @@ except ImportError:
 load_dotenv()
 
 # ---------------- CONFIG ----------------
-TOKEN = "tu_token_de_discord_aqui"
+TOKEN = "MTQ4MDU3MjQ1NTY5MjAwOTY2Mg.Gi_0v4.tRYOCpGYPlPvXWG3lYyikEnAZFdakHpEFMai-o"
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = "gpt-4o-mini"
 # Maximum characters to send to the AI renamer; larger scripts use the
