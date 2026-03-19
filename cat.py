@@ -2473,19 +2473,15 @@ async def get_link_content(ctx, *, link=None):
             pass
 
 # ---------------- START ----------------
-if __name__=="__main__":
+_args = sys.argv[1:]
 
-    # When '-' is passed as an argument, read Lua from stdin, run the fix
-    # pipeline, write the result to stdout, and exit without starting the bot.
-    # Presence of '-' anywhere in the argument list activates stdin mode.
-    _args = sys.argv[1:]
-    if "-" in _args:
-        _lua_input = sys.stdin.read()
-        sys.stdout.write(_run_heuristic_fix_pipeline(_lua_input))
-        sys.exit(0)
+if "-" in _args:
+    _lua_input = sys.stdin.read()
+    sys.stdout.write(_run_heuristic_fix_pipeline(_lua_input))
+    sys.exit(0)
 
-    if not TOKEN:
-        print("BOT_TOKEN missing")
-        exit()
+if not TOKEN:
+    print("BOT_TOKEN missing")
+    exit()
 
-    bot.run(TOKEN)
+bot.run(TOKEN)
