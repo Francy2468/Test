@@ -215,10 +215,7 @@ local t = {
     -- Enhanced tracking tables
     instance_creations = {},
     script_loads = {},
-    gc_objects = {},
-    -- Heartbeat callback store: populated by bP.Connect for Heartbeat/RenderStepped
-    -- signals, drained by task.wait() to simulate multiple real-time firings.
-    heartbeat_callbacks = {},
+    gc_objects = {}
 }
 local u = tonumber(arg and arg[4]) or tonumber(arg and arg[3]) or 123456789
 local v = {}
@@ -1578,19 +1575,7 @@ bj = function(aQ, bO, bw)
         if j(bs) == "function" then
             xpcall(
                 function()
-                    if c3:match("Heartbeat") or c3:match("RenderStepped") then
-                        bs(1/60)
-                        -- Store callback for multi-fire during task.wait() to pass
-                        -- count-based anti-tamper checks (e.g. WeAreDevs HB-1 which
-                        -- expects the signal to have fired several times in the wait
-                        -- window, not just once).
-                        table.insert(t.heartbeat_callbacks, {cb = bs, dt = 1/60})
-                    elseif c3:match("Stepped") then
-                        bs(0, 1/60)
-                        table.insert(t.heartbeat_callbacks, {cb = bs, dt = 1/60, stepped = true})
-                    else
-                        bs()
-                    end
+                    bs()
                 end,
                 function()
                 end
@@ -3318,23 +3303,6 @@ task = {
         else
             at("task.wait()")
         end
-        -- Simulate Heartbeat/RenderStepped/Stepped firing repeatedly during the
-        -- wait window.  Real Roblox fires at ~60 fps; WeAreDevs HB-1 and similar
-        -- anti-tamper checks count how many times the callback fires and fail if
-        -- the count is too low (typically < 5).  We fire max(1, round(N*60))
-        -- additional times so the count reaches a realistic value.
-        local _fire_count = math.max(1, math.floor((dq or 0.03) * 60 + 0.5))
-        for _, _heartbeat_callback in ipairs(t.heartbeat_callbacks) do
-            for _fire_idx = 1, _fire_count do
-                xpcall(function()
-                    if _heartbeat_callback.stepped then
-                        _heartbeat_callback.cb(0, _heartbeat_callback.dt)
-                    else
-                        _heartbeat_callback.cb(_heartbeat_callback.dt)
-                    end
-                end, function() end)
-            end
-        end
         return dq or 0.03, p.clock()
     end,
     spawn = function(dr, ...)
@@ -5034,7 +5002,6 @@ function q.reset()
         instance_creations = {},
         script_loads = {},
         gc_objects = {},
-        heartbeat_callbacks = {},
     }
     aM = {}
     game = bj("game", true)
@@ -6526,27 +6493,6 @@ function q.dump_file(eN, eO)
     rawset(eR, "bit",                  bit)
     -- table stubs needed by Prometheus (table.freeze check bypass)
     rawset(eR, "table",                table)
-    -- Virtual clock: advances when task.wait() is called inside the sandbox.
-    -- WeAreDevs HB-1 and similar anti-tamper checks measure elapsed time with
-    -- os.clock() after task.wait(N).  In catlogger task.wait returns immediately
-    -- (no real sleep), so the elapsed time is near zero and the check fails.
-    -- The virtual clock keeps the real base time (so "uptime" checks still see a
-    -- large value) but adds extra simulated time whenever task.wait() is called,
-    -- making elapsed-time checks produce the expected result.
-    local _vclock_extra = 0
-    local _real_os = rawget(_G, "os") or {}
-    rawset(eR, "os", setmetatable({
-        clock = function() return p.clock() + _vclock_extra end,
-        time  = function() return p.time() + math.floor(_vclock_extra) end,
-    }, {__index = _real_os}))
-    -- Override task.wait inside the sandbox to advance the virtual clock.
-    local _real_task = rawget(_G, "task") or task
-    rawset(eR, "task", setmetatable({
-        wait = function(dq)
-            _vclock_extra = _vclock_extra + (dq or 0.03)
-            return _real_task.wait(dq)
-        end,
-    }, {__index = _real_task}))
     -- Some scripts use a Luau-style `_G` reference that also goes through getgenv;
     -- expose it inside the sandbox so that `getgenv()["_G"]` round-trips correctly.
     rawset(eR, "_G",                   eR)
