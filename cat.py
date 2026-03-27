@@ -25,7 +25,7 @@ except ImportError:
 load_dotenv()
 
 # ---------------- CONFIG ----------------
-TOKEN = "MTQ4MDU3MjQ1NTY5MjAwOTY2Mg.Gi_0v4.tRYOCpGYPlPvXWG3lYyikEnAZFdakHpEFMai-o"
+TOKEN = "MTQ2MzU3Njk1MzgzNDQzODcyMA.GshoV5.7y_hTZM-759sbncjYtsQsgeGIwohlFJrJaywZA"
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = "gpt-4o-mini"
 # Maximum characters to send to the AI renamer; larger scripts use the
@@ -33,7 +33,7 @@ OPENAI_MODEL = "gpt-4o-mini"
 AI_RENAME_MAX_CHARS = 80_000
 
 PREFIX = "."
-DUMPER_PATH = "catlogger.lua"
+DUMPER_PATH = "A7kP9xQ2LmZ4bR1c.lua"
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
 DUMP_TIMEOUT = 130  # Must exceed catlogger.lua TIMEOUT_SECONDS (120) to allow proper cleanup
