@@ -262,7 +262,7 @@ def extract_first_url(text):
     if not m:
         return None
     url = m.group(0)
-    url = url.rstrip(""')])")
+    url = url.rstrip("')])")
     if url.endswith(") )()"):
         url = url[:-4]
     return url
@@ -2924,7 +2924,7 @@ def extract_first_url(text):
     if not m:
         return None
     url = m.group(0)
-    url = url.rstrip(""')])")
+    url = url.rstrip("')])")
     if url.endswith(") )()"):
         url = url[:-4]
     return url
@@ -5563,7 +5563,7 @@ def extract_first_url(text):
     if not m:
         return None
     url = m.group(0)
-    url = url.rstrip(""')])")
+    url = url.rstrip("')])")
     if url.endswith(") )()"):
         url = url[:-4]
     return url
