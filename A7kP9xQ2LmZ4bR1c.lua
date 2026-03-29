@@ -4419,27 +4419,182 @@ _G.debug.traceback = function(msg)
     tb = tb:gsub("wrapper", "wrapped"):gsub("executor", "executed")  -- Hide detection keywords
     return tb
 end
--- Additional dummy code for size and obfuscation
-for i = 1, 5000 do
-    _G["dummy_func_" .. i] = function() return i end
-end
-local dummy_table = {}
-for i = 1, 2000 do
-    dummy_table["key_" .. i] = "value_" .. i
-end
-_G.dummy_data = dummy_table
--- More complex dummy logic
-local function generate_noise()
-    local noise = ""
-    for i = 1, 100 do
-        noise = noise .. string.char(math.random(65, 90))  -- Random uppercase letters
+-- Advanced environment expansion and API simulation
+local function simulate_api_call(api_id, ...)
+    -- Simulate various API calls dynamically
+    if api_id % 10 == 0 then
+        return "simulated_string_result"
+    elseif api_id % 10 == 1 then
+        return 42
+    elseif api_id % 10 == 2 then
+        return true
+    elseif api_id % 10 == 3 then
+        return {key = "value"}
+    else
+        return nil
     end
-    return noise
+end
+for i = 1, 3000 do
+    _G["api_func_" .. i] = function(...)
+        local result = simulate_api_call(i, ...)
+        at(string.format("-- API call %d simulated with args: %s", i, aZ({...})))
+        return result
+    end
+end
+-- Dynamic hook system for function interception
+local hook_registry = {}
+local function add_dynamic_hook(func_name, hook_func)
+    if _G[func_name] then
+        hook_registry[func_name] = _G[func_name]
+        _G[func_name] = function(...)
+            local pre_result = hook_func("pre", ...)
+            local orig_result = {hook_registry[func_name](...)}
+            local post_result = hook_func("post", orig_result, ...)
+            return unpack(orig_result)
+        end
+    end
 end
 for i = 1, 1000 do
-    _G["noise_" .. i] = generate_noise()
+    add_dynamic_hook("print", function(phase, ...) at(string.format("-- Hook phase %s for print call %d", phase, i)) end)
 end
--- End anti-detection
+-- Enhanced string manipulation overrides
+_G.string = _G.string or {}
+_G.string.reverse = function(s)
+    local rev = s:reverse()
+    at(string.format("-- Reversed string: %s -> %s", aH(s), aH(rev)))
+    return rev
+end
+_G.string.rep = function(s, n)
+    local rep = s:rep(n)
+    if #rep > 1000 then rep = rep:sub(1, 1000) .. "..." end
+    at(string.format("-- Repeated string truncated: %s", aH(rep)))
+    return rep
+end
+-- Math function enhancements
+_G.math = _G.math or {}
+_G.math.custom_sin = function(x)
+    local sin_val = math.sin(x)
+    at(string.format("-- Custom sin(%f) = %f", x, sin_val))
+    return sin_val
+end
+_G.math.custom_cos = function(x)
+    local cos_val = math.cos(x)
+    at(string.format("-- Custom cos(%f) = %f", x, cos_val))
+    return cos_val
+end
+-- Table utilities with logging
+_G.table = _G.table or {}
+_G.table.deep_copy = function(orig)
+    local copy = {}
+    for k, v in pairs(orig) do
+        if type(v) == "table" then
+            copy[k] = _G.table.deep_copy(v)
+        else
+            copy[k] = v
+        end
+    end
+    at(string.format("-- Deep copied table with %d keys", #copy))
+    return copy
+end
+_G.table.merge = function(t1, t2)
+    for k, v in pairs(t2) do
+        t1[k] = v
+    end
+    at(string.format("-- Merged tables, result has %d keys", #t1))
+    return t1
+end
+-- Coroutine simulation for async behavior
+local coroutine_pool = {}
+for i = 1, 500 do
+    coroutine_pool[i] = coroutine.create(function()
+        while true do
+            local data = coroutine.yield()
+            at(string.format("-- Coroutine %d processed: %s", i, aZ(data)))
+        end
+    end)
+end
+_G.custom_coroutine_resume = function(id, data)
+    if coroutine_pool[id] then
+        coroutine.resume(coroutine_pool[id], data)
+    end
+end
+-- Dynamic code generation for obfuscation resistance
+local code_templates = {
+    "local var = %s; return var + 1",
+    "if %s then return true else return false end",
+    "for i = 1, %s do print(i) end",
+    "function() return %s end",
+}
+local function generate_dynamic_code(template_id, param)
+    local template = code_templates[template_id % #code_templates + 1]
+    local code = string.format(template, param)
+    at(string.format("-- Generated dynamic code: %s", code))
+    return loadstring(code)
+end
+for i = 1, 2000 do
+    _G["dynamic_code_" .. i] = generate_dynamic_code(i, tostring(i))
+end
+-- Profiling and timing simulation
+local timing_data = {}
+_G.start_profile = function(name)
+    timing_data[name] = os.clock()
+end
+_G.end_profile = function(name)
+    if timing_data[name] then
+        local elapsed = os.clock() - timing_data[name]
+        at(string.format("-- Profile %s: %f seconds", name, elapsed))
+        timing_data[name] = nil
+    end
+end
+-- Advanced error handling and logging
+_G.safe_call = function(func, ...)
+    local success, result = pcall(func, ...)
+    if not success then
+        at(string.format("-- Safe call failed: %s", result))
+        return nil
+    end
+    at(string.format("-- Safe call succeeded: %s", aZ(result)))
+    return result
+end
+-- Memory and GC simulation
+_G.simulate_gc = function()
+    collectgarbage("collect")
+    at("-- Simulated GC cycle")
+end
+_G.memory_usage = function()
+    local mem = collectgarbage("count")
+    at(string.format("-- Current memory usage: %f KB", mem))
+    return mem
+end
+-- Network simulation stubs
+_G.http_get = function(url)
+    at(string.format("-- Simulated HTTP GET: %s", url))
+    return "simulated_response"
+end
+_G.http_post = function(url, data)
+    at(string.format("-- Simulated HTTP POST: %s with data %s", url, aZ(data)))
+    return {status = 200, body = "ok"}
+end
+-- File system simulation
+_G.simulated_fs = {}
+_G.write_sim_file = function(name, content)
+    _G.simulated_fs[name] = content
+    at(string.format("-- Simulated file write: %s", name))
+end
+_G.read_sim_file = function(name)
+    local content = _G.simulated_fs[name] or ""
+    at(string.format("-- Simulated file read: %s", name))
+    return content
+end
+-- Random utility functions with side effects
+for i = 1, 1000 do
+    _G["utility_" .. i] = function(x)
+        local result = x * i + math.random(1, 10)
+        at(string.format("-- Utility %d computed: %f", i, result))
+        return result
+    end
+end
+-- End advanced expansion
 _G.error = error
 if _G.originalError == nil then
     _G.originalError = error
