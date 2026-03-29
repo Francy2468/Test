@@ -502,7 +502,7 @@ test("dofile", {})
 
 test("isrbxactive", {"isgameactive"}, function()
 	assert(type(isrbxactive()) == "boolean", "Did not return a boolean value")
-end)
+endOutput not generated: [C]: in ?)
 
 test("mouse1click", {})
 

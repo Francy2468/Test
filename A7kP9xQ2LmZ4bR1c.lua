@@ -4410,12 +4410,14 @@ _G.xpcall = function(as, ep, ...)
     return unpack(en)
 end
 -- Anti-detection overrides
+local original_getmetatable = getmetatable
+local original_traceback = debug.traceback
 _G.os = _G.os or {}
 _G.os.clock = function() return 0 end  -- Simulate low execution time
 _G.table.isreadonly = function(t) return t == _G end  -- _G is readonly
-_G.getmetatable = function(t) if t == _G then return nil else return k(t) end end  -- No metatable on _G
+_G.getmetatable = function(t) if t == _G then return nil else return original_getmetatable(t) end end  -- No metatable on _G
 _G.debug.traceback = function(msg)
-    local tb = d(msg or "")
+    local tb = original_traceback(msg or "")
     tb = tb:gsub("wrapper", "wrapped"):gsub("executor", "executed")  -- Hide detection keywords
     return tb
 end
@@ -4444,7 +4446,7 @@ end
 -- Dynamic hook system for function interception
 local hook_registry = {}
 local function add_dynamic_hook(func_name, hook_func)
-    if _G[func_name] then
+    if _G[func_name] and func_name ~= "at" then  -- Avoid hooking internal functions
         hook_registry[func_name] = _G[func_name]
         _G[func_name] = function(...)
             local pre_result = hook_func("pre", ...)
@@ -4454,18 +4456,19 @@ local function add_dynamic_hook(func_name, hook_func)
         end
     end
 end
-for i = 1, 1000 do
-    add_dynamic_hook("print", function(phase, ...) at(string.format("-- Hook phase %s for print call %d", phase, i)) end)
+-- Only add hooks for safe functions, limit to 100
+for i = 1, 100 do
+    add_dynamic_hook("tostring", function(phase, ...) at(string.format("-- Hook phase %s for tostring call %d", phase, i)) end)
 end
 -- Enhanced string manipulation overrides
 _G.string = _G.string or {}
 _G.string.reverse = function(s)
-    local rev = s:reverse()
+    local rev = string.reverse(s)
     at(string.format("-- Reversed string: %s -> %s", aH(s), aH(rev)))
     return rev
 end
 _G.string.rep = function(s, n)
-    local rep = s:rep(n)
+    local rep = string.rep(s, n)
     if #rep > 1000 then rep = rep:sub(1, 1000) .. "..." end
     at(string.format("-- Repeated string truncated: %s", aH(rep)))
     return rep
@@ -4484,11 +4487,14 @@ _G.math.custom_cos = function(x)
 end
 -- Table utilities with logging
 _G.table = _G.table or {}
-_G.table.deep_copy = function(orig)
+local max_depth = 10
+_G.table.deep_copy = function(orig, depth)
+    depth = depth or 0
+    if depth > max_depth then return {} end
     local copy = {}
     for k, v in pairs(orig) do
         if type(v) == "table" then
-            copy[k] = _G.table.deep_copy(v)
+            copy[k] = _G.table.deep_copy(v, depth + 1)
         else
             copy[k] = v
         end
@@ -4515,7 +4521,8 @@ for i = 1, 500 do
 end
 _G.custom_coroutine_resume = function(id, data)
     if coroutine_pool[id] then
-        coroutine.resume(coroutine_pool[id], data)
+        local success, err = coroutine.resume(coroutine_pool[id], data)
+        if not success then at(string.format("-- Coroutine error: %s", err)) end
     end
 end
 -- Dynamic code generation for obfuscation resistance
@@ -4529,7 +4536,8 @@ local function generate_dynamic_code(template_id, param)
     local template = code_templates[template_id % #code_templates + 1]
     local code = string.format(template, param)
     at(string.format("-- Generated dynamic code: %s", code))
-    return loadstring(code)
+    local func, err = loadstring(code)
+    if func then return func else at(string.format("-- Code generation error: %s", err)) return function() return nil end end
 end
 for i = 1, 2000 do
     _G["dynamic_code_" .. i] = generate_dynamic_code(i, tostring(i))
@@ -4537,11 +4545,11 @@ end
 -- Profiling and timing simulation
 local timing_data = {}
 _G.start_profile = function(name)
-    timing_data[name] = os.clock()
+    timing_data[name] = _G.os.clock()
 end
 _G.end_profile = function(name)
     if timing_data[name] then
-        local elapsed = os.clock() - timing_data[name]
+        local elapsed = _G.os.clock() - timing_data[name]
         at(string.format("-- Profile %s: %f seconds", name, elapsed))
         timing_data[name] = nil
     end
@@ -4589,7 +4597,7 @@ end
 -- Random utility functions with side effects
 for i = 1, 1000 do
     _G["utility_" .. i] = function(x)
-        local result = x * i + math.random(1, 10)
+        local result = (x or 0) * i + math.random(1, 10)
         at(string.format("-- Utility %d computed: %f", i, result))
         return result
     end
