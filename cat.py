@@ -25,7 +25,7 @@ except ImportError:
 load_dotenv()
 
 # ---------------- CONFIG ----------------
-TOKEN = "MTQ2MzU3Njk1MzgzNDQzODcyMA.GshoV5.7y_hTZM-759sbncjYtsQsgeGIwohlFJrJaywZA"
+TOKEN = "MTQ2MzU3Njk1MzgzNDQzODcyMA.Gz7LCU.UcPkQktILdYn8zaNetJE8YaLDnhuJ2quUp1lLk"
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = "gpt-4o-mini"
 # Maximum characters to send to the AI renamer; larger scripts use the
