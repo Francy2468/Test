@@ -3061,6 +3061,9 @@ local function da(am, db)
                     if bG == F or bG == "__proxy_id" then
                         return rawget(bh, bG)
                     end
+                    if t.property_store[W] and t.property_store[W][bG] then
+                        return t.property_store[W][bG]
+                    end
                     if bG == "X" or bG == "Y" or bG == "Z" or bG == "W" then
                         return 0
                     end
@@ -3138,6 +3141,10 @@ local function da(am, db)
     end
     dd.__call = function(b2, ...)
         return b2.new(...)
+    end
+    dd.__newindex = function(b2, b4, b5)
+        t.property_store[b2] = t.property_store[b2] or {}
+        t.property_store[b2][b4] = b5
     end
     return setmetatable(dc, dd)
 end
@@ -4662,17 +4669,9 @@ typeof = function(x)
     if G(x) then
         local er = t.registry[x]
         if er then
-            if er:match("Vector3") then
-                return "Vector3"
-            end
-            if er:match("CFrame") then
-                return "CFrame"
-            end
-            if er:match("Color3") then
-                return "Color3"
-            end
-            if er:match("UDim") then
-                return "UDim2"
+            local type_name = er:match("^([^.]+)")
+            if type_name then
+                return type_name
             end
             if er:match("Enum") then
                 return "EnumItem"
@@ -6576,6 +6575,95 @@ function q.dump_file(eN, eO)
     -- Some scripts use a Luau-style `_G` reference that also goes through getgenv;
     -- expose it inside the sandbox so that `getgenv()["_G"]` round-trips correctly.
     rawset(eR, "_G",                   eR)
+    -- Additional globals for UNC check
+    rawset(eR, "cache", {
+        invalidate = function(obj) end,
+        iscached = function(obj) return true end,
+        replace = function(old, new) return new end
+    })
+    rawset(eR, "getcallingscript", function() return script end)
+    rawset(eR, "dofile", function() end)
+    rawset(eR, "loadfile", function() return nil, "not supported" end)
+    -- More globals for full UNC check
+    rawset(eR, "crypt", {
+        base64encode = function(s) return s end,
+        base64decode = function(s) return s end,
+        base64_encode = function(s) return s end,
+        base64_decode = function(s) return s end,
+        encrypt = function(s, k, iv, mode) return s, iv or "" end,
+        decrypt = function(s, k, iv, mode) return s end,
+        generatebytes = function(n) return string.rep("\0", n or 16) end,
+        generatekey = function() return string.rep("0", 32) end,
+        hash = function(s, alg) return "hash" end
+    })
+    rawset(eR, "debug", {
+        getconstant = function(f, idx) return "const" end,
+        getconstants = function(f) return {} end,
+        getinfo = function(f) return {} end,
+        getproto = function(f, idx, copy) return copy and {function() end} or function() end end,
+        getprotos = function(f) return {} end,
+        getstack = function(lvl, idx) return idx and "stack" or {"stack"} end,
+        getupvalue = function(f, idx) return function() end end,
+        getupvalues = function(f) return {} end,
+        setconstant = function(f, idx, val) end,
+        setstack = function(lvl, idx, val) end,
+        setupvalue = function(f, idx, val) end
+    })
+    rawset(eR, "readfile", function(path) return "content" end)
+    rawset(eR, "writefile", function(path, content) end)
+    rawset(eR, "listfiles", function(path) return {} end)
+    rawset(eR, "makefolder", function(path) end)
+    rawset(eR, "appendfile", function(path, content) end)
+    rawset(eR, "isfile", function(path) return false end)
+    rawset(eR, "isfolder", function(path) return false end)
+    rawset(eR, "delfolder", function(path) end)
+    rawset(eR, "delfile", function(path) end)
+    rawset(eR, "fireclickdetector", function(detector, distance, event) end)
+    rawset(eR, "getcallbackvalue", function(obj, prop) return function() end end)
+    rawset(eR, "getconnections", function(signal) return {} end)
+    rawset(eR, "getcustomasset", function(path) return "rbxasset://" .. path end)
+    rawset(eR, "gethiddenproperty", function(obj, prop) return nil, false end)
+    rawset(eR, "sethiddenproperty", function(obj, prop, val) return true end)
+    rawset(eR, "gethui", function() return bj("ScreenGui", false) end)
+    rawset(eR, "getinstances", function() return {} end)
+    rawset(eR, "getnilinstances", function() return {} end)
+    rawset(eR, "isscriptable", function(obj, prop) return true end)
+    rawset(eR, "setscriptable", function(obj, prop, val) return true end)
+    rawset(eR, "setrbxclipboard", function(content) end)
+    rawset(eR, "hookmetamethod", function(obj, method, hook) return function() end end)
+    rawset(eR, "getnamecallmethod", function() return "" end)
+    rawset(eR, "setrawmetatable", function(obj, mt) return obj end)
+    rawset(eR, "setreadonly", function(obj, val) end)
+    rawset(eR, "identifyexecutor", function() return "Executor", "1.0" end)
+    rawset(eR, "lz4compress", function(s) return s end)
+    rawset(eR, "lz4decompress", function(s, len) return s end)
+    rawset(eR, "messagebox", function(text, caption, type) return 1 end)
+    rawset(eR, "queue_on_teleport", function(code) end)
+    rawset(eR, "request", function(opts) return {Success=true, StatusCode=200, Body="{}", Headers={}} end)
+    rawset(eR, "setclipboard", function(content) end)
+    rawset(eR, "setfpscap", function(fps) end)
+    rawset(eR, "getgc", function() return {} end)
+    rawset(eR, "getgenv", function() return eR end)
+    rawset(eR, "getloadedmodules", function() return {} end)
+    rawset(eR, "getrenv", function() return eR end)
+    rawset(eR, "getrunningscripts", function() return {} end)
+    rawset(eR, "getscriptbytecode", function(script) return "" end)
+    rawset(eR, "getscripthash", function(script) return "hash" end)
+    rawset(eR, "getscripts", function() return {} end)
+    rawset(eR, "getsenv", function(script) return eR end)
+    rawset(eR, "getthreadidentity", function() return 8 end)
+    rawset(eR, "setthreadidentity", function(id) end)
+    rawset(eR, "Drawing", {
+        new = function(type) return {Visible = true, Destroy = function() end} end,
+        Fonts = {UI = 0, System = 1, Plex = 2, Monospace = 3}
+    })
+    rawset(eR, "isrenderobj", function(obj) return false end)
+    rawset(eR, "getrenderproperty", function(obj, prop) return true end)
+    rawset(eR, "setrenderproperty", function(obj, prop, val) end)
+    rawset(eR, "cleardrawcache", function() end)
+    rawset(eR, "WebSocket", {
+        connect = function(url) return {Send = function() end, Close = function() end, OnMessage = {}, OnClose = {}} end
+    })
     -- Register the sandbox itself so that aZ() returns "getfenv()" rather than
     -- serializing the entire executor-stub table when a script assigns
     -- something like `gui.Parent = getfenv()`.
