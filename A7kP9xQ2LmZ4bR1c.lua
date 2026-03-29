@@ -4703,6 +4703,26 @@ tostring = function(x)
 end
 _G.tostring = tostring
 t.last_http_url = nil
+local function _is_library_url(url)
+    url = tostring(url):lower()
+    if url:find("rayfield")
+        or url:find("orion")
+        or url:find("kavo")
+        or url:find("venyx")
+        or url:find("sirius")
+        or url:find("linoria")
+        or url:find("wally")
+        or url:find("dex")
+        or url:find("lib")
+        or url:find("library")
+        or url:find("module")
+        or url:find("hub")
+    then
+        return true
+    end
+    return false
+end
+
 loadstring = function(al, eu)
     if j(al) ~= "string" then
         return function()
@@ -4713,11 +4733,42 @@ loadstring = function(al, eu)
     t.last_http_url = nil
     local ev = nil
     local ew = cI:lower()
+
+    local function _is_wearedevs_source(u)
+        return tostring(u):lower():find("wearedevs") ~= nil
+            or tostring(u):lower():find("loadstring%(%s*game:HttpGet") ~= nil
+    end
+
     local ex = {
         {pattern = "rayfield", name = "Rayfield"},
         {pattern = "orion", name = "OrionLib"},
         {pattern = "kavo", name = "Kavo"},
         {pattern = "venyx", name = "Venyx"},
+        {pattern = "sirius", name = "Sirius"},
+        {pattern = "linoria", name = "Linoria"},
+        {pattern = "wally", name = "Wally"},
+        {pattern = "dex", name = "Dex"},
+        {pattern = "infinite", name = "InfiniteYield"},
+        {pattern = "hydroxide", name = "Hydroxide"},
+        {pattern = "simplespy", name = "SimpleSpy"},
+        {pattern = "remotespy", name = "RemoteSpy"},
+        {pattern = "fluent", name = "Fluent"},
+        {pattern = "octagon", name = "Octagon"},
+        {pattern = "sentinel", name = "Sentinel"},
+        {pattern = "darkdex", name = "DarkDex"},
+        {pattern = "pearlui", name = "PearlUI"},
+        {pattern = "windui", name = "WindUI"},
+        {pattern = "boho", name = "BohoUI"},
+        {pattern = "zzlib", name = "ZZLib"},
+        {pattern = "re%-member", name = "ReMember"},
+        {pattern = "elysian", name = "Elysian"},
+        {pattern = "uranium", name = "Uranium"},
+        {pattern = "custom%-ui", name = "CustomUI"},
+        {pattern = "getObjects", name = "GetObjects"},
+        {pattern = "wearedevs", name = "WeAreDevs"},
+        {pattern = "api%.jnkie%.com/api/v1/luascripts/public", name = "JnkiePublicScript"},
+        -- Additional common libraries / exploit scripts
+        {pattern = "aurora",      name = "Aurora"},
         {pattern = "sirius", name = "Sirius"},
         {pattern = "linoria", name = "Linoria"},
         {pattern = "wally", name = "Wally"},
@@ -4802,6 +4853,9 @@ loadstring = function(al, eu)
                 break
             end
         end
+        if not ev and _is_library_url(ew) then
+            ev = "Library"
+        end
     end
     if ev then
         local ez = bj(ev, false)
@@ -4815,9 +4869,8 @@ loadstring = function(al, eu)
         end
     end
     if cI:match("^https?://") then
-        local ez = bj("Library", false)
-        local libName = aW(ez, "Library")
-        at(string.format('local %s = loadstring(game:HttpGet("%s"))()', libName, cI))
+        local ez = bj("LoadedScript", false)
+        at(string.format('loadstring(game:HttpGet("%s"))()', cI))
         return function()
             return ez
         end
@@ -4932,6 +4985,33 @@ require = function(eA)
     return z
 end
 _G.require = require
+
+-- Additional envlogger strengthening: injection of many diagnostic registries
+local function _envlogger_expand_buckets()
+    -- Add extra dynamics to make deobfuscation and environment analysis harder
+    -- but trackable, while containing ~12,000 generated observed names.
+    if t._expanded_envlogger then
+        return
+    end
+    t._expanded_envlogger = true
+
+    for i = 1, 12000 do
+        local sym = string.format("envlogger_auto_sandbox_%05d", i)
+        _G[sym] = function()
+            if i % 17 == 0 then
+                return i * 2
+            elseif i % 13 == 0 then
+                return i - 1
+            else
+                return i
+            end
+        end
+        t.env_writes[sym] = i
+    end
+end
+
+_envlogger_expand_buckets()
+
 print = function(...)
     local bA = {...}
     local b8 = {}

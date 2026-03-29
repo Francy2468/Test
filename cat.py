@@ -259,8 +259,13 @@ def extract_links(text):
 def extract_first_url(text):
 
     m = re.search(r"https?://[^\s\"')]+", text)
-    return m.group(0) if m else None
-
+    if not m:
+        return None
+    url = m.group(0)
+    url = url.rstrip(""')])")
+    if url.endswith(") )()"):
+        url = url[:-4]
+    return url
 def get_filename_from_url(url):
 
     filename = url.split("/")[-1].split("?")[0]
@@ -1821,6 +1826,12 @@ def _is_html(content: bytes) -> bool:
     except:
         return False
 
+def _looks_like_raw_code_snippet(text: str) -> bool:
+    '''Return True for short non-URL arguments that look like Lua code.'''
+    if not text or re.search(r'https?://', text, re.IGNORECASE):
+        return False
+    return bool(re.search(r'\b(local|function|print|repeat|if|for|while|return|end)\b', text))
+
 def _extract_obfuscated_from_html(content: bytes) -> bytes | None:
     """Extract obfuscated code from HTML (from script tags or common patterns).
     
@@ -1889,6 +1900,13 @@ async def _get_content(ctx, link=None):
     if codeblock:
         filename = f"codeblock.{lang if lang != 'lua' else 'lua'}"
         return codeblock.encode("utf-8"), filename, None
+
+    # 0.5. Raw code snippet passed directly as command argument (e.g. ".l print("hi")").
+    if link:
+        stripped_link = link.strip()
+        if _looks_like_raw_code_snippet(stripped_link):
+            return stripped_link.encode("utf-8"), "snippet.lua", None
+
 
     # 1. Attachment in the current message.
     if ctx.message.attachments:
@@ -2106,6 +2124,18 @@ async def process_link(ctx, *, link=None):
 
     dumped,exec_ms,loops,lines,error=await run_dumper(content)
 
+    if error and content is not None:
+        try:
+            text_source = content.decode("utf-8", errors="ignore")
+            fixed_text = _run_heuristic_fix_pipeline(text_source)
+            if fixed_text and fixed_text != text_source:
+                fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, fixed_error = await run_dumper(fixed_text.encode("utf-8"))
+                if not fixed_error and fixed_dumped:
+                    dumped,exec_ms,loops,lines,error = fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, None
+                    content = fixed_text.encode("utf-8")
+        except Exception:
+            pass
+
     if error:
         await status.edit(content=f"{error}")
         return
@@ -2287,7 +2317,13 @@ def _fix_lua_compat(code: str) -> str:
 
 
 
-# ---------------- HEURISTIC FIX PIPELINE ----------------
+def _fix_wearedevs_compat(code: str) -> str:
+    """Additional compatibility repairs for WeAreDevs-like obfuscation."""
+    code = code.replace("end else if", "end\nelse if")
+    code = re.sub(r"repeat\s+([^\n]+)\s+until\s+([^\n]+)", r"repeat\n    \1\nuntil \2", code)
+    code = code.replace(")\"))()", "\"")
+    return code
+
 
 def _run_heuristic_fix_pipeline(code: str) -> str:
     """Apply the full heuristic-based Lua repair pipeline without AI.
@@ -2313,6 +2349,7 @@ def _run_heuristic_fix_pipeline(code: str) -> str:
     14. Remove excessive blank lines and trailing whitespace
     """
     code = _fix_lua_compat(code)
+    code = _fix_wearedevs_compat(code)
     code = _fix_for_missing_do(code)
     code = _fix_local_missing_assign(code)
     code = _fix_connect_end_parens(code)
@@ -2884,8 +2921,13 @@ def extract_links(text):
 def extract_first_url(text):
 
     m = re.search(r"https?://[^\s\"')]+", text)
-    return m.group(0) if m else None
-
+    if not m:
+        return None
+    url = m.group(0)
+    url = url.rstrip(""')])")
+    if url.endswith(") )()"):
+        url = url[:-4]
+    return url
 def get_filename_from_url(url):
 
     filename = url.split("/")[-1].split("?")[0]
@@ -4515,6 +4557,13 @@ async def _get_content(ctx, link=None):
         filename = f"codeblock.{lang if lang != 'lua' else 'lua'}"
         return codeblock.encode("utf-8"), filename, None
 
+    # 0.5. Raw code snippet passed directly as command argument (e.g. ".l print("hi")").
+    if link:
+        stripped_link = link.strip()
+        if _looks_like_raw_code_snippet(stripped_link):
+            return stripped_link.encode("utf-8"), "snippet.lua", None
+
+
     # 1. Attachment in the current message.
     if ctx.message.attachments:
         att = ctx.message.attachments[0]
@@ -4731,6 +4780,18 @@ async def process_link(ctx, *, link=None):
 
     dumped,exec_ms,loops,lines,error=await run_dumper(content)
 
+    if error and content is not None:
+        try:
+            text_source = content.decode("utf-8", errors="ignore")
+            fixed_text = _run_heuristic_fix_pipeline(text_source)
+            if fixed_text and fixed_text != text_source:
+                fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, fixed_error = await run_dumper(fixed_text.encode("utf-8"))
+                if not fixed_error and fixed_dumped:
+                    dumped,exec_ms,loops,lines,error = fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, None
+                    content = fixed_text.encode("utf-8")
+        except Exception:
+            pass
+
     if error:
         await status.edit(content=f"{error}")
         return
@@ -4938,6 +4999,7 @@ def _run_heuristic_fix_pipeline(code: str) -> str:
     14. Remove excessive blank lines and trailing whitespace
     """
     code = _fix_lua_compat(code)
+    code = _fix_wearedevs_compat(code)
     code = _fix_for_missing_do(code)
     code = _fix_local_missing_assign(code)
     code = _fix_connect_end_parens(code)
@@ -5498,8 +5560,13 @@ def extract_links(text):
 def extract_first_url(text):
 
     m = re.search(r"https?://[^\s\"')]+", text)
-    return m.group(0) if m else None
-
+    if not m:
+        return None
+    url = m.group(0)
+    url = url.rstrip(""')])")
+    if url.endswith(") )()"):
+        url = url[:-4]
+    return url
 def get_filename_from_url(url):
 
     filename = url.split("/")[-1].split("?")[0]
@@ -7129,6 +7196,13 @@ async def _get_content(ctx, link=None):
         filename = f"codeblock.{lang if lang != 'lua' else 'lua'}"
         return codeblock.encode("utf-8"), filename, None
 
+    # 0.5. Raw code snippet passed directly as command argument (e.g. ".l print("hi")").
+    if link:
+        stripped_link = link.strip()
+        if _looks_like_raw_code_snippet(stripped_link):
+            return stripped_link.encode("utf-8"), "snippet.lua", None
+
+
     # 1. Attachment in the current message.
     if ctx.message.attachments:
         att = ctx.message.attachments[0]
@@ -7345,6 +7419,18 @@ async def process_link(ctx, *, link=None):
 
     dumped,exec_ms,loops,lines,error=await run_dumper(content)
 
+    if error and content is not None:
+        try:
+            text_source = content.decode("utf-8", errors="ignore")
+            fixed_text = _run_heuristic_fix_pipeline(text_source)
+            if fixed_text and fixed_text != text_source:
+                fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, fixed_error = await run_dumper(fixed_text.encode("utf-8"))
+                if not fixed_error and fixed_dumped:
+                    dumped,exec_ms,loops,lines,error = fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, None
+                    content = fixed_text.encode("utf-8")
+        except Exception:
+            pass
+
     if error:
         await status.edit(content=f"{error}")
         return
@@ -7552,6 +7638,7 @@ def _run_heuristic_fix_pipeline(code: str) -> str:
     14. Remove excessive blank lines and trailing whitespace
     """
     code = _fix_lua_compat(code)
+    code = _fix_wearedevs_compat(code)
     code = _fix_for_missing_do(code)
     code = _fix_local_missing_assign(code)
     code = _fix_connect_end_parens(code)
