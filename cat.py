@@ -80,9 +80,78 @@ class _FailedResponse:
     content = b""
 
 
+_LUNE_SCRIPT = '''local process = require("@lune/process")
+local net = require("@lune/net")
+
+local args = process.args
+local url = args[1] or ""
+
+if url == "" then
+    process.exit(1)
+end
+
+local response = net.request({
+    url = url,
+    method = "GET",
+    headers = {
+        ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        ["Accept-Language"] = "en-US,en;q=0.5",
+    },
+})
+
+if response.ok then
+    io.write(response.body)
+    process.exit(0)
+else
+    process.exit(1)
+end
+'''
+
+def _ensure_lune_script():
+    """Create the Lune fetch script if it doesn't exist."""
+    script_path = "fetch_lune.luau"
+    if not os.path.exists(script_path):
+        try:
+            with open(script_path, "w") as f:
+                f.write(_LUNE_SCRIPT)
+        except:
+            pass
+    return script_path
+
+def _requests_get_lune(url, **kwargs):
+    """Fetch URL using Lune (better at bypassing anti-bot detection)."""
+    try:
+        script_path = _ensure_lune_script()
+        result = subprocess.run(
+            ["lune", script_path, url],
+            capture_output=True,
+            timeout=kwargs.get("timeout", 8)
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            class _LuneResponse:
+                status_code = 200
+                content = result.stdout
+            return _LuneResponse()
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+        pass
+    
+    return _FailedResponse()
+
 def _requests_get(url, **kwargs):
-    """requests.get wrapper with browser-like headers to avoid HTTP 403."""
+    """requests.get wrapper with browser-like headers to avoid HTTP 403.
+    
+    Tries Lune first (better anti-bot bypass), falls back to requests library.
+    """
     kwargs.setdefault("timeout", 8)
+    
+    # Try Lune first
+    lune_resp = _requests_get_lune(url, **kwargs)
+    if lune_resp.status_code == 200:
+        return lune_resp
+    
+    # Fallback to requests
     default_headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -1690,15 +1759,93 @@ async def _fetch_reference_content(ctx):
     return None, None
 
 
+def _extract_codeblock(text: str):
+    """Extract code from a Discord codeblock (```lang code ``` or ``` code ```).
+    
+    Returns (code_content, detected_language) or (None, None) if no codeblock found.
+    """
+    if not text:
+        return None, None
+    
+    pattern = r"```(\w*)\n(.*?)\n```"
+    match = re.search(pattern, text, re.DOTALL)
+    
+    if match:
+        lang = match.group(1) or "lua"
+        code = match.group(2)
+        return code, lang
+    
+    pattern = r"```(.*?)```"
+    match = re.search(pattern, text, re.DOTALL)
+    if match:
+        code = match.group(1).strip()
+        return code, "lua"
+    
+    return None, None
+
+def _is_html(content: bytes) -> bool:
+    """Check if content is HTML based on common markers."""
+    try:
+        text = content.decode("utf-8", errors="ignore")[:5000]
+        return bool(re.search(r"<!DOCTYPE|<html|<head|<body|<script", text, re.IGNORECASE))
+    except:
+        return False
+
+def _extract_obfuscated_from_html(content: bytes) -> bytes | None:
+    """Extract obfuscated code from HTML (from script tags or common patterns).
+    
+    Returns extracted code as bytes, or None if no suitable code found.
+    """
+    try:
+        html_text = content.decode("utf-8", errors="ignore")
+    except:
+        return None
+    
+    # Look for script tags first
+    script_pattern = r"<script[^>]*>(.*?)</script>"
+    scripts = re.findall(script_pattern, html_text, re.DOTALL | re.IGNORECASE)
+    
+    if scripts:
+        for script in scripts:
+            script = script.strip()
+            if script and len(script) > 100:
+                # Filter out common meta/tracking scripts
+                if not any(x in script.lower() for x in ["google", "analytics", "tracking", "cdn.jsdelivr", "cloudflare"]):
+                    return script.encode("utf-8")
+    
+    # Look for data attributes or variables containing large amounts of code
+    # Pattern: var name = "...large string..."
+    data_pattern = r'(?:var|const|let)\s+(\w+)\s*=\s*["\']([a-zA-Z0-9+/=]{500,})["\']'
+    matches = re.findall(data_pattern, html_text)
+    
+    if matches:
+        for var_name, code in matches:
+            if len(code) > 500:
+                # Looks like base64 or encoded content
+                return code.encode("utf-8")
+    
+    # Last resort: look for large continuous strings that look obfuscated
+    # (contain mixed case, numbers, underscores - typical of minified/obfuscated code)
+    obf_pattern = r'["\']([a-zA-Z0-9_$]{1000,})["\']'
+    obf_matches = re.findall(obf_pattern, html_text)
+    
+    if obf_matches:
+        largest = max(obf_matches, key=len)
+        if len(largest) > 1000:
+            return largest.encode("utf-8")
+    
+    return None
+
 async def _get_content(ctx, link=None):
     """Resolve script content bytes + filename from the invoking message.
 
     Priority order:
-      1. Attachment attached to the current message.
-      2. Explicit URL provided as ``link``.
+      1. Codeblock in the current message.
+      2. Attachment attached to the current message.
+      3. Explicit URL provided as ``link``.
          If the URL download fails but the message is also a reply, falls back
-         to step 3 before giving up.
-      3. Attachment or URL found in the replied-to message.
+         to step 4 before giving up.
+      4. Attachment or URL found in the replied-to message.
 
     Returns ``(content, filename, error)`` where:
       - ``content`` is ``bytes`` on success, ``None`` on failure.
@@ -1706,6 +1853,12 @@ async def _get_content(ctx, link=None):
       - ``error`` is ``None`` on success, or a human-readable error string.
     """
     loop = asyncio.get_event_loop()
+
+    # 0. Codeblock in the current message (new priority).
+    codeblock, lang = _extract_codeblock(ctx.message.content)
+    if codeblock:
+        filename = f"codeblock.{lang if lang != 'lua' else 'lua'}"
+        return codeblock.encode("utf-8"), filename, None
 
     # 1. Attachment in the current message.
     if ctx.message.attachments:
@@ -1738,7 +1891,7 @@ async def _get_content(ctx, link=None):
     if ref_content:
         return ref_content, ref_filename or "file", None
 
-    return None, "file", "Provide a link, file, or reply to a message that contains one."
+    return None, "file", "Provide a codeblock, link, file, or reply to a message that contains one."
 
 # ---------------- PASTEFY ----------------
 def upload_to_pastefy(content, title="Dumped Script"):
@@ -2449,8 +2602,18 @@ async def get_link_content(ctx, *, link=None):
             await status.edit(content=err)
             return
 
-        if not filename.endswith(".txt"):
-            filename = os.path.splitext(filename)[0] + ".txt"
+        # If content is HTML, try to extract obfuscated code
+        if _is_html(content):
+            await status.edit(content="HTML detected, extracting obfuscated code...")
+            extracted = _extract_obfuscated_from_html(content)
+            if extracted:
+                content = extracted
+                filename = os.path.splitext(filename)[0] + "_extracted.txt"
+            else:
+                filename = os.path.splitext(filename)[0] + "_raw.html"
+        else:
+            if not filename.endswith(".txt"):
+                filename = os.path.splitext(filename)[0] + ".txt"
 
         await status.delete()
 
