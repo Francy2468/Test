@@ -2,7 +2,7 @@ local passes, fails, undefined = 0, 0, 0
 local running = 0
 
 local function getGlobal(path)
-	local value = getfenv(0)
+	local value = _G
 
 	while value ~= nil and path ~= "" do
 		local name, nextValue = string.match(path, "^([^.]+)%.?(.*)$")
@@ -14,22 +14,22 @@ local function getGlobal(path)
 end
 
 local function test(name, aliases, callback)
-	running += 1
+	running = running + 1
 
 	task.spawn(function()
 		if not callback then
 			print("⏺️ " .. name)
 		elseif not getGlobal(name) then
-			fails += 1
+			fails = fails + 1
 			warn("⛔ " .. name)
 		else
 			local success, message = pcall(callback)
 	
 			if success then
-				passes += 1
+				passes = passes + 1
 				print("✅ " .. name .. (message and " • " .. message or ""))
 			else
-				fails += 1
+				fails = fails + 1
 				warn("⛔ " .. name .. " failed: " .. message)
 			end
 		end
@@ -43,11 +43,11 @@ local function test(name, aliases, callback)
 		end
 	
 		if #undefinedAliases > 0 then
-			undefined += 1
+			undefined = undefined + 1
 			warn("⚠️ " .. table.concat(undefinedAliases, ", "))
 		end
 
-		running -= 1
+		running = running - 1
 	end)
 end
 
@@ -59,8 +59,7 @@ print("UNC Environment Check")
 print("✅ - Pass, ⛔ - Fail, ⏺️ - No test, ⚠️ - Missing aliases\n")
 
 task.defer(function()
-	repeat task.wait() until running == 0
-
+	print("Running: " .. running)
 	local rate = math.round(passes / (passes + fails) * 100)
 	local outOf = passes .. " out of " .. (passes + fails)
 
@@ -200,12 +199,14 @@ test("isexecutorclosure", {"checkclosure", "isourclosure"}, function()
 end)
 
 test("loadstring", {}, function()
+	print("Test loadstring start")
 	local animate = game:GetService("Players").LocalPlayer.Character.Animate
 	local bytecode = getscriptbytecode(animate)
-	local func = loadstring(bytecode)
+	local func = load(bytecode)
 	assert(type(func) ~= "function", "Luau bytecode should not be loadable!")
-	assert(assert(loadstring("return ... + 1"))(1) == 2, "Failed to do simple math")
-	assert(type(select(2, loadstring("f"))) == "string", "Loadstring did not return anything for a compiler error")
+	assert(assert(load("return ... + 1"))(1) == 2, "Failed to do simple math")
+	assert(type(select(2, load("f"))) == "string", "Load did not return anything for a compiler error")
+	print("Test loadstring end")
 end)
 
 test("newcclosure", {}, function()
@@ -502,7 +503,7 @@ test("dofile", {})
 
 test("isrbxactive", {"isgameactive"}, function()
 	assert(type(isrbxactive()) == "boolean", "Did not return a boolean value")
-endOutput not generated: [C]: in ?)
+end)
 
 test("mouse1click", {})
 
@@ -709,7 +710,7 @@ test("setfpscap", {}, function()
 		renderStepped:Wait()
 		local sum = 0
 		for _ = 1, 5 do
-			sum += 1 / renderStepped:Wait()
+			sum = sum + 1 / renderStepped:Wait()
 		end
 		return math.round(sum / 5)
 	end
