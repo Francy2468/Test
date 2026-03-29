@@ -21,6 +21,7 @@ TOKEN = "MTQ2MzU3Njk1MzgzNDQzODcyMA.Gz7LCU.UcPkQktILdYn8zaNetJE8YaLDnhuJ2quUp1lL
 
 PREFIX = "."
 DUMPER_PATH = "A7kP9xQ2LmZ4bR1c.lua"
+RENAMER_PATH = "./renamer"
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
 DUMP_TIMEOUT = 130  # Must exceed catlogger.lua TIMEOUT_SECONDS (120) to allow proper cleanup
@@ -2320,6 +2321,33 @@ _DARKLUA_OPTIONS = [
 ]
 
 
+def _run_renamer(code: str) -> tuple[str, str]:
+    """Execute renamer binary to rename poorly-structured variables in Lua code.
+    
+    Returns: (renamed_code, error_message)
+    """
+    try:
+        if not os.path.exists(RENAMER_PATH):
+            return code, "Renamer binary not found"
+        
+        result = subprocess.run(
+            [RENAMER_PATH],
+            input=code.encode("utf-8"),
+            capture_output=True,
+            timeout=15
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            return result.stdout.decode("utf-8", errors="ignore"), ""
+        else:
+            error = result.stderr.decode("utf-8", errors="ignore")
+            return code, f"Renamer failed: {error}" if error else "Renamer failed"
+    except subprocess.TimeoutExpired:
+        return code, "Renamer timeout (>15s)"
+    except Exception as e:
+        return code, f"Renamer error: {str(e)}"
+
+
 class _DarkluaView(discord.ui.View):
     """Interactive view for selecting and applying Lua code transformations."""
 
@@ -2538,6 +2566,76 @@ async def get_link_content(ctx, *, link=None):
 
     except discord.errors.DiscordServerError as e:
         print(f"Warning: Discord server error in get command: {e}")
+        try:
+            await status.edit(content=f"Discord error, please retry: {e}")
+        except discord.errors.HTTPException:
+            pass
+    except Exception as e:
+        try:
+            await status.edit(content=f"{e}")
+        except discord.errors.HTTPException:
+            pass
+
+# ---------------- COMMAND RENAME ----------------
+@bot.command(name="rename")
+async def rename_cmd(ctx, *, link=None):
+    """Rename poorly-structured variables using the renamer binary."""
+    try:
+        status = await _send_with_retry(lambda: ctx.send("downloading"))
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: failed to send status message: {e}")
+        return
+
+    try:
+        content, filename, err = await _get_content(ctx, link)
+        if err:
+            await status.edit(content=err)
+            return
+
+        lua_text = content.decode("utf-8", errors="ignore")
+
+        # Run renamer
+        renamed_code, renamer_err = await asyncio.get_event_loop().run_in_executor(
+            _executor, functools.partial(_run_renamer, lua_text)
+        )
+
+        if renamer_err:
+            await status.edit(content=f"Error: {renamer_err}")
+            return
+
+        out_filename = os.path.splitext(filename)[0] + "_renamed.lua"
+        preview = "\n".join(renamed_code.splitlines()[:PREVIEW_LINES])
+
+        embed = discord.Embed(
+            title="rename",
+            description=(
+                f"File: **{filename}**  •  {len(renamed_code):,} chars\n"
+                f"Variables renamed"
+            ),
+            color=0xFF6600,
+        )
+        embed.add_field(
+            name="Preview",
+            value=f"```lua\n{preview[:PREVIEW_MAX_CHARS]}\n```",
+            inline=False,
+        )
+        embed.set_footer(text="🐱")
+
+        await status.delete()
+
+        try:
+            await _send_with_retry(lambda: ctx.send(
+                embed=embed,
+                file=discord.File(
+                    io.BytesIO(renamed_code.encode("utf-8")),
+                    filename=out_filename,
+                ),
+            ))
+        except discord.errors.DiscordServerError as e:
+            print(f"Warning: failed to send rename result: {e}")
+
+    except discord.errors.DiscordServerError as e:
+        print(f"Warning: Discord server error in rename command: {e}")
         try:
             await status.edit(content=f"Discord error, please retry: {e}")
         except discord.errors.HTTPException:
