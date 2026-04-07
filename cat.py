@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ---------------- CONFIG ----------------
-TOKEN = "MTQ2MzU3Njk1MzgzNDQzODcyMA.Gz7LCU.UcPkQktILdYn8zaNetJE8YaLDnhuJ2quUp1lLk"
+TOKEN = ""
 
 PREFIX = "."
 DUMPER_PATH = "A7kP9xQ2LmZ4bR1c.lua"
