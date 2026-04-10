@@ -1568,6 +1568,30 @@ async def process_link(ctx, *, link=None):
         except Exception:
             pass
 
+    # Specific retry for 'control structure too long' -- split giant if/elseif chains
+    if error and "control structure too long" in error.lower() and content is not None:
+        try:
+            await status.edit(content="control structure too long -- splitting chains...")
+            text_source = content.decode("utf-8", errors="ignore")
+            fixed_text = _fix_control_structure_too_long(text_source)
+            if fixed_text != text_source:
+                fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, fixed_error = await run_dumper(
+                    fixed_text.encode("utf-8")
+                )
+                if not fixed_error and fixed_dumped:
+                    dumped, exec_ms, loops, lines, error = fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, None
+                    content = fixed_text.encode("utf-8")
+                elif fixed_error and "control structure too long" in (fixed_error or "").lower():
+                    # Still too long -- retry (multiple nested giant chains)
+                    fixed_text2 = _fix_control_structure_too_long(fixed_text)
+                    if fixed_text2 != fixed_text:
+                        fd2, fms2, fl2, fl2b, fe2 = await run_dumper(fixed_text2.encode("utf-8"))
+                        if not fe2 and fd2:
+                            dumped, exec_ms, loops, lines, error = fd2, fms2, fl2, fl2b, None
+                            content = fixed_text2.encode("utf-8")
+        except Exception:
+            pass
+
     if error:
         await status.edit(content=f"{error}")
         return
@@ -1708,6 +1732,140 @@ def _fix_wearedevs_compat(code: str) -> str:
     code = code.replace("end else if", "end\nelse if")
     code = re.sub(r"repeat\s+([^\n]+)\s+until\s+([^\n]+)", r"repeat\n    \1\nuntil \2", code)
     code = code.replace(")\"))()", "\"")
+    return code
+
+
+def _fix_control_structure_too_long(code: str) -> str:
+    """Fix Lua 'control structure too long near end' for large obfuscated scripts.
+
+    Lua's bytecode limits jump offsets to ~131 071 instructions. Large obfuscated
+    VM scripts (WeAreDevs, Luraph, IronBrew, etc.) use a giant state-machine
+    dispatch loop with hundreds of if/elseif branches that exceed this limit.
+
+    Strategy: find the indent level with the most elseif lines, locate the
+    if/end boundaries of that chain, then split it into groups of at most
+    SPLIT_SIZE branches. Each group after the first is wrapped in:
+
+        if not <flag> then
+            if <cond> then ...
+            elseif ...
+            end
+        end
+
+    A shared boolean flag ensures that once a branch fires the remaining groups
+    are skipped, preserving the original semantics exactly.
+    The function loops until no chain exceeds SPLIT_SIZE.
+    """
+    SPLIT_SIZE = 80
+    MAX_PASSES = 10
+
+    for _pass in range(MAX_PASSES):
+        lines = code.splitlines()
+        n = len(lines)
+
+        # ── Find indent level with the most elseif lines ──────────────────
+        by_indent: dict[str, list[int]] = {}
+        for i, line in enumerate(lines):
+            m = re.match(r'^(\s*)elseif\b', line)
+            if m:
+                by_indent.setdefault(m.group(1), []).append(i)
+
+        if not by_indent:
+            break
+
+        ind = max(by_indent, key=lambda k: len(by_indent[k]))
+        elseif_idxs = by_indent[ind]
+
+        if len(elseif_idxs) <= SPLIT_SIZE:
+            break
+
+        ind_len = len(ind)
+
+        # ── Find the 'if' that opens this chain ───────────────────────────
+        if_idx = None
+        for i in range(elseif_idxs[0] - 1, -1, -1):
+            if re.match(r'^' + re.escape(ind) + r'if\b', lines[i]):
+                if_idx = i
+                break
+        if if_idx is None:
+            break
+
+        # ── Find the 'end' that closes this chain ─────────────────────────
+        end_idx = None
+        depth = 0
+        for i in range(if_idx + 1, n):
+            raw = lines[i]
+            cur_len = len(raw) - len(raw.lstrip())
+            stripped = raw.strip()
+            if cur_len > ind_len:
+                if re.match(r'(?:if\b.*\bthen|for\b.*\bdo|while\b.*\bdo|repeat\b|function\b)\s*(?:--.*)?$', stripped):
+                    depth += 1
+                elif re.match(r'do\s*(?:--.*)?$', stripped):
+                    depth += 1
+                elif re.match(r'(?:end|until)\b', stripped):
+                    depth = max(0, depth - 1)
+            elif cur_len == ind_len and depth == 0:
+                if re.match(r'^' + re.escape(ind) + r'end\b', raw):
+                    end_idx = i
+                    break
+        if end_idx is None:
+            break
+
+        # ── Build split points (every SPLIT_SIZE-th elseif) ───────────────
+        split_set: set[int] = set()
+        for k in range(SPLIT_SIZE, len(elseif_idxs), SPLIT_SIZE):
+            split_set.add(elseif_idxs[k])
+        num_splits = len(split_set)
+
+        flag = f"_c_done_{if_idx}"
+
+        hdr_re = re.compile(
+            r'^' + re.escape(ind) + r'(?:if|elseif)\b.*\bthen\b\s*(?:--.*)?$'
+        )
+
+        # ── Rebuild with splits ────────────────────────────────────────────
+        result: list[str] = []
+        i = 0
+        while i < n:
+            raw = lines[i]
+
+            if i == if_idx:
+                result.append(f"{ind}local {flag} = false")
+                result.append(raw)
+                result.append(f"{ind}    {flag} = true")
+                i += 1
+                continue
+
+            if i in split_set:
+                result.append(f"{ind}end")
+                result.append(f"{ind}if not {flag} then")
+                new_hdr = re.sub(r'^(\s*)elseif\b', r'\1if', raw)
+                result.append(new_hdr)
+                result.append(f"{ind}    {flag} = true")
+                i += 1
+                continue
+
+            if i == end_idx:
+                result.append(raw)
+                for _ in range(num_splits):
+                    result.append(f"{ind}end")
+                i += 1
+                continue
+
+            # Insert flag=true after every other header in the chain
+            if (if_idx < i < end_idx
+                    and i not in split_set
+                    and hdr_re.match(raw)):
+                result.append(raw)
+                result.append(f"{ind}    {flag} = true")
+                i += 1
+                continue
+
+            result.append(raw)
+            i += 1
+
+        code = "\n".join(result)
+
     return code
 
 
