@@ -23,6 +23,8 @@ load_dotenv()
 TOKEN = ""
 
 PREFIX = "."
+ALLOWED_GUILD = 1442884507995869257
+CATMIO_INVITE  = "https://discord.gg/JzUgsbUFNp"
 DUMPER_PATH = "A7kP9xQ2LmZ4bR1c.lua"
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -1500,6 +1502,21 @@ async def run_dumper(lua_content):
 @bot.event
 async def on_ready():
     print(f"Logged as {bot.user} | Lua {_lua_interp} | -E {'yes' if _lua_has_E else 'no'}")
+
+
+@bot.check
+async def guild_only(ctx):
+    """Block all commands outside the allowed guild."""
+    if ctx.guild is None or ctx.guild.id != ALLOWED_GUILD:
+        try:
+            await ctx.send(
+                f"This bot is only available in the catmio server.\n"
+                f"Join here to use it: {CATMIO_INVITE}"
+            )
+        except discord.errors.Forbidden:
+            pass
+        return False
+    return True
 
 # ---------------- COMMAND .help ----------------
 @bot.command(name="help")
