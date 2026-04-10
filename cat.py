@@ -1568,6 +1568,22 @@ async def process_link(ctx, *, link=None):
         except Exception:
             pass
 
+    # Specific retry for 'end expected near elseif' -- remove broken else..end..elseif
+    if error and "'end' expected" in error.lower() and "elseif" in error.lower() and content is not None:
+        try:
+            await status.edit(content="'end' expected near elseif -- fixing broken else..end chains...")
+            text_source = content.decode("utf-8", errors="ignore")
+            fixed_text = _fix_else_end_elseif(text_source)
+            if fixed_text != text_source:
+                fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, fixed_error = await run_dumper(
+                    fixed_text.encode("utf-8")
+                )
+                if not fixed_error and fixed_dumped:
+                    dumped, exec_ms, loops, lines, error = fixed_dumped, fixed_exec_ms, fixed_loops, fixed_lines, None
+                    content = fixed_text.encode("utf-8")
+        except Exception:
+            pass
+
     # Specific retry for 'control structure too long' -- split giant if/elseif chains
     if error and "control structure too long" in error.lower() and content is not None:
         try:
@@ -1735,6 +1751,140 @@ def _fix_wearedevs_compat(code: str) -> str:
     return code
 
 
+
+def _fix_else_end_elseif(code: str) -> str:
+    """Fix 'end expected near elseif' caused by obfuscators that emit broken
+    ``else BODY end ; elseif`` patterns.
+
+    In Lua, once an if-statement has an ``else`` clause it is closed by the
+    subsequent ``end`` — no further ``elseif`` is allowed after that ``end``.
+    Several obfuscators (e.g. the rubis/IronBrew family) produce code like:
+
+        if Q <= 1 then
+            [body]
+            else [else-body]
+            end              -- closes the if/else completely
+        elseif Q <= 2 then   -- INVALID: if is already closed
+
+    The fix: for each ``else`` whose matching ``end`` is immediately followed by
+    ``elseif``, verify that the ``elseif`` has no open ``if`` to continue (i.e.
+    scanning backwards from ``elseif`` hits a non-``if`` block opener first).
+    If confirmed broken, remove the ``else`` keyword and that ``end`` keyword.
+
+    This check prevents false positives like:
+        if outer then if inner then A() else B() end elseif ...
+    where the ``else`` belongs to the inner ``if`` (valid Lua).
+
+    Loops until convergence because removing one layer can expose another.
+    """
+    OPENERS = ("if", "for", "while", "function", "do", "repeat")
+
+    def _tokenize(s: str):
+        kws = ["elseif", "else", "end", "until"] + list(OPENERS)
+        toks: list[tuple[int, str]] = []
+        i = 0
+        n = len(s)
+        while i < n:
+            ch = s[i]
+            if ch in ('"', "'"):
+                q = ch; i += 1
+                while i < n and s[i] != q:
+                    if s[i] == "\\": i += 1
+                    i += 1
+                i += 1
+                continue
+            if s[i:i+2] == "[[":
+                e = s.find("]]", i + 2)
+                i = (e + 2) if e != -1 else n
+                continue
+            if s[i:i+2] == "--":
+                if s[i+2:i+4] == "[[":
+                    e = s.find("]]", i + 4)
+                    i = (e + 2) if e != -1 else n
+                else:
+                    e = s.find("\n", i)
+                    i = (e + 1) if e != -1 else n
+                continue
+            for kw in kws:
+                if s[i:i+len(kw)] == kw:
+                    nxt = s[i+len(kw)] if i+len(kw) < n else " "
+                    prev = s[i-1] if i > 0 else " "
+                    if not (nxt.isalnum() or nxt == "_") and not (prev.isalnum() or prev == "_"):
+                        toks.append((i, kw))
+                        break
+            i += 1
+        return toks
+
+    def _elseif_has_open_if(toks: list, ei: int) -> bool:
+        """Return True if the elseif at token index ei has an open if to continue.
+
+        Scan backwards from ei. Track block depth (going backwards):
+          end/until  → b_depth++
+          opener kw  → b_depth--; if -1: found enclosing block
+        If the enclosing block is 'if', the elseif is valid (returns True).
+        If it's a non-if opener (for/while/function/do/repeat) or nothing, returns False.
+        """
+        b_depth = 0
+        for k in range(ei - 1, -1, -1):
+            _, kw = toks[k]
+            if kw in ("end", "until"):
+                b_depth += 1
+            elif kw in OPENERS:
+                b_depth -= 1
+                if b_depth == -1:
+                    return kw == "if"
+        return False  # no enclosing block found → broken
+
+    MAX_PASSES = 15
+    for _ in range(MAX_PASSES):
+        toks = _tokenize(code)
+        removals: set[tuple[int, int]] = set()  # (pos, kw_len)
+
+        for ti, (pos, kw) in enumerate(toks):
+            if kw != "else":
+                continue
+            # Scan forward to find the 'end' that closes this else's if-block
+            depth = 0
+            end_pos: int | None = None
+            end_ti: int | None = None
+            for j in range(ti + 1, len(toks)):
+                jpos, jkw = toks[j]
+                if jkw in OPENERS:
+                    depth += 1
+                elif jkw in ("end", "until"):
+                    if depth == 0:
+                        end_pos = jpos
+                        end_ti = j
+                        break
+                    depth -= 1
+            if end_pos is None:
+                continue
+            # Check if this end is immediately followed by elseif
+            after = code[end_pos + 3:].lstrip("; \t\r\n")
+            if not re.match(r"elseif\b", after):
+                continue
+            # Find the elseif token index that follows end_ti
+            elseif_ti: int | None = None
+            for j in range(end_ti + 1, len(toks)):
+                if toks[j][1] == "elseif":
+                    elseif_ti = j
+                    break
+            if elseif_ti is None:
+                continue
+            # Verify: scanning backwards from elseif, is there NO open if?
+            # If _elseif_has_open_if returns False → truly broken → remove
+            if not _elseif_has_open_if(toks, elseif_ti):
+                removals.add((pos, 4))       # remove 'else'
+                removals.add((end_pos, 3))   # remove 'end'
+
+        if not removals:
+            break
+        for pos, kw_len in sorted(removals, key=lambda x: -x[0]):
+            code = code[:pos] + code[pos + kw_len:]
+
+    return code
+
+
 def _fix_control_structure_too_long(code: str) -> str:
     """Fix Lua 'control structure too long near end' for large obfuscated scripts.
 
@@ -1872,6 +2022,7 @@ def _fix_control_structure_too_long(code: str) -> str:
 def _run_heuristic_fix_pipeline(code: str) -> str:
     code = _fix_lua_compat(code)
     code = _fix_wearedevs_compat(code)
+    code = _fix_else_end_elseif(code)
     code = _fix_for_missing_do(code)
     code = _fix_local_missing_assign(code)
     code = _fix_connect_end_parens(code)
