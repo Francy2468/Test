@@ -23,7 +23,7 @@ load_dotenv()
 TOKEN = ""
 
 PREFIX = "."
-ALLOWED_GUILD = {1442884507995869257, 1470477786471858421}
+ALLOWED_GUILDS = {1442884507995869257, 1470477786471858421}  # add more guild IDs here
 CATMIO_INVITE  = "https://discord.gg/JzUgsbUFNp"
 DUMPER_PATH = "A7kP9xQ2LmZ4bR1c.lua"
 
@@ -1507,7 +1507,7 @@ async def on_ready():
 @bot.check
 async def guild_only(ctx):
     """Block all commands outside the allowed guild."""
-    if ctx.guild is None or ctx.guild.id != ALLOWED_GUILD:
+    if ctx.guild is None or ctx.guild.id not in ALLOWED_GUILDS:
         try:
             await ctx.send(
                 f"This bot is only available in the catmio server.\n"
@@ -1517,6 +1517,15 @@ async def guild_only(ctx):
             pass
         return False
     return True
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    """Suppress CheckFailure (guild check) — message already sent in the check."""
+    if isinstance(error, commands.CheckFailure):
+        return
+    # Re-raise anything else so it still gets logged normally
+    raise error
 
 # ---------------- COMMAND .help ----------------
 @bot.command(name="help")
