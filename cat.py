@@ -19,40 +19,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ---------------- LOGGING ----------------
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger("catmio")
+
 # ---------------- CONFIG ----------------
 TOKEN = ""
 
 PREFIX = "."
-OWNER_ID = 209741563213905920
+ALLOWED_GUILDS = {1442884507995869257, 1470477786471858421, 1477780396874924073}  # add more guild IDs here
 CATMIO_INVITE  = "https://discord.gg/JzUgsbUFNp"
-
-# ---------------- PERSISTENCIA ----------------
-import json
-
-_DATA_FILE = "bot_data.json"
-
-def _load_data() -> dict:
-    if os.path.exists(_DATA_FILE):
-        try:
-            with open(_DATA_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"allowed_guilds": [], "blacklisted_users": []}
-
-def _save_data():
-    try:
-        with open(_DATA_FILE, "w") as f:
-            json.dump({
-                "allowed_guilds": list(ALLOWED_GUILDS),
-                "blacklisted_users": list(BLACKLISTED_USERS),
-            }, f)
-    except Exception as e:
-        print(f"[data] error guardando datos: {e}")
-
-_data = _load_data()
-ALLOWED_GUILDS: set[int] = set(_data["allowed_guilds"])
-BLACKLISTED_USERS: set[int] = set(_data["blacklisted_users"])
 DUMPER_PATH = "A7kP9xQ2LmZ4bR1c.lua"
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -1530,29 +1512,21 @@ async def run_dumper(lua_content):
 @bot.event
 async def on_ready():
     print(f"Logged as {bot.user} | Lua {_lua_interp} | -E {'yes' if _lua_has_E else 'no'}")
+    log.info("Ready: %s | guilds=%d | lua=%s -E=%s", bot.user, len(bot.guilds), _lua_interp, _lua_has_E)
 
 
 @bot.check
-async def global_check(ctx):
-    if ctx.author.id == OWNER_ID:
-        return True
-
-    if ctx.author.id in BLACKLISTED_USERS:
-        try:
-            await ctx.send("you can't use the bot because you are blacklisted.")
-        except discord.errors.Forbidden:
-            pass
-        return False
-
+async def guild_only(ctx):
+    """Block all commands outside the allowed guild."""
     if ctx.guild is None or ctx.guild.id not in ALLOWED_GUILDS:
         try:
             await ctx.send(
-                f"to use the bot in order join the server or you can ask permissions to the owner bot in the server: {CATMIO_INVITE}"
+                f"This bot is only available in the catmio server.\n"
+                f"Join here to use it: {CATMIO_INVITE}"
             )
         except discord.errors.Forbidden:
             pass
         return False
-
     return True
 
 
@@ -1560,54 +1534,11 @@ async def global_check(ctx):
 async def on_command_error(ctx, error):
     """Suppress CheckFailure (guild check) — message already sent in the check."""
     if isinstance(error, commands.CheckFailure):
+        log.info("Guild check blocked %s guild=%s cmd=%s",
+                 ctx.author, ctx.guild.id if ctx.guild else "DM", ctx.command)
         return
-    # Re-raise anything else so it still gets logged normally
+    log.error("Unhandled error cmd=%s user=%s: %s", ctx.command, ctx.author, error, exc_info=error)
     raise error
-
-# ---------------- COMANDOS DE ADMIN (solo OWNER_ID) ----------------
-
-def _owner_only(ctx):
-    return ctx.author.id == OWNER_ID
-
-@bot.command(name="allowguild")
-async def allow_guild_cmd(ctx, guild_id: int = None):
-    if not _owner_only(ctx):
-        return
-    if guild_id is None:
-        await ctx.send("usage: `.allowguild <server id>`")
-        return
-    ALLOWED_GUILDS.add(guild_id)
-    _save_data()
-    await ctx.send(f"server `{guild_id}` added to the allowed list.")
-
-@bot.command(name="blacklist")
-async def blacklist_cmd(ctx, user_id: int = None):
-    if not _owner_only(ctx):
-        return
-    if user_id is None:
-        await ctx.send("usage: `.blacklist <user id>`")
-        return
-    if user_id == OWNER_ID:
-        await ctx.send("you cannot blacklist yourself.")
-        return
-    BLACKLISTED_USERS.add(user_id)
-    _save_data()
-    await ctx.send(f"user `{user_id}` added to the blacklist.")
-
-@bot.command(name="unblacklist")
-async def unblacklist_cmd(ctx, user_id: int = None):
-    if not _owner_only(ctx):
-        return
-    if user_id is None:
-        await ctx.send("usage: `.unblacklist <user id>`")
-        return
-    if user_id in BLACKLISTED_USERS:
-        BLACKLISTED_USERS.discard(user_id)
-        _save_data()
-        await ctx.send(f"user `{user_id}` removed from the blacklist.")
-    else:
-        await ctx.send(f"user `{user_id}` was not in the blacklist.")
-
 
 # ---------------- COMMAND .help ----------------
 @bot.command(name="help")
@@ -1633,9 +1564,11 @@ async def show_help(ctx):
 @bot.command(name="l")
 async def process_link(ctx, *, link=None):
 
+    log.info(".l user=%s guild=%s", ctx.author, ctx.guild.id if ctx.guild else "DM")
     # Rate limit check
     remaining = _check_rate_limit(ctx.author.id)
     if remaining > 0:
+        log.info("Rate limited user=%s cmd=%s remaining=%.1fs", ctx.author, ctx.command, remaining)
         try:
             await ctx.send(f"slow down, wait {remaining:.1f}s")
         except discord.errors.DiscordServerError:
@@ -1717,6 +1650,7 @@ async def process_link(ctx, *, link=None):
             pass
 
     if error:
+        log.warning(".l dump failed user=%s: %s", ctx.author, error)
         await status.edit(content=f"{error}")
         return
 
@@ -1750,6 +1684,8 @@ async def process_link(ctx, *, link=None):
     except discord.errors.HTTPException as e:
         print(f"Warning: failed to delete status message: {e}")
 
+    log.info(".l done user=%s file=%s size=%d exec=%.0fms paste=%s",
+             ctx.author, original_filename, len(dumped_text), exec_ms, raw or "none")
     msg_content = f"done in {exec_ms:.2f}ms"
     if raw:
         msg_content += f" | {raw}"
@@ -2154,6 +2090,7 @@ async def beautify(ctx, *, link=None):
 
     remaining = _check_rate_limit(ctx.author.id)
     if remaining > 0:
+        log.info("Rate limited user=%s cmd=%s remaining=%.1fs", ctx.author, ctx.command, remaining)
         try:
             await ctx.send(f"slow down, wait {remaining:.1f}s")
         except discord.errors.DiscordServerError:
@@ -2171,6 +2108,7 @@ async def beautify(ctx, *, link=None):
         await status.edit(content=err)
         return
 
+    log.info(".bf user=%s guild=%s file=%s", ctx.author, ctx.guild.id if ctx.guild else "DM", original_filename)
     lua_text = content.decode("utf-8", errors="ignore")
 
     loop = asyncio.get_event_loop()
@@ -2189,6 +2127,7 @@ async def beautify(ctx, *, link=None):
     except discord.errors.HTTPException as e:
         print(f"Warning: failed to delete status message: {e}")
 
+    log.info(".bf done user=%s file=%s paste=%s", ctx.author, original_filename, raw or "none")
     msg_content = "beautified"
     if raw:
         msg_content += f" | {raw}"
@@ -2349,6 +2288,8 @@ class _DarkluaView(discord.ui.View):
         labels = ", ".join(
             o.label for o in _DARKLUA_OPTIONS if o.value in selected_set
         )
+        log.info(".darklua applied [%s] user=%s file=%s paste=%s",
+                 labels, interaction.user, self.filename, raw or "none")
         out_filename = os.path.splitext(self.filename)[0] + "_darklua.lua"
 
         embed = discord.Embed(
@@ -2384,6 +2325,7 @@ async def darklua_cmd(ctx, *, link=None):
 
     remaining = _check_rate_limit(ctx.author.id)
     if remaining > 0:
+        log.info("Rate limited user=%s cmd=%s remaining=%.1fs", ctx.author, ctx.command, remaining)
         try:
             await ctx.send(f"slow down, wait {remaining:.1f}s")
         except discord.errors.DiscordServerError:
@@ -2405,6 +2347,8 @@ async def darklua_cmd(ctx, *, link=None):
         return
 
     lua_text = content.decode("utf-8", errors="ignore")
+    log.info(".darklua user=%s guild=%s file=%s size=%d", ctx.author,
+             ctx.guild.id if ctx.guild else "DM", filename, len(lua_text))
 
     view = _DarkluaView(lua_text, filename, ctx.author.id)
 
@@ -2446,9 +2390,12 @@ async def get_link_content(ctx, *, link=None):
             url = extract_first_url(link) or link
             safe, reason = _is_safe_url(url)
             if not safe:
+                log.warning(".get SSRF blocked user=%s url=%s reason=%s", ctx.author, url, reason)
                 await status.edit(content=f"Blocked URL: {reason}")
                 return
 
+        log.info(".get user=%s guild=%s link=%s", ctx.author,
+                 ctx.guild.id if ctx.guild else "DM", link or "(attachment/reply)")
         content, filename, err = await _get_content(ctx, link)
         if err:
             await status.edit(content=err)
