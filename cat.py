@@ -1534,25 +1534,20 @@ async def on_ready():
 
 @bot.check
 async def global_check(ctx):
-    """Bloquea comandos fuera de guilds permitidos o a usuarios en blacklist."""
-    # Comandos de admin del owner siempre pasan (excepto blacklist check propio)
     if ctx.author.id == OWNER_ID:
         return True
 
-    # Usuarios en blacklist no pueden usar nada
     if ctx.author.id in BLACKLISTED_USERS:
         try:
-            await ctx.send("no tienes permiso para usar este bot.")
+            await ctx.send("you can't use the bot because you are blacklisted.")
         except discord.errors.Forbidden:
             pass
         return False
 
-    # Solo guilds permitidos
     if ctx.guild is None or ctx.guild.id not in ALLOWED_GUILDS:
         try:
             await ctx.send(
-                f"Este bot no está disponible en este servidor.\n"
-                f"Únete aquí para usarlo: {CATMIO_INVITE}"
+                f"to use the bot in order join the server or you can ask permissions to the owner bot in the server: {CATMIO_INVITE}"
             )
         except discord.errors.Forbidden:
             pass
@@ -1576,45 +1571,42 @@ def _owner_only(ctx):
 
 @bot.command(name="allowguild")
 async def allow_guild_cmd(ctx, guild_id: int = None):
-    """Permite que el bot funcione en un servidor. Solo el owner puede usarlo."""
     if not _owner_only(ctx):
         return
     if guild_id is None:
-        await ctx.send("uso: `.allowguild <server id>`")
+        await ctx.send("usage: `.allowguild <server id>`")
         return
     ALLOWED_GUILDS.add(guild_id)
     _save_data()
-    await ctx.send(f"servidor `{guild_id}` añadido a la lista de permitidos.")
+    await ctx.send(f"server `{guild_id}` added to the allowed list.")
 
 @bot.command(name="blacklist")
 async def blacklist_cmd(ctx, user_id: int = None):
-    """Bloquea a un usuario de usar el bot. Solo el owner puede usarlo."""
     if not _owner_only(ctx):
         return
     if user_id is None:
-        await ctx.send("uso: `.blacklist <user id>`")
+        await ctx.send("usage: `.blacklist <user id>`")
         return
     if user_id == OWNER_ID:
-        await ctx.send("no puedes bloquearte a ti mismo.")
+        await ctx.send("you cannot blacklist yourself.")
         return
     BLACKLISTED_USERS.add(user_id)
     _save_data()
-    await ctx.send(f"usuario `{user_id}` añadido a la blacklist.")
+    await ctx.send(f"user `{user_id}` added to the blacklist.")
 
 @bot.command(name="unblacklist")
 async def unblacklist_cmd(ctx, user_id: int = None):
-    """Elimina a un usuario de la blacklist. Solo el owner puede usarlo."""
     if not _owner_only(ctx):
         return
     if user_id is None:
-        await ctx.send("uso: `.unblacklist <user id>`")
+        await ctx.send("usage: `.unblacklist <user id>`")
         return
     if user_id in BLACKLISTED_USERS:
         BLACKLISTED_USERS.discard(user_id)
         _save_data()
-        await ctx.send(f"usuario `{user_id}` eliminado de la blacklist.")
+        await ctx.send(f"user `{user_id}` removed from the blacklist.")
     else:
-        await ctx.send(f"el usuario `{user_id}` no estaba en la blacklist.")
+        await ctx.send(f"user `{user_id}` was not in the blacklist.")
 
 
 # ---------------- COMMAND .help ----------------
