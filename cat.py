@@ -23,8 +23,36 @@ load_dotenv()
 TOKEN = ""
 
 PREFIX = "."
-ALLOWED_GUILDS = {1442884507995869257, 1470477786471858421, 1477780396874924073}  # add more guild IDs here
+OWNER_ID = 209741563213905920
 CATMIO_INVITE  = "https://discord.gg/JzUgsbUFNp"
+
+# ---------------- PERSISTENCIA ----------------
+import json
+
+_DATA_FILE = "bot_data.json"
+
+def _load_data() -> dict:
+    if os.path.exists(_DATA_FILE):
+        try:
+            with open(_DATA_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"allowed_guilds": [], "blacklisted_users": []}
+
+def _save_data():
+    try:
+        with open(_DATA_FILE, "w") as f:
+            json.dump({
+                "allowed_guilds": list(ALLOWED_GUILDS),
+                "blacklisted_users": list(BLACKLISTED_USERS),
+            }, f)
+    except Exception as e:
+        print(f"[data] error guardando datos: {e}")
+
+_data = _load_data()
+ALLOWED_GUILDS: set[int] = set(_data["allowed_guilds"])
+BLACKLISTED_USERS: set[int] = set(_data["blacklisted_users"])
 DUMPER_PATH = "A7kP9xQ2LmZ4bR1c.lua"
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -1505,17 +1533,31 @@ async def on_ready():
 
 
 @bot.check
-async def guild_only(ctx):
-    """Block all commands outside the allowed guild."""
+async def global_check(ctx):
+    """Bloquea comandos fuera de guilds permitidos o a usuarios en blacklist."""
+    # Comandos de admin del owner siempre pasan (excepto blacklist check propio)
+    if ctx.author.id == OWNER_ID:
+        return True
+
+    # Usuarios en blacklist no pueden usar nada
+    if ctx.author.id in BLACKLISTED_USERS:
+        try:
+            await ctx.send("no tienes permiso para usar este bot.")
+        except discord.errors.Forbidden:
+            pass
+        return False
+
+    # Solo guilds permitidos
     if ctx.guild is None or ctx.guild.id not in ALLOWED_GUILDS:
         try:
             await ctx.send(
-                f"This bot is only available in the catmio server.\n"
-                f"Join here to use it: {CATMIO_INVITE}"
+                f"Este bot no está disponible en este servidor.\n"
+                f"Únete aquí para usarlo: {CATMIO_INVITE}"
             )
         except discord.errors.Forbidden:
             pass
         return False
+
     return True
 
 
@@ -1526,6 +1568,54 @@ async def on_command_error(ctx, error):
         return
     # Re-raise anything else so it still gets logged normally
     raise error
+
+# ---------------- COMANDOS DE ADMIN (solo OWNER_ID) ----------------
+
+def _owner_only(ctx):
+    return ctx.author.id == OWNER_ID
+
+@bot.command(name="allowguild")
+async def allow_guild_cmd(ctx, guild_id: int = None):
+    """Permite que el bot funcione en un servidor. Solo el owner puede usarlo."""
+    if not _owner_only(ctx):
+        return
+    if guild_id is None:
+        await ctx.send("uso: `.allowguild <server id>`")
+        return
+    ALLOWED_GUILDS.add(guild_id)
+    _save_data()
+    await ctx.send(f"servidor `{guild_id}` añadido a la lista de permitidos.")
+
+@bot.command(name="blacklist")
+async def blacklist_cmd(ctx, user_id: int = None):
+    """Bloquea a un usuario de usar el bot. Solo el owner puede usarlo."""
+    if not _owner_only(ctx):
+        return
+    if user_id is None:
+        await ctx.send("uso: `.blacklist <user id>`")
+        return
+    if user_id == OWNER_ID:
+        await ctx.send("no puedes bloquearte a ti mismo.")
+        return
+    BLACKLISTED_USERS.add(user_id)
+    _save_data()
+    await ctx.send(f"usuario `{user_id}` añadido a la blacklist.")
+
+@bot.command(name="unblacklist")
+async def unblacklist_cmd(ctx, user_id: int = None):
+    """Elimina a un usuario de la blacklist. Solo el owner puede usarlo."""
+    if not _owner_only(ctx):
+        return
+    if user_id is None:
+        await ctx.send("uso: `.unblacklist <user id>`")
+        return
+    if user_id in BLACKLISTED_USERS:
+        BLACKLISTED_USERS.discard(user_id)
+        _save_data()
+        await ctx.send(f"usuario `{user_id}` eliminado de la blacklist.")
+    else:
+        await ctx.send(f"el usuario `{user_id}` no estaba en la blacklist.")
+
 
 # ---------------- COMMAND .help ----------------
 @bot.command(name="help")
