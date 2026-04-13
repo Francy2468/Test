@@ -51,6 +51,8 @@ local CFG = {
     CONSTANT_COLLECTION      = true,
     UI_PATTERN_MATCHING      = true,
     CONSTANT_FOLD            = true,
+    -- How many Lua VM instructions between each timeout check.
+    INSTRUCTION_HOOK_COUNT   = 1000,
 }
 
 -- ============================================================
@@ -921,7 +923,9 @@ local function bw_xor(a, b)
     return result
 end
 
-local MASK32 = 4294967295  -- 0xFFFFFFFF
+local MASK32     = 4294967295  -- 0xFFFFFFFF (2^32 - 1)
+local MASK32_MOD = 4294967296  -- 0x100000000 (2^32), used for modular arithmetic
+local BIT31      = 2147483648  -- 0x80000000 (1 << 31), MSB of a 32-bit integer
 
 local function bw_not(a)
     return bw_xor(a, MASK32)
@@ -970,7 +974,7 @@ local function bw_countlz(a)
     if a == 0 then return 32 end
     a = bw_and(a, MASK32)
     local count = 0
-    local mask  = 2147483648  -- 1 << 31
+    local mask  = BIT31
     while bw_and(a, mask) == 0 do
         count = count + 1
         mask  = math.floor(mask / 2)
@@ -1551,14 +1555,17 @@ local DateTime = {
 }
 
 local function make_Random(seed)
+    -- LCG parameters (Numerical Recipes: multiplier 1664525, increment 1013904223)
+    local LCG_MULTIPLIER = 1664525
+    local LCG_INCREMENT  = 1013904223
     local rng_state = seed or os.time()
     local function lcg()
-        rng_state = (rng_state * 1664525 + 1013904223) % 4294967296
+        rng_state = (rng_state * LCG_MULTIPLIER + LCG_INCREMENT) % MASK32_MOD
         return rng_state
     end
     local r = {}
     r.NextNumber  = function(self, lo, hi)
-        local n = lcg() / 4294967296
+        local n = lcg() / MASK32_MOD
         if lo and hi then return lo + n * (hi - lo) end
         return n
     end
@@ -2374,7 +2381,7 @@ local function catmio_run(source)
         -- Execute with instruction cap
         local exec_ok, exec_err
         if debug and debug.sethook then
-            debug.sethook(instruction_hook, "", 1000)
+            debug.sethook(instruction_hook, "", CFG.INSTRUCTION_HOOK_COUNT)
         end
 
         exec_ok, exec_err = pcall(chunk)
