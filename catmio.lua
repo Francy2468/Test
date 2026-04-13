@@ -2314,7 +2314,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'IronBrew2',
         description = 'VM-based Lua obfuscator using custom bytecode and instruction dispatch',
         patterns = {
-            "local\s+IB2\s*=",
+            "local%s+IB2%s*=",
             "--\[\[IronBrew",
             "string\.byte.*string\.char.*for.*%+.*256",
             "getfenv%(0%)%.script",
