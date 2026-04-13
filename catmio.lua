@@ -330,6 +330,10 @@ local CFG = {
     PASS_REMOVE_JUNK           = true,
     PASS_RENAME_VARS           = false,
     CONSTANT_FOLD              = true,
+    -- Emit the deobfuscated source code (after all anti-obf passes) in the report
+    DUMP_DEOBF_SOURCE          = true,
+    -- Maximum bytes of deobfuscated source to inline in the report (0 = no limit)
+    DUMP_DEOBF_MAX_BYTES       = 0,
 
     -- ── Bytecode analysis ────────────────────────────────────────────────
     ANALYZE_BYTECODE           = true,
@@ -6355,6 +6359,19 @@ function CatMio.run(source)
     end
     emit_blank()
     emit_banner("END OF CATMIO ANALYSIS")
+    -- Deobfuscated source (after all anti-obf passes)
+    if CFG.DUMP_DEOBF_SOURCE and deobf and #deobf > 0 then
+        local sep = string.rep("=", 60)
+        local deobf_out = deobf
+        if CFG.DUMP_DEOBF_MAX_BYTES and CFG.DUMP_DEOBF_MAX_BYTES > 0 and #deobf_out > CFG.DUMP_DEOBF_MAX_BYTES then
+            deobf_out = string.sub(deobf_out, 1, CFG.DUMP_DEOBF_MAX_BYTES)
+                .. "\n-- [CATMIO] ... (truncated at " .. CFG.DUMP_DEOBF_MAX_BYTES .. " bytes)"
+        end
+        table.insert(output_buffer, "\n-- " .. sep)
+        table.insert(output_buffer, "--  DEOBFUSCATED SOURCE (anti-obf passes applied)")
+        table.insert(output_buffer, "-- " .. sep)
+        table.insert(output_buffer, deobf_out)
+    end
     flush_rep()
     return table.concat(output_buffer, "\n")
 end
@@ -6468,10 +6485,12 @@ CatMio.VM_SIGS = VM_BOUNDARY_SIGS
 
 -- ============================================================
 --  STANDALONE ENTRY POINT
---  When invoked directly as: lua catmio.lua <input> [output]
+--  When invoked directly as: lua catmio.lua <input> [output] [deobf_output]
 --  Reads the source from arg[1], writes the analysis report to
 --  arg[2] (or CFG.OUTPUT_FILE), and prints stats to stdout so
 --  that cat.py can parse "Lines:" and "Loops:".
+--  If arg[3] is provided, writes the deobfuscated source separately to that
+--  path and disables inline DUMP_DEOBF_SOURCE in the main report.
 -- ============================================================
 if arg and arg[1] then
     local f = io.open(arg[1], "rb")
@@ -6481,6 +6500,13 @@ if arg and arg[1] then
     end
     local source = f:read("*a")
     f:close()
+
+    -- If a separate deobf output path is given, suppress inline embedding so
+    -- the main report stays compact and the deobf source is in its own file.
+    local deobf_path = arg[3]
+    if deobf_path then
+        CFG.DUMP_DEOBF_SOURCE = false
+    end
 
     local report = CatMio.run(source)
 
@@ -6492,6 +6518,20 @@ if arg and arg[1] then
     end
     out:write(report)
     out:close()
+
+    -- Write deobfuscated source to its own file when arg[3] is supplied
+    if deobf_path then
+        local deobf_src = CatMio.apply_deobf_passes(source)
+        if deobf_src and #deobf_src > 0 then
+            local df = io.open(deobf_path, "wb")
+            if df then
+                df:write(deobf_src)
+                df:close()
+            else
+                io.stderr:write("[CATMIO] Cannot open deobf output file: " .. tostring(deobf_path) .. "\n")
+            end
+        end
+    end
 
     -- Print stats in the format cat.py expects
     print(string.format("Lines: %d | Loops: %d", state.output_lines, state.loop_counter))
