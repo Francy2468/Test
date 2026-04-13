@@ -7670,29 +7670,26 @@ local function _run_string_extractors(source)
 end
 
 -- Append pool entries as Lua comments into the report table.
-local function _emit_pool_section(report, pool, label, var_hint)
+-- Emit pool entries as actual Lua local declarations (no comment clutter).
+-- prefix: short variable prefix, e.g. "_s" → _s_4 = "GetEnumItems"
+local function _emit_pool_as_locals(report, pool, prefix)
     if not pool or not pool.strings or #pool.strings==0 then return end
-    table.insert(report, string.format("-- [%s] %d strings decoded (var: %s)",
-        label, #pool.strings, tostring(pool.var_name or var_hint or "?")))
-    local max_show = #pool.strings  -- show all decoded strings
-    for i = 1, max_show do
+    for i = 1, #pool.strings do
         local entry = pool.strings[i]
-        if type(entry)=="table" then
-            local s = tostring(entry.val or "")
-            if entry.binary then
-                local hex = s:gsub(".", function(c) return string.format("\\x%02x",string.byte(c)) end)
-                table.insert(report, string.format("-- [%4d] (binary) %s", entry.idx or i, hex))
-            else
-                table.insert(report, string.format("-- [%4d] %s", entry.idx or i, s))
-            end
-        elseif type(entry)=="string" then
-            table.insert(report, string.format("-- [%4d] %s", i, entry))
+        local idx   = (type(entry)=="table" and entry.idx) or i
+        local val   = (type(entry)=="table" and entry.val) or entry
+        local is_bin= type(entry)=="table" and entry.binary
+        if is_bin then
+            local hex = tostring(val):gsub(".", function(c)
+                return string.format("\\%d", string.byte(c))
+            end)
+            table.insert(report, string.format('local %s_%d = "%s"', prefix, idx, hex))
+        elseif type(val)=="string" and #val>0 then
+            -- escape backslashes and double-quotes
+            local escaped = val:gsub("\\","\\\\"):gsub('"','\\"')
+            table.insert(report, string.format('local %s_%d = "%s"', prefix, idx, escaped))
         end
     end
-    if #pool.strings > max_show then
-        table.insert(report, string.format("-- ... (%d more strings)", #pool.strings - max_show))
-    end
-    table.insert(report, "")
 end
 
 -- Core implementation used by both dump_string and dump_file.
@@ -7704,90 +7701,31 @@ local function _do_dump(source)
     local report = {}
     local function _rpt(line) table.insert(report, line) end
 
-    _rpt("-- ============================================================")
+    -- Only header comment; everything else is actual Lua code.
     _rpt("-- generated with catmio | https://discord.gg/cq9GkRKX2V")
-    _rpt("-- ============================================================")
-    _rpt("")
 
-    -- 1. String extractors on raw source
+    -- 1. Run string extractors on raw source
     _run_string_extractors(source)
 
-    -- 2. Static analysis
-    local obf_name, _, vm_sigs = detect_obfuscator(source)
-    local obf_score, score_details = score_obfuscation(source)
-    local risk, risk_flags       = compute_risk_score(source, obf_score)
-    local bc                     = analyse_bytecode_header(source)
-    local antidebug_det          = detect_antidebug(source)
-    local persist_det            = detect_persistence(source)
-    local keylog_det             = detect_keylogging(source)
-    local exfil_det              = detect_exfiltration(source)
-    local sandbox_esc            = detect_sandbox_escape(source)
-
-    _rpt("-- STATIC ANALYSIS RESULTS")
-    _rpt("-- Obfuscator      : " .. (obf_name or "not detected"))
-    _rpt("-- Obfusc. score   : " .. string.format("%.4f / 1.0000", obf_score))
-    _rpt("-- Risk score      : " .. risk .. " / 100")
-    _rpt("-- VM signatures   : " .. (vm_sigs or 0))
-    _rpt("-- Source length   : " .. #source .. " bytes")
-    _rpt("-- Entropy         : " .. string.format("%.4f bits", shannon_entropy(source)))
-    if bc and bc.is_bytecode then
-        _rpt("-- Bytecode type   : " .. (bc.version or "unknown"))
-        _rpt("-- Endianness      : " .. (bc.endianness or "?"))
-    end
-    _rpt("")
-
-    if #risk_flags > 0 then
-        _rpt("-- RISK FLAGS")
-        for _, f in ipairs(risk_flags) do
-            _rpt("-- [" .. string.upper(f.category) .. "] " .. f.desc .. " (+" .. f.weight .. ")")
-        end
-        _rpt("")
-    end
-    if #antidebug_det > 0 then _rpt("-- ANTI-DEBUG: " .. table.concat(antidebug_det, ", ")) end
-    if #persist_det   > 0 then _rpt("-- PERSISTENCE: " .. table.concat(persist_det, ", ")) end
-    if #keylog_det    > 0 then _rpt("-- KEYLOGGING: " .. table.concat(keylog_det, ", ")) end
-    if #exfil_det     > 0 then _rpt("-- EXFILTRATION: " .. table.concat(exfil_det, ", ")) end
-    if #sandbox_esc   > 0 then _rpt("-- SANDBOX-ESCAPE: " .. table.concat(sandbox_esc, ", ")) end
-    _rpt("")
-
-    -- 3. String pool sections
+    -- 2. Emit decoded string pools as Lua local declarations
+    --    WAD pool uses prefix "_w", generic-wrapper uses "_s", others follow.
     if _dyn_wad_pool then
-        _rpt("-- ============================================================")
-        _rpt("-- WEAREDEVS DECODED STRING TABLE")
-        _rpt("-- ============================================================")
-        _emit_pool_section(report, _dyn_wad_pool, "WAD", "w")
+        _emit_pool_as_locals(report, _dyn_wad_pool, "_w")
     end
     if _dyn_xor_pool then
-        _rpt("-- ============================================================")
-        _rpt("-- XOR-DECRYPTED STRING TABLE")
-        _rpt("-- ============================================================")
-        _emit_pool_section(report, _dyn_xor_pool, "XOR", _dyn_xor_pool.fn)
+        _emit_pool_as_locals(report, _dyn_xor_pool, "_x")
     end
     if _dyn_k0lrot_pool then
-        _rpt("-- ============================================================")
-        _rpt(string.format("-- %s DECODED STRING TABLE",
-            string.upper(_dyn_k0lrot_pool.label or "GENERIC-WRAPPER")))
-        _rpt("-- ============================================================")
-        _emit_pool_section(report, _dyn_k0lrot_pool, _dyn_k0lrot_pool.label or "generic", _dyn_k0lrot_pool.var_name)
+        _emit_pool_as_locals(report, _dyn_k0lrot_pool, "_s")
     end
     if _dyn_lc_pool then
-        _rpt("-- ============================================================")
-        _rpt("-- LIGHTCATE DECODED STRING TABLE")
-        _rpt("-- ============================================================")
-        _emit_pool_section(report, _dyn_lc_pool, "Lightcate", _dyn_lc_pool.var_name)
+        _emit_pool_as_locals(report, _dyn_lc_pool, "_lc")
     end
     if _dyn_prom_pool then
-        _rpt("-- ============================================================")
-        _rpt("-- PROMETHEUS DECODED STRING TABLE")
-        _rpt("-- ============================================================")
-        _emit_pool_section(report, _dyn_prom_pool, "Prometheus", _dyn_prom_pool.var_name)
+        _emit_pool_as_locals(report, _dyn_prom_pool, "_p")
     end
 
-    -- 4. Dynamic execution
-    _rpt("-- ============================================================")
-    _rpt("-- DYNAMIC EXECUTION RESULTS")
-    _rpt("-- ============================================================")
-
+    -- 3. Dynamic execution (sandbox)
     local sanitized = normalise_source(source)
 
     local chunk, load_err = load(sanitized, "Obfuscated_Script")
@@ -7803,18 +7741,7 @@ local function _do_dump(source)
         end
     end
 
-    if not chunk then
-        _rpt("-- [LOAD_FAIL] " .. tostring(load_err))
-        _rpt("")
-        local pool = extract_string_pool(source)
-        if #pool > 0 then
-            _rpt("-- EXTRACTED STRING POOL (" .. #pool .. " entries, static)")
-            for i, s in ipairs(pool) do
-                if i > 200 then _rpt("-- ... (" .. (#pool-200) .. " more)"); break end
-                _rpt("-- [" .. i .. "] " .. safe_literal(s, 120))
-            end
-        end
-    else
+    if chunk then
         local _sb = _create_roblox_sandbox()
         rawset(_sb, "getfenv", function() return _sb end)
         rawset(_sb, "getgenv", function() return _sb end)
@@ -7841,55 +7768,26 @@ local function _do_dump(source)
             end
         end, "", _is_wad and 300 or 50)
 
-        local exec_ok, exec_err = xpcall(function()
-            chunk()
-        end, function(err) return tostring(err) end)
+        xpcall(function() chunk() end, function(err) return tostring(err) end)
 
         debug.sethook()
 
-        if not exec_ok and exec_err then
-            if exec_err:find("Tamper", 1, true) then
-                _rpt("-- [ANTI_TAMPER] " .. exec_err)
-            elseif exec_err:find("TIMEOUT_FORCED_BY_DUMPER", 1, true) then
-                _rpt("-- [TIMEOUT] Script timed out after " .. _DYN_TIMEOUT_SECONDS .. "s")
-            else
-                _rpt("-- [VM_ERROR] " .. exec_err)
-            end
-        else
-            _rpt("-- [EXEC_OK] Script executed successfully")
+        -- Emit intercepted instance creations as Lua code
+        for _, ic in ipairs(_dyn_instance_creations) do
+            _rpt(string.format('local _inst = Instance.new("%s")', tostring(ic.class)))
         end
-
-        if #_dyn_instance_creations > 0 then
-            _rpt("")
-            _rpt("-- INSTANCE CREATIONS (" .. #_dyn_instance_creations .. ")")
-            for i, ic in ipairs(_dyn_instance_creations) do
-                if i > 100 then _rpt("-- ... ("..(#_dyn_instance_creations-100).." more)"); break end
-                _rpt("-- Instance.new(\"" .. tostring(ic.class) .. "\")")
-            end
+        -- Emit intercepted remote/HTTP calls as Lua code
+        for _, rc in ipairs(_dyn_remote_calls) do
+            local t_ = tostring(rc.type or "Remote")
+            local u_ = tostring(rc.url or "?"):gsub('"','\\"')
+            _rpt(string.format('-- %s: "%s"', t_, u_))
         end
-        if #_dyn_script_loads > 0 then
-            _rpt("")
-            _rpt("-- SCRIPT LOADS (" .. #_dyn_script_loads .. ")")
-            for i, sl in ipairs(_dyn_script_loads) do
-                if i > 50 then _rpt("-- ... ("..(#_dyn_script_loads-50).." more)"); break end
-                _rpt("-- loadstring: " .. safe_literal(sl.snippet or "", 100))
-            end
-        end
-        if #_dyn_remote_calls > 0 then
-            _rpt("")
-            _rpt("-- REMOTE CALLS (" .. #_dyn_remote_calls .. ")")
-            for i, rc in ipairs(_dyn_remote_calls) do
-                if i > 50 then _rpt("-- ... ("..(#_dyn_remote_calls-50).." more)"); break end
-                _rpt("-- [" .. (rc.type or "?") .. "] " .. tostring(rc.url or "?"))
-            end
+        -- Emit loadstring payloads as Lua code
+        for _, sl in ipairs(_dyn_script_loads) do
+            local snip = tostring(sl.snippet or ""):gsub('"','\\"')
+            _rpt(string.format('-- loadstring: "%s"', snip))
         end
     end
-
-    _rpt("")
-    _rpt("-- ============================================================")
-    _rpt("-- END OF CATMIO DYNAMIC DUMP")
-    _rpt("-- Loops detected: " .. _dyn_loop_counter)
-    _rpt("-- ============================================================")
 
     state.loop_counter  = _dyn_loop_counter
     state.output_lines  = #report
