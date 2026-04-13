@@ -2315,15 +2315,15 @@ local OBFUSCATOR_FINGERPRINTS = {
         description = 'VM-based Lua obfuscator using custom bytecode and instruction dispatch',
         patterns = {
             "local%s+IB2%s*=",
-            "--\[\[IronBrew",
-            "string\.byte.*string\.char.*for.*%+.*256",
+            "--%[%[IronBrew",
+            "string%.byte.*string%.char.*for.*%+.*256",
             "getfenv%(0%)%.script",
             "setfenv%(%d+,",
             "IronBrew2%.version",
             "IB2_SETTINGS",
             "ironbrew2_vm_dispatch",
             "IB2_HEADER_MAGIC",
-            "local\s+VM\s*=\s*{}\s*VM%.execute",
+            "local%s+VM%s*=%s*{}%s*VM%.execute",
         },
     },
     -- ────────────────────────────────────────────────────────
@@ -2333,8 +2333,8 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'IronBrew3',
         description = 'Third-generation IronBrew with improved anti-tamper',
         patterns = {
-            "--\[\[IB3\]\]",
-            "local\s+IB3\s*=",
+            "--%[%[IB3%]%]",
+            "local%s+IB3%s*=",
             "Iron[Bb]rew%s*[vV]ersion",
             "IronBrew3%.VM",
             "IB3_SETTINGS",
@@ -2353,7 +2353,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         description = 'Professional Lua obfuscator with custom VM and JIT hints',
         patterns = {
             "getfenv%(0%)",
-            "--\[\[Luraph",
+            "--%[%[Luraph",
             "LPH_JIT_ON",
             "LPH_NO_UPVALUE",
             "Luraph%s*Obfuscator",
@@ -2372,7 +2372,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         description = 'Luraph version 2 with enhanced VM obfuscation',
         patterns = {
             "LPH_JIT_ON%s*LPH_NO_UPVALUE",
-            "--\s*Luraph\s*v2",
+            "--%s*Luraph%s*v2",
             "LPH_OBFUSCATED",
             "LuraphV2%.dispatch",
             "lph2_vm_loop",
@@ -2390,7 +2390,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'LuraphV3',
         description = 'Luraph version 3 with fake reference injection',
         patterns = {
-            "--\s*Luraph\s*v3",
+            "--%s*Luraph%s*v3",
             "LPH_FAKEREF",
             "LuraphV3_header",
             "LPH3_SETTINGS",
@@ -2412,7 +2412,7 @@ local OBFUSCATOR_FINGERPRINTS = {
             "LPH4_",
             "luraph_v4_header",
             "LPH4_JIT",
-            "--\s*Luraph\s*v4",
+            "--%s*Luraph%s*v4",
             "LuraphV4%.opcode",
             "lph4_vm_dispatch",
             "LPH4_SETTINGS",
@@ -2430,7 +2430,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         patterns = {
             "LPH5_",
             "luraph_v5_bytecode",
-            "--\s*Luraph\s*v5",
+            "--%s*Luraph%s*v5",
             "LPH5_NO_UPVALUE",
             "LuraphV5%.table",
             "lph5_vm_loop",
@@ -2449,7 +2449,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         patterns = {
             "LPH6_",
             "luraph_v6_",
-            "--\s*Luraph\s*v6",
+            "--%s*Luraph%s*v6",
             "LPH6_FAKEREF",
             "lph6_vm",
             "LuraphV6%.dispatch",
@@ -2468,7 +2468,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         patterns = {
             "LPH7_",
             "luraph_v7_",
-            "--\s*Luraph\s*v7",
+            "--%s*Luraph%s*v7",
             "LPH7_JIT_ON",
             "lph7_dispatch",
             "LuraphV7%.vm",
@@ -2485,7 +2485,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'Prometheus',
         description = 'Prometheus Lua obfuscator with custom VM',
         patterns = {
-            "--\[\[Prometheus",
+            "--%[%[Prometheus",
             "Prometheus%s*[Oo]bfuscator",
             "prometheus_[a-z_]+%s*=",
             "PROMETHEUS_VERSION",
@@ -2504,7 +2504,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'PrometheusV2',
         description = 'Prometheus v2 with string encryption layer',
         patterns = {
-            "--\s*Prometheus\s*v2",
+            "--%s*Prometheus%s*v2",
             "prometheus_v2_",
             "PROM2_SETTINGS",
             "prom2_opcode_table",
@@ -2523,7 +2523,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'PrometheusV3',
         description = 'Prometheus v3 with enhanced anti-debugging',
         patterns = {
-            "--\s*Prometheus\s*v3",
+            "--%s*Prometheus%s*v3",
             "prometheus_v3_",
             "PROM3_HEADER",
             "prom3_vm_loop",
@@ -2542,7 +2542,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'PrometheusV4',
         description = 'Prometheus v4 with opcode encryption',
         patterns = {
-            "--\s*Prometheus\s*v4",
+            "--%s*Prometheus%s*v4",
             "prometheus_v4_",
             "PROM4_JIT",
             "prom4_constant_pool",
@@ -2561,7 +2561,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'Moonsec',
         description = 'Moonsec Lua obfuscator with custom VM',
         patterns = {
-            "--\[\[Moonsec",
+            "--%[%[Moonsec",
             "Moonsec%s*[Oo]bfuscator",
             "moonsec_vm",
             "MOONSEC_",
@@ -2580,7 +2580,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'MoonsecV2',
         description = 'Moonsec v2 with improved string obfuscation',
         patterns = {
-            "--\s*Moonsec\s*v2",
+            "--%s*Moonsec%s*v2",
             "moonsec_v2_",
             "MOONSECV2_HEADER",
             "moonsec2_dispatch",
@@ -2599,7 +2599,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'MoonsecV3',
         description = 'Moonsec v3 with advanced upvalue manipulation',
         patterns = {
-            "--\s*Moonsec\s*v3",
+            "--%s*Moonsec%s*v3",
             "moonsec_v3_",
             "MOONSECV3_OPCODE",
             "moonsec3_run",
@@ -2618,7 +2618,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'Lightcate',
         description = 'Lightcate Lua obfuscator',
         patterns = {
-            "--\[\[Lightcate",
+            "--%[%[Lightcate",
             "Lightcate%s*[Oo]bfuscator",
             "lightcate_vm",
             "LIGHTCATE_",
@@ -2637,7 +2637,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'LightcateV2',
         description = 'Lightcate v2 with string encryption',
         patterns = {
-            "--\s*Lightcate\s*v2",
+            "--%s*Lightcate%s*v2",
             "lightcate_v2_",
             "LIGHTCATEV2_",
             "lightcate2_dispatch",
@@ -2656,7 +2656,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'LightcateV3',
         description = 'Lightcate v3 with enhanced opcode permutation',
         patterns = {
-            "--\s*Lightcate\s*v3",
+            "--%s*Lightcate%s*v3",
             "lightcate_v3_",
             "LIGHTCATEV3_OPCODE",
             "lightcate3_run",
@@ -2675,7 +2675,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'Acrylic',
         description = 'Acrylic obfuscator with VM and string pooling',
         patterns = {
-            "--\[\[Acrylic",
+            "--%[%[Acrylic",
             "AcrylicObfuscator",
             "acrylic_vm_dispatch",
             "ACRYLIC_HEADER",
@@ -2694,7 +2694,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'Jelly',
         description = 'Jelly obfuscator with compact VM',
         patterns = {
-            "--\[\[Jelly",
+            "--%[%[Jelly",
             "JellyObfuscator",
             "jelly_vm_run",
             "JELLY_HEADER",
@@ -2732,7 +2732,7 @@ local OBFUSCATOR_FINGERPRINTS = {
         name = 'Comet',
         description = 'Comet Lua obfuscator',
         patterns = {
-            "--\[\[Comet",
+            "--%[%[Comet",
             "CometObfuscator",
             "comet_vm",
             "COMET_HEADER",
