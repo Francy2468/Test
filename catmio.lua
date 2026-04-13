@@ -7674,7 +7674,7 @@ local function _emit_pool_section(report, pool, label, var_hint)
     if not pool or not pool.strings or #pool.strings==0 then return end
     table.insert(report, string.format("-- [%s] %d strings decoded (var: %s)",
         label, #pool.strings, tostring(pool.var_name or var_hint or "?")))
-    local max_show = math.min(#pool.strings, 200)
+    local max_show = #pool.strings  -- show all decoded strings
     for i = 1, max_show do
         local entry = pool.strings[i]
         if type(entry)=="table" then
