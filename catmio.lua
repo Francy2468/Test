@@ -4730,56 +4730,56 @@ local OBFUSCATOR_FINGERPRINTS = {
 -- ============================================================
 local VM_BOUNDARY_SIGS = {
     -- Dispatch loop patterns: characteristic while/for + indexing combos
-    { name = "dispatch_while_infinite",  pattern = r"while true do.*end",         desc = "Infinite dispatch loop" },
-    { name = "dispatch_for_ip",          pattern = r"for%s+ip%s*=",               desc = "Instruction pointer for-loop" },
-    { name = "dispatch_opcode_index",    pattern = r"opcodes%[ip%]",              desc = "Opcode table indexing" },
-    { name = "dispatch_instruction_arr", pattern = r"instructions%[%d+%]",        desc = "Instruction array access" },
-    { name = "dispatch_pc_var",          pattern = r"local%s+pc%s*=%s*1",         desc = "Program counter local var" },
-    { name = "dispatch_ip_inc",          pattern = r"ip%s*=%s*ip%s*%+%s*1",      desc = "Instruction pointer increment" },
-    { name = "dispatch_big_if_chain",    pattern = r"if%s+op%s*==%s*%d+",        desc = "Large if-chain dispatch" },
-    { name = "dispatch_op_table",        pattern = r"opcode_handlers%[op%]",      desc = "Opcode handler table" },
-    { name = "dispatch_func_table",      pattern = r"vm_ops%[op%]%()",            desc = "VM ops function dispatch" },
-    { name = "vm_stack_push",            pattern = r"stack%[sp%]%s*=",            desc = "VM stack push" },
-    { name = "vm_stack_pop",             pattern = r"stack%[sp%s*%-%s*1%]",       desc = "VM stack pop" },
-    { name = "vm_register_file",         pattern = r"regs%[%a+%]",               desc = "VM register file" },
-    { name = "vm_constant_pool",         pattern = r"constants%[%d+%]",           desc = "VM constant pool access" },
-    { name = "vm_proto_table",           pattern = r"protos%[%d+%]",             desc = "VM proto table" },
-    { name = "vm_upval_table",           pattern = r"upvals%[%d+%]",             desc = "VM upvalue table" },
-    { name = "vm_closure_create",        pattern = r"setmetatable%({},",          desc = "VM closure creation via mt" },
-    { name = "vm_env_wrap",              pattern = r"setfenv%(func,",             desc = "VM environment wrapping" },
-    { name = "vm_bytecode_string",       pattern = r'\\27Lua',                    desc = "Embedded Lua bytecode" },
-    { name = "vm_luau_bytecode",         pattern = r"\\27LuaQ",                  desc = "Embedded Luau bytecode" },
-    { name = "vm_large_string_pool",     pattern = r"= {%s*\"%x+\"",             desc = "Large hex-encoded string pool" },
-    { name = "vm_bit_operations",        pattern = r"bit%.band%b()",             desc = "Bit library in dispatch" },
-    { name = "vm_select_vararg",         pattern = r"select%(#,{%s*}%s*%)",      desc = "Select vararg pattern" },
-    { name = "vm_long_string_lit",       pattern = r'".{300,}"',                  desc = "Very long string literal" },
-    { name = "vm_string_byte_seq",       pattern = r"string%.byte.*string%.char", desc = "byte/char transform sequence" },
-    { name = "vm_number_arithmetic",     pattern = r"%d+%s*%+%s*%d+%s*%*%s*%d+", desc = "Complex numeric arithmetic" },
-    { name = "vm_getfenv_0",             pattern = r"getfenv%(0%)",               desc = "getfenv(0) global access" },
-    { name = "vm_rawget_env",            pattern = r"rawget%(env,",               desc = "rawget on environment" },
-    { name = "vm_debug_getinfo",         pattern = r"debug%.getinfo",             desc = "Debug getinfo in dispatch" },
-    { name = "vm_loadstring_b64",        pattern = r"loadstring%(.*b64",          desc = "loadstring with base64" },
-    { name = "vm_xor_decode",            pattern = r"bxor%b()",                  desc = "XOR in decode loop" },
-    { name = "vm_table_concat_loop",     pattern = r"for.*table%.insert.*char",  desc = "Table-concat char loop" },
-    { name = "vm_math_floor_index",      pattern = r"math%.floor%(.*/%s*%d+",    desc = "Math.floor indexing (VM opcode extract)" },
-    { name = "vm_tonumber_base",         pattern = r"tonumber%([^,]+,%s*%d+%)",  desc = "tonumber with base (number decoding)" },
-    { name = "vm_pcall_chunk",           pattern = r"pcall%(chunk,",             desc = "pcall chunk execution" },
-    { name = "vm_env_sandbox",           pattern = r"setmetatable%(env,",        desc = "Environment sandboxing" },
-    { name = "vm_hash_check",            pattern = r"== 0x%x%x%x%x%x%x%x%x",   desc = "Hash integrity check" },
-    { name = "vm_anti_tamper",           pattern = r"anti_tamper",               desc = "Explicit anti-tamper label" },
-    { name = "vm_wrap_env",              pattern = r"setfenv%(1,",               desc = "setfenv(1,...) environment wrap" },
-    { name = "vm_coroutine_wrap",        pattern = r"coroutine%.wrap%(function", desc = "Coroutine-based VM execution" },
-    { name = "vm_repeat_loop",           pattern = r"repeat.*until.*true",       desc = "Repeat-until true loop (obf pattern)" },
-    { name = "vm_goto_dispatch",         pattern = r"goto%s+dispatch",           desc = "Goto-based dispatch (Lua 5.2+)" },
-    { name = "vm_jmp_table",             pattern = r"jmp_table%[",              desc = "Jump table for opcode dispatch" },
-    { name = "vm_obf_string_table",      pattern = r'local%s+t%s*=%s*{"',       desc = "Obfuscated string table init" },
-    { name = "vm_base64_embedded",       pattern = r'"[A-Za-z0-9+/]{64,}={0,2}"', desc = "Large base64 string literal" },
-    { name = "vm_hex_string_embedded",   pattern = r'"[0-9a-fA-F]{64,}"',       desc = "Large hex string literal" },
-    { name = "vm_number_array",          pattern = r"= {%s*%d+,%s*%d+,%s*%d+", desc = "Large number array (const pool)" },
-    { name = "vm_function_wrap",         pattern = r"%(function%(%.%.%.%)",      desc = "IIFE with vararg (VM wrapper)" },
-    { name = "vm_iife_call",             pattern = r"%(function%(%).*end%)%(%)$", desc = "Immediately invoked function" },
-    { name = "vm_string_rep",            pattern = r"string%.rep%(%S+,",         desc = "string.rep for padding" },
-    { name = "vm_rawset_global",         pattern = r"rawset%(_G,",              desc = "rawset on _G (global injection)" },
+    { name = "dispatch_while_infinite",  pattern = "while true do.*end",         desc = "Infinite dispatch loop" },
+    { name = "dispatch_for_ip",          pattern = "for%s+ip%s*=",               desc = "Instruction pointer for-loop" },
+    { name = "dispatch_opcode_index",    pattern = "opcodes%[ip%]",              desc = "Opcode table indexing" },
+    { name = "dispatch_instruction_arr", pattern = "instructions%[%d+%]",        desc = "Instruction array access" },
+    { name = "dispatch_pc_var",          pattern = "local%s+pc%s*=%s*1",         desc = "Program counter local var" },
+    { name = "dispatch_ip_inc",          pattern = "ip%s*=%s*ip%s*%+%s*1",      desc = "Instruction pointer increment" },
+    { name = "dispatch_big_if_chain",    pattern = "if%s+op%s*==%s*%d+",        desc = "Large if-chain dispatch" },
+    { name = "dispatch_op_table",        pattern = "opcode_handlers%[op%]",      desc = "Opcode handler table" },
+    { name = "dispatch_func_table",      pattern = "vm_ops%[op%]%()",            desc = "VM ops function dispatch" },
+    { name = "vm_stack_push",            pattern = "stack%[sp%]%s*=",            desc = "VM stack push" },
+    { name = "vm_stack_pop",             pattern = "stack%[sp%s*%-%s*1%]",       desc = "VM stack pop" },
+    { name = "vm_register_file",         pattern = "regs%[%a+%]",               desc = "VM register file" },
+    { name = "vm_constant_pool",         pattern = "constants%[%d+%]",           desc = "VM constant pool access" },
+    { name = "vm_proto_table",           pattern = "protos%[%d+%]",             desc = "VM proto table" },
+    { name = "vm_upval_table",           pattern = "upvals%[%d+%]",             desc = "VM upvalue table" },
+    { name = "vm_closure_create",        pattern = "setmetatable%({},",          desc = "VM closure creation via mt" },
+    { name = "vm_env_wrap",              pattern = "setfenv%(func,",             desc = "VM environment wrapping" },
+    { name = "vm_bytecode_string",       pattern = "\\27Lua",                    desc = "Embedded Lua bytecode" },
+    { name = "vm_luau_bytecode",         pattern = "\\27LuaQ",                  desc = "Embedded Luau bytecode" },
+    { name = "vm_large_string_pool",     pattern = "= {%s*\"%x+\"",             desc = "Large hex-encoded string pool" },
+    { name = "vm_bit_operations",        pattern = "bit%.band%b()",             desc = "Bit library in dispatch" },
+    { name = "vm_select_vararg",         pattern = "select%(#,{%s*}%s*%)",      desc = "Select vararg pattern" },
+    { name = "vm_long_string_lit",       pattern = '".{300,}"',                  desc = "Very long string literal" },
+    { name = "vm_string_byte_seq",       pattern = "string%.byte.*string%.char", desc = "byte/char transform sequence" },
+    { name = "vm_number_arithmetic",     pattern = "%d+%s*%+%s*%d+%s*%*%s*%d+", desc = "Complex numeric arithmetic" },
+    { name = "vm_getfenv_0",             pattern = "getfenv%(0%)",               desc = "getfenv(0) global access" },
+    { name = "vm_rawget_env",            pattern = "rawget%(env,",               desc = "rawget on environment" },
+    { name = "vm_debug_getinfo",         pattern = "debug%.getinfo",             desc = "Debug getinfo in dispatch" },
+    { name = "vm_loadstring_b64",        pattern = "loadstring%(.*b64",          desc = "loadstring with base64" },
+    { name = "vm_xor_decode",            pattern = "bxor%b()",                  desc = "XOR in decode loop" },
+    { name = "vm_table_concat_loop",     pattern = "for.*table%.insert.*char",  desc = "Table-concat char loop" },
+    { name = "vm_math_floor_index",      pattern = "math%.floor%(.*/%s*%d+",    desc = "Math.floor indexing (VM opcode extract)" },
+    { name = "vm_tonumber_base",         pattern = "tonumber%([^,]+,%s*%d+%)",  desc = "tonumber with base (number decoding)" },
+    { name = "vm_pcall_chunk",           pattern = "pcall%(chunk,",             desc = "pcall chunk execution" },
+    { name = "vm_env_sandbox",           pattern = "setmetatable%(env,",        desc = "Environment sandboxing" },
+    { name = "vm_hash_check",            pattern = "== 0x%x%x%x%x%x%x%x%x",   desc = "Hash integrity check" },
+    { name = "vm_anti_tamper",           pattern = "anti_tamper",               desc = "Explicit anti-tamper label" },
+    { name = "vm_wrap_env",              pattern = "setfenv%(1,",               desc = "setfenv(1,...) environment wrap" },
+    { name = "vm_coroutine_wrap",        pattern = "coroutine%.wrap%(function", desc = "Coroutine-based VM execution" },
+    { name = "vm_repeat_loop",           pattern = "repeat.*until.*true",       desc = "Repeat-until true loop (obf pattern)" },
+    { name = "vm_goto_dispatch",         pattern = "goto%s+dispatch",           desc = "Goto-based dispatch (Lua 5.2+)" },
+    { name = "vm_jmp_table",             pattern = "jmp_table%[",              desc = "Jump table for opcode dispatch" },
+    { name = "vm_obf_string_table",      pattern = 'local%s+t%s*=%s*{"',       desc = "Obfuscated string table init" },
+    { name = "vm_base64_embedded",       pattern = '"[A-Za-z0-9+/]{64,}={0,2}"', desc = "Large base64 string literal" },
+    { name = "vm_hex_string_embedded",   pattern = '"[0-9a-fA-F]{64,}"',       desc = "Large hex string literal" },
+    { name = "vm_number_array",          pattern = "= {%s*%d+,%s*%d+,%s*%d+", desc = "Large number array (const pool)" },
+    { name = "vm_function_wrap",         pattern = "%(function%(%.%.%.%)",      desc = "IIFE with vararg (VM wrapper)" },
+    { name = "vm_iife_call",             pattern = "%(function%(%).*end%)%(%)$", desc = "Immediately invoked function" },
+    { name = "vm_string_rep",            pattern = "string%.rep%(%S+,",         desc = "string.rep for padding" },
+    { name = "vm_rawset_global",         pattern = "rawset%(_G,",              desc = "rawset on _G (global injection)" },
 }
 
 -- ============================================================
@@ -4823,6 +4823,11 @@ end
 --  Computes a normalised 0–1 score indicating how obfuscated the
 --  source is, using 30+ independent metrics.
 -- ============================================================
+
+-- Forward declaration so score_obfuscation is accessible after the do block
+local score_obfuscation
+
+do -- scope: metric functions, SCORE_METRICS, score_obfuscation
 
 -- Individual metric functions (each returns a 0–1 sub-score)
 
@@ -5144,7 +5149,7 @@ local SCORE_METRICS = {
 }
 
 -- Compute weighted obfuscation score
-local function score_obfuscation(src)
+score_obfuscation = function(src)
     if not src or #src == 0 then return 0, {} end
     local total_score = 0
     local details = {}
@@ -5160,6 +5165,8 @@ local function score_obfuscation(src)
     end
     return math.min(1, total_score), details
 end
+
+end -- end scope: metric functions, SCORE_METRICS, score_obfuscation
 
 -- ============================================================
 --  SECTION 12 – STRING POOL EXTRACTOR
