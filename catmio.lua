@@ -330,6 +330,10 @@ local CFG = {
     PASS_REMOVE_JUNK           = true,
     PASS_RENAME_VARS           = false,
     CONSTANT_FOLD              = true,
+    -- Emit the deobfuscated source code (after all anti-obf passes) in the report
+    DUMP_DEOBF_SOURCE          = true,
+    -- Maximum bytes of deobfuscated source to inline in the report (0 = no limit)
+    DUMP_DEOBF_MAX_BYTES       = 0,
 
     -- ── Bytecode analysis ────────────────────────────────────────────────
     ANALYZE_BYTECODE           = true,
@@ -6355,6 +6359,19 @@ function CatMio.run(source)
     end
     emit_blank()
     emit_banner("END OF CATMIO ANALYSIS")
+    -- Deobfuscated source (after all anti-obf passes)
+    if CFG.DUMP_DEOBF_SOURCE and deobf and #deobf > 0 then
+        local sep = string.rep("=", 60)
+        local deobf_out = deobf
+        if CFG.DUMP_DEOBF_MAX_BYTES and CFG.DUMP_DEOBF_MAX_BYTES > 0 and #deobf_out > CFG.DUMP_DEOBF_MAX_BYTES then
+            deobf_out = string.sub(deobf_out, 1, CFG.DUMP_DEOBF_MAX_BYTES)
+                .. "\n-- [CATMIO] ... (truncated at " .. CFG.DUMP_DEOBF_MAX_BYTES .. " bytes)"
+        end
+        table.insert(output_buffer, "\n-- " .. sep)
+        table.insert(output_buffer, "--  DEOBFUSCATED SOURCE (anti-obf passes applied)")
+        table.insert(output_buffer, "-- " .. sep)
+        table.insert(output_buffer, deobf_out)
+    end
     flush_rep()
     return table.concat(output_buffer, "\n")
 end
@@ -6466,32 +6483,1384 @@ CatMio.CFG = CFG
 CatMio.FINGERPRINTS = OBFUSCATOR_FINGERPRINTS
 CatMio.VM_SIGS = VM_BOUNDARY_SIGS
 
+
 -- ============================================================
---  STANDALONE ENTRY POINT
---  When invoked directly as: lua catmio.lua <input> [output]
---  Reads the source from arg[1], writes the analysis report to
---  arg[2] (or CFG.OUTPUT_FILE), and prints stats to stdout so
---  that cat.py can parse "Lines:" and "Loops:".
+--  SECTIONS 20+21 – DYNAMIC STRING EXTRACTORS + EXECUTION ENGINE
 -- ============================================================
-if arg and arg[1] then
-    local f = io.open(arg[1], "rb")
+;(function() -- All new locals isolated in this function scope
+local _dyn_load = load
+-- ================================================================
+-- GENERIC WRAPPER STRING EXTRACTOR
+-- ================================================================
+-- Handles scripts that use any of the common outer wrapper patterns:
+--
+--   return(function(...) ... end)(...)        single-paren, return
+--   return((function(...) ... end))(...)      double-paren, return
+--   (function(...) ... end)(...)              single-paren, no return
+--   ((function(...) ... end))(...)            double-paren, no return
+--   return(function(...)return(function(...)  nested (up to 4 deep)
+--
+-- The inner preamble may populate a string table variable via a
+-- base64/custom decode loop before handing off to the VM dispatcher.
+-- We detect the VM dispatcher boundary, patch the source to stop before
+-- it, and run only the decode phase to recover the decoded string table.
+-- The variable name and nesting depth are discovered automatically so
+-- this works for K0lrot, Iron Brew, WeAreDevs, Luraph, and
+-- many AI-generated obfuscators.
+-- ================================================================
+
+-- All outer wrapper patterns checked near the start of the file.
+-- These match the literal texts (Lua patterns with %(%) escaping).
+--   "return(("     â†’ return%(%(function%(%.%.%.%)
+--   "return("      â†’ return%(function%(%.%.%.%)
+--   "(("           â†’ %(%(function%(%.%.%.%)
+--   "("            â†’ %(function%(%.%.%.%)
+local GEN_OUTER_PATTERNS = {
+    "return%(%(function%(%.%.%.%)",
+    "return%(function%(%.%.%.%)",
+    "%(%(function%(%.%.%.%)",
+    "%(function%(%.%.%.%)",
+    -- local-function / do-block wrappers used by some obfuscators
+    "local%s+function%s+[%w_]+%s*%(%.%.%.%)",
+    -- Variants that omit the vararg and take explicit arg lists
+    "return%(function%([%a_][%w_]*%)",
+    "%(function%([%a_][%w_]*%)",
+    -- Lightcate v2.0.0 and similar: return(function(_0x...
+    "return%(function%(_0x",
+    -- Prometheus: return((function(env,fenv
+    "return%(%(function%(env,",
+    -- Prometheus alternate: return (function(env
+    "return%(function%(env,",
+    -- Generic: script starts immediately with (function with multi-letter params
+    "^%(function%([%a_][%w_]+,[%a_]",
+    -- WeAreDevs v3+ variants with longer preambles
+    "return%(function%(W,",
+    "return%(function%(w,",
+}
+-- How many bytes from the start of the file to scan for the outer wrapper.
+-- Increased to 8192 to handle very long obfuscated scripts where the preamble
+-- may be several kilobytes of comments or encoded data before the wrapper.
+local GEN_OUTER_HEADER_BYTES = 8192
+
+-- Known VM dispatcher entry-point signatures, ordered from most-specific
+-- (rarest / most reliable) to least-specific (most general).
+-- When the boundary is found, everything from here onward is the VM body;
+-- we stop execution before it to capture the pre-decoded string table.
+local GEN_VM_BOUNDARIES = {
+    -- K0lrot full signature
+    "return%(function%(S,n,f,B,d,l,M,i,r,R,Z,b,t,Y,C,F,A,z,x,K,L,P,X,E%)",
+    -- K0lrot short signature (common variant)
+    "return%(function%(S,n,f,B,d,l,M,",
+    -- K0lrot alternate short
+    "return%(function%(S,N,",
+    -- WeAreDevs v1.0.0 (often `w` is the string table)
+    "return%(function%(w,j,e,",
+    -- WeAreDevs v2+ variants
+    "return%(function%(W,j,e,",
+    "return%(function%(w,J,e,",
+    -- Iron Brew / generic (K0, K1, K2 named constants)
+    "return%(function%(K0,K1,K2,",
+    -- Prometheus obfuscator (open source: github.com/levno-710/Prometheus)
+    "return%(function%(env,fenv,",
+    "return%(function%(ENV,FENV,",
+    "return%(function%(ProteusEnv,",
+    "return%(function%(pEnv,",
+    -- Bytexor / LuaEncrypt style (uses `_` or `__` as string table)
+    "return%(function%(_,",
+    "return%(function%(__,",
+    -- Synapse X / custom executor obfuscators with named string table
+    "return%(function%(str,",
+    "return%(function%(strs,",
+    "return%(function%(strings,",
+    -- AI-generated or custom obfuscators using `consts` / `constants`
+    "return%(function%(consts,",
+    "return%(function%(constants,",
+    -- Obfuscators using `keys` / `vals` as the string table name
+    "return%(function%(keys,",
+    "return%(function%(vals,",
+    -- Lightcate v2.0.0 and similar obfuscators using _0x hex-prefixed param names
+    "return%(function%(_0x",
+    -- Additional WeAreDevs/K0lrot variants using single uppercase letters
+    "return%(function%(A,B,C,D,",
+    "return%(function%(a,b,c,d,",
+    -- Obfuscators that pass environment as first param
+    "return%(function%(env,",
+    "return%(function%(_ENV,",
+    -- Generic long-argument dispatcher heuristic: â‰¥8 consecutive single-letter
+    -- comma-separated params suggests a VM dispatch table (built programmatically
+    -- to avoid repetitive literals).
+    (function()
+        local seg = "[A-Za-z_%d]+,"
+        return "return%(function%(" .. seg:rep(8)
+    end)(),
+}
+
+-- String table variable names used by various obfuscators, ordered by
+-- prevalence.  We try each one until one produces a non-empty table.
+local GEN_STRING_VARS = {
+    -- Primary (most common)
+    "S",    -- K0lrot
+    "w",    -- WeAreDevs
+    "W",    -- WeAreDevs variant
+    "t",    -- generic / Iron Brew
+    "args",
+    -- Single letters aâ€“z (excluding w, t, S already listed above)
+    "a","b","c","d","e","f","g","h","i","j","k","l","m",
+    "n","o","p","q","r","s","u","v","x","y","z",
+    -- Uppercase aliases (S, W, T already listed in the primary section above)
+    "V","N","A","B","C","D","E","F","G","H","I","J","K","L","M",
+    "O","P","Q","R","S","U","X","Y","Z","W","T",
+    -- Descriptive names
+    "data","payload","values","params","buffer",
+    "container","pack","stack","env","tbl","arr","tab",
+    "str","strs","strings","consts","constants","keys","vals",
+    -- Prometheus-specific names
+    "fenv","penv","ENV","FENV","environment",
+    -- Underscore variants
+    "_","__","___","____","_____","______",
+    -- Numbered variants
+    "v1","v2","v3","v4","v5","v6","v7","v8","v9","v10",
+    -- Lua-style indexed
+    "l0_0","l1_0","l2_0","l0_1","l1_1",
+}
+
+-- Strings explicitly excluded from the decoded generic-wrapper pool output.
+-- Add entries here to suppress specific values that produce noisy or
+-- misleading lines in the dump (e.g. common stdlib names that are not
+-- meaningful as decoded obfuscation artefacts).
+local GEN_FILTERED_STRINGS = { ["remove"] = true }
+
+-- Minimum number of successfully decoded strings required to accept
+-- a candidate result.  Low values cause false positives on small tables.
+local GEN_MIN_STRING_COUNT = 3
+
+-- Maximum wrapper nesting depth to try (1 = K0lrot standard, up to 6 deep).
+local GEN_MAX_NEST_DEPTH = 6
+
+local function generic_wrapper_extract_strings(source_code)
+    -- 1. Quick early-out: detect outer wrapper near the start of the file.
+    local header = source_code:sub(1, GEN_OUTER_HEADER_BYTES)
+    local found_outer = false
+    -- Also remember whether the outer starts with 'return' or is a bare call.
+    -- Bare calls like `(function(...)...end)(...)` have their return value
+    -- discarded by the chunk, so the patched form must be prefixed with
+    -- `return ` so pcall can capture the string table.
+    local outer_has_return = false
+    for _, pat in ipairs(GEN_OUTER_PATTERNS) do
+        if header:find(pat) then
+            found_outer = true
+            -- Patterns that start with `return` keep the return value visible.
+            if pat:find("^return") then
+                outer_has_return = true
+            end
+            break
+        end
+    end
+    if not found_outer then
+        return nil
+    end
+
+    -- 2. Try each known VM boundary in priority order.
+    for _, vm_pat in ipairs(GEN_VM_BOUNDARIES) do
+        local boundary = source_code:find(vm_pat)
+        if boundary then
+            local preamble = source_code:sub(1, boundary - 1)
+            -- 3. For each candidate string table variable name â€¦
+            for _, var_name in ipairs(GEN_STRING_VARS) do
+                -- 4. â€¦ try each nesting depth (1 = standard, 2-4 = nested wrappers).
+                --    The closing suffix `end)(...)` must be repeated once per open
+                --    wrapper level so that the patched chunk is syntactically valid.
+                for depth = 1, GEN_MAX_NEST_DEPTH do
+                    local closing = string.rep("end)(...)", depth)
+                    -- Bare `(function(...)...end)(...)` wrappers (no leading `return`)
+                    -- are *call expressions*, not expressions; their return value is
+                    -- discarded at the chunk level.  Prefixing with `return ` turns
+                    -- the call into an expression whose value pcall() can capture.
+                    local prefix = outer_has_return and "" or "return "
+                    local patched = prefix .. preamble .. "\nreturn " .. var_name .. " " .. closing .. "\n"
+                    local fn = _dyn_load(patched)
+                    if fn then
+                        local ok, result = pcall(fn)
+                        if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
+                            -- Collect printable-ASCII strings and binary blobs.
+                            -- Binary strings (non-printable bytes) are kept with
+                            -- a `binary = true` flag so the emitter can use
+                            -- hex-escaped literals instead of plain quotes.
+                            local results = {}
+                            for idx = 1, #result do
+                                local s = result[idx]
+                                if type(s) == "string" and #s >= 1 then
+                                    local is_printable = s:match("^[%w%p%s]+$")
+                                    if is_printable and not GEN_FILTERED_STRINGS[s] then
+                                        table.insert(results, {idx = idx, val = s})
+                                    elseif not is_printable then
+                                        -- Binary blob: store with hex escaping
+                                        table.insert(results, {idx = idx, val = s, binary = true})
+                                    end
+                                end
+                            end
+                            if #results >= GEN_MIN_STRING_COUNT then
+                                -- Identify the obfuscator from the VM boundary used.
+                                local label = "generic-wrapper"
+                                if vm_pat:find("S,n,f,B,d,l,M,") then
+                                    label = "K0lrot"
+                                elseif vm_pat:find("w,j,e,") or vm_pat:find("W,j,e,") or vm_pat:find("W,J,e,") then
+                                    label = "WeAreDevs"
+                                elseif vm_pat:find("K0,K1,K2,") then
+                                    label = "IronBrew"
+                                elseif vm_pat:find("env,fenv,") or vm_pat:find("ENV,FENV,")
+                                    or vm_pat:find("ProteusEnv,") or vm_pat:find("pEnv,") then
+                                    label = "Prometheus"
+                                end
+                                return results, #result, var_name, label
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+-- XOR-encrypted string extractor for Catmio-style obfuscation.
+-- Detects the signature: `local vN = bit32 or bit` near the top of the file,
+-- followed by a `local function vM(a, b) ... vN.bxor ... end` decrypt helper.
+-- All string literals in the script are passed through this helper; we run it
+-- in a sandboxed Lua chunk to recover the plaintext values and emit them as
+-- local variable declarations at the top of the dump output.
+local XOR_OBFUSC_HEAD_PATTERN = "local%s+[%w_]+%s*=%s*bit32%s+or%s+bit"
+-- How far into the source to scan for the decrypt function body (bytes).
+-- Obfuscated scripts always place the preamble in the very first bytes.
+local XOR_FN_SCAN_BYTES = 4096
+-- Minimum byte-length of a decrypted string to include in the pool.
+-- Single-character results are almost always noise (delimiter chars etc.).
+local XOR_MIN_STRING_LEN = 2
+local function xor_extract_strings(source_code)
+    -- Quick early-out: must have the bit-library alias in the first 1 KB.
+    if not source_code:sub(1, 1024):find(XOR_OBFUSC_HEAD_PATTERN) then
+        return nil
+    end
+    -- Find the name of the first `local function` in the file â€” this is the
+    -- XOR decrypt helper (e.g. `v7`).  The name is always a plain identifier
+    -- (matched by [%w_]+) so it contains no Lua pattern metacharacters.
+    local _, _, fn_name = source_code:find("local%s+function%s+([%w_]+)%s*%(")
+    if not fn_name then return nil end
+    -- Walk the source from the function definition to find its closing `end`,
+    -- tracking block depth so nested constructs (for/do) are handled correctly.
+    local fn_def_start = source_code:find("local%s+function%s+" .. fn_name .. "%s*%(")
+    if not fn_def_start then return nil end
+    local depth = 0
+    local fn_end_pos = nil
+    local scan_src = source_code:sub(fn_def_start, math.min(#source_code, fn_def_start + XOR_FN_SCAN_BYTES))
+    local pos = 1
+    while pos <= #scan_src do
+        local _, kw_e, kw = scan_src:find("([%a_][%w_]*)", pos)
+        if not kw_e then break end
+        if kw == "function" or kw == "do" or kw == "repeat" or kw == "then" then
+            depth = depth + 1
+        elseif kw == "end" or kw == "until" then
+            depth = depth - 1
+            if depth <= 0 then
+                fn_end_pos = fn_def_start + kw_e - 1
+                break
+            end
+        end
+        pos = kw_e + 1
+    end
+    -- Build a minimal chunk: preamble up to end of the decrypt function,
+    -- then return the function so we can call it from Lua.
+    -- Fallback length (fn_def_start + XOR_FN_SCAN_BYTES/2) is used when the
+    -- depth tracker could not locate the closing `end` within the scan window.
+    local preamble = source_code:sub(1, fn_end_pos or (fn_def_start + math.floor(XOR_FN_SCAN_BYTES / 2)))
+    local get_fn_chunk, _ = _dyn_load(preamble .. "\nreturn " .. fn_name)
+    if not get_fn_chunk then return nil end
+    local ok, decrypt_fn = pcall(get_fn_chunk)
+    if not ok or type(decrypt_fn) ~= "function" then return nil end
+    -- Collect every call `fn_name(...)` from the full source and decrypt it.
+    -- `%b()` matches balanced parentheses so multi-arg calls are captured whole.
+    local results = {}
+    local seen = {}
+    for args_bal in source_code:gmatch(fn_name .. "(%b())") do
+        if not seen[args_bal] then
+            seen[args_bal] = true
+            local eval_code = "local __f = ...; return __f" .. args_bal
+            local eval_fn, _ = _dyn_load(eval_code)
+            if eval_fn then
+                local call_ok, result = pcall(eval_fn, decrypt_fn)
+                if call_ok and type(result) == "string" and #result >= XOR_MIN_STRING_LEN then
+                    -- Keep only strings that consist of printable / whitespace chars.
+                    if result:match("^[%w%p%s]+$") then
+                        table.insert(results, result)
+                    end
+                end
+            end
+        end
+    end
+    return results, fn_name
+end
+
+-- WeAreDevs v1.0.0 obfuscation detector and string-table extractor.
+-- Runs only the decode phase of a WeAreDevs-obfuscated file to produce
+-- a table of all decoded string constants, then emits them as comments
+-- at the top of the dump so the caller can identify the original names.
+--
+-- In WeAreDevs v1.0.0 the decoded string table ends with three closing
+-- "end" keywords followed immediately by the inner-VM function definition:
+--   "end end end return(function(W,e,s,...)"
+-- The string table variable name (W, w, etc.) varies across script variants
+-- and is detected dynamically from the source.
+-- This pattern is used to split off the decode phase from the VM body.
+local WAD_DECODE_BOUNDARY = "end end end return%(function%([^)]*%)"
+-- Length of the literal prefix "end end end" that we keep (11 chars, 0-indexed = 10).
+local WAD_DECODE_PREFIX_LEN = 10
+-- Strings that must not appear in the decoded pool output.
+local WAD_FILTERED_STRINGS = { ["DRo8JK7A99KoYN"] = true }
+local function wad_extract_strings(source_code)
+    if not source_code:find("wearedevs%.net/obfuscator", 1, false) then
+        return nil
+    end
+    -- Detect the string table variable name: it is always the first local
+    -- table literal declared inside the outer return(function(...)) wrapper.
+    -- Different script variants use different cases (e.g. "W" vs "w").
+    local str_var = source_code:match(
+        "return%(function%([^)]*%)%s*local%s+([%a_][%w_]*)%s*=%s*{") or "w"
+    -- Find the boundary between the decode block and the inner VM function.
+    local boundary = source_code:find(WAD_DECODE_BOUNDARY)
+    if not boundary then
+        return nil
+    end
+    -- Inject "return <str_var>" right after "end end end" so we get the
+    -- fully-decoded string table without running the VM itself.
+    local patched = source_code:sub(1, boundary + WAD_DECODE_PREFIX_LEN) .. "\nreturn " .. str_var .. "\nend)()\n"
+    local fn, load_err = _dyn_load(patched)
+    if not fn then
+        return nil
+    end
+    local ok, w_tbl = pcall(fn)
+    if not ok or type(w_tbl) ~= "table" then
+        return nil
+    end
+    -- Collect printable-ASCII strings and build a lookup set for hint emission.
+    local results = {}
+    local lookup = {}
+    for idx = 1, #w_tbl do
+        local s = w_tbl[idx]
+        if type(s) == "string" and #s >= 2 then
+            local is_ascii = true
+            for ci = 1, #s do
+                local b = s:byte(ci)
+                if b < 32 or b > 126 then
+                    is_ascii = false
+                    break
+                end
+            end
+            -- Skip raw table/userdata address strings (e.g. "table: 0xdeadbeef")
+            -- that result from tostring() on a non-serialisable value and carry
+            -- no useful information for the caller.
+            local is_addr = s:match("^%a[%a ]*: 0x%x+$")
+            if is_ascii and not is_addr and not WAD_FILTERED_STRINGS[s] then
+                table.insert(results, {idx = idx, val = s})
+                lookup[s] = true
+            end
+        end
+    end
+    return results, #w_tbl, lookup
+end
+
+-- ---------------------------------------------------------------------------
+-- Lightcate v2.0.0 obfuscation detector and string-table extractor.
+-- Detects scripts obfuscated with Lightcate by checking for the "Lightcate"
+-- signature string and a VM dispatcher boundary that uses _0x hex-prefixed
+-- parameter names (e.g. return(function(_0xABCD, _0xEF01, ...)).
+-- The decoded string table variable is discovered dynamically by scanning
+-- the preamble for the last local table with a _0x-prefixed name, or by
+-- matching the first argument passed to the outer VM call at the end of the
+-- file.  The preamble is executed in a sandboxed chunk and the resulting
+-- table is returned so that q.dump_lightcate_strings() can emit it as
+-- _lc_N local declarations.
+-- ---------------------------------------------------------------------------
+local LIGHTCATE_DETECT_STR = "Lightcate"
+local LIGHTCATE_VM_BOUNDARY_PAT = "return%(function%(_0x[%w_]+"
+
+local function lightcate_extract_strings(source_code)
+    -- Quick early-out: must contain the Lightcate signature string.
+    if not source_code:find(LIGHTCATE_DETECT_STR, 1, true) then
+        return nil
+    end
+    -- Find the VM dispatcher boundary.
+    local boundary = source_code:find(LIGHTCATE_VM_BOUNDARY_PAT)
+    if not boundary then
+        return nil
+    end
+    local preamble = source_code:sub(1, boundary - 1)
+    -- Helper: accept strings that are non-empty and consist only of printable
+    -- characters (including whitespace) to filter out raw binary/address noise.
+    local function is_valid_lc_str(s)
+        return type(s) == "string" and #s >= 1 and s:match("^[%w%p%s]+$")
+    end
+    -- Discover the string table variable name dynamically.
+    -- Strategy 1: The variable is the first argument passed to the outer call
+    -- at the end of the file.  Pattern: end)(_0xXXXX, ...) or end)(_0xXXXX).
+    -- Require at least one closing delimiter before the opening parenthesis to
+    -- avoid spurious matches (e.g. plain assignment with a _0x name on the rhs).
+    local str_var = source_code:match("[%)%]]+%s*%((_0x[%w_]+)%s*[,%)]")
+    -- Strategy 2: Fallback â€” find the last local _0x-named variable in the preamble.
+    if not str_var then
+        for v in preamble:gmatch("local%s+(_0x[%w_]+)%s*=") do
+            str_var = v
+        end
+    end
+    if not str_var then
+        return nil
+    end
+    -- Primary strategy: the preamble is flat local declarations (no function
+    -- wrapper), so we can simply append "return <var>" and execute it.
+    local patched_simple = preamble .. "\nreturn " .. str_var .. "\n"
+    local fn = _dyn_load(patched_simple)
+    if fn then
+        local ok, result = pcall(fn)
+        if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
+            local results = {}
+            for idx = 1, #result do
+                if is_valid_lc_str(result[idx]) then
+                    table.insert(results, {idx = idx, val = result[idx]})
+                end
+            end
+            if #results >= GEN_MIN_STRING_COUNT then
+                return results, #result, str_var
+            end
+        end
+    end
+    -- Fallback: try with wrapper closings in case the preamble contains an
+    -- outer function wrapper (nested Lightcate or custom variant).
+    -- `(...)` is passed to satisfy potential variadic parameters expected by
+    -- any wrapper function that opens before the VM boundary.
+    for depth = 1, GEN_MAX_NEST_DEPTH do
+        local closing = string.rep("end)(...)", depth)
+        local patched = preamble .. "\nreturn " .. str_var .. " " .. closing .. "\n"
+        local fn2 = _dyn_load(patched)
+        if fn2 then
+            local ok2, result2 = pcall(fn2)
+            if ok2 and type(result2) == "table" and #result2 >= GEN_MIN_STRING_COUNT then
+                local results = {}
+                for idx = 1, #result2 do
+                    if is_valid_lc_str(result2[idx]) then
+                        table.insert(results, {idx = idx, val = result2[idx]})
+                    end
+                end
+                if #results >= GEN_MIN_STRING_COUNT then
+                    return results, #result2, str_var
+                end
+            end
+        end
+    end
+    return nil
+end
+-- ---------------------------------------------------------------------------
+-- Prometheus obfuscator (github.com/levno-710/Prometheus) string extractor.
+-- Prometheus wraps the script in: return (function(env, fenv, ...) ... end)(...)
+-- and encodes all string constants using a custom decoder stored in the preamble.
+-- Detection: script contains "env" and "fenv" near the start as the first two
+-- formal parameters of the outer function, and uses table.freeze for anti-tamper.
+-- This extractor finds and runs the decode preamble to recover the string table,
+-- trying both `ProteusVM`/`env` style and simpler `fenv` table style.
+-- ---------------------------------------------------------------------------
+local PROMETHEUS_DETECT_PATS = {
+    "return%(function%(env,fenv,",
+    "return%(function%(ENV,FENV,",
+    "return%(function%(ProteusEnv,",
+    "%(function%(env,fenv,",
+}
+local function prometheus_extract_strings(source_code)
+    -- Quick detection: must have one of the Prometheus signatures near start.
+    local header = source_code:sub(1, GEN_OUTER_HEADER_BYTES)
+    local found = false
+    for _, pat in ipairs(PROMETHEUS_DETECT_PATS) do
+        if header:find(pat) then
+            found = true
+            break
+        end
+    end
+    if not found then
+        return nil
+    end
+    -- Find the VM boundary (the inner function that takes env/fenv).
+    local boundary = nil
+    for _, pat in ipairs(PROMETHEUS_DETECT_PATS) do
+        boundary = source_code:find(pat)
+        if boundary then break end
+    end
+    if not boundary then
+        return nil
+    end
+    local preamble = source_code:sub(1, boundary - 1)
+    -- Strategy: the preamble typically contains:
+    --   local <var> = { ... table of decoded strings ... }
+    -- We try to find the last local table declaration before the VM boundary,
+    -- inject a return of that variable, and execute to get the decoded strings.
+    local str_var = nil
+    -- Try to find a local variable assigned a table literal: local X = {
+    for v in preamble:gmatch("local%s+([%a_][%w_]*)%s*=%s*{") do
+        str_var = v
+    end
+    if not str_var then
+        -- Fallback: try `fenv` or `env` as the string container
+        if preamble:find("local%s+fenv%s*=") then
+            str_var = "fenv"
+        elseif preamble:find("local%s+env%s*=") then
+            str_var = "env"
+        end
+    end
+    if not str_var then
+        return nil
+    end
+    -- Try to run preamble and return the string table
+    local patched = preamble .. "\nreturn " .. str_var .. "\n"
+    local fn = _dyn_load(patched)
+    if fn then
+        local ok, result = pcall(fn)
+        if ok and type(result) == "table" and #result >= GEN_MIN_STRING_COUNT then
+            local results = {}
+            for idx = 1, #result do
+                local s = result[idx]
+                if type(s) == "string" and #s >= 1 and s:match("^[%w%p%s]+$") then
+                    table.insert(results, {idx = idx, val = s})
+                end
+            end
+            if #results >= GEN_MIN_STRING_COUNT then
+                return results, #result, str_var
+            end
+        end
+    end
+    -- Fallback: try GEN_STRING_VARS candidates on the preamble
+    for _, var_name in ipairs(GEN_STRING_VARS) do
+        if var_name ~= str_var then
+            local patched2 = preamble .. "\nreturn " .. var_name .. "\n"
+            local fn2 = _dyn_load(patched2)
+            if fn2 then
+                local ok2, result2 = pcall(fn2)
+                if ok2 and type(result2) == "table" and #result2 >= GEN_MIN_STRING_COUNT then
+                    local results = {}
+                    for idx = 1, #result2 do
+                        local s = result2[idx]
+                        if type(s) == "string" and #s >= 1 and s:match("^[%w%p%s]+$") then
+                            table.insert(results, {idx = idx, val = s})
+                        end
+                    end
+                    if #results >= GEN_MIN_STRING_COUNT then
+                        return results, #result2, var_name
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Finds the longest run of sequential numbered local declarations
+-- (e.g.  local k0 = v0 â€¦ local k250 = v250) and converts the overflow
+-- (everything past the first MAX_SAFE locals) into a single table variable
+-- _catExt, then rewrites every reference to the overflow variables.
+-- If no fixable pattern is found the original source is returned unchanged.
+-- ---------------------------------------------------------------------------
+local _reduce_locals = function(src)
+    local MAX_SAFE = 150   -- conservative: leave ~50 headroom for other locals in same scope
+
+    -- Split into lines
+    local lines = {}
+    for ln in (src .. "\n"):gmatch("([^\n]*)\n") do
+        table.insert(lines, ln)
+    end
+
+    -- Parse lines that look like:  [indent]local [base][num] = [expr]
+    local parsed = {}
+    for i, ln in ipairs(lines) do
+        local ind, base, nstr, expr =
+            ln:match("^(%s*)local%s+([%a_][%a_]*)(%d+)%s*=%s*(.-)%s*$")
+        if ind and base and nstr and expr and expr ~= "" then
+            parsed[i] = { indent = ind, base = base, num = tonumber(nstr), expr = expr }
+        end
+    end
+
+    -- Find the longest consecutive sequential run (same base, nums increase by 1)
+    local best = nil
+    local rs, rb, rn, rc = nil, nil, nil, 0
+
+    local function flush()
+        if rc > MAX_SAFE then
+            if not best or rc > best.count then
+                best = { start = rs, base = rb, start_num = rn, count = rc }
+            end
+        end
+        rs, rb, rn, rc = nil, nil, nil, 0
+    end
+
+    for i = 1, #lines do
+        local p = parsed[i]
+        if p then
+            if rb == p.base and p.num == rn + rc then
+                rc = rc + 1
+            else
+                flush()
+                rs, rb, rn, rc = i, p.base, p.num, 1
+            end
+        else
+            flush()
+        end
+    end
+    flush()
+
+    if best then
+        -- Determine split boundary
+        local overflow_start_line = best.start + MAX_SAFE       -- index of first overflow line
+        local overflow_end_line   = best.start + best.count - 1 -- index of last overflow line
+        local overflow_count      = best.count - MAX_SAFE
+
+        -- Collect RHS expressions for overflow locals
+        local exprs = {}
+        for i = overflow_start_line, overflow_end_line do
+            local p = parsed[i]
+            if not p then return src end  -- bail if we can't parse cleanly
+            local e = p.expr
+            if e:find(",", 1, true) then e = "(" .. e .. ")" end
+            table.insert(exprs, e)
+        end
+
+        local indent = (parsed[best.start] or {}).indent or ""
+        local tname  = "_catExt"
+
+        -- Build the new source: keep first MAX_SAFE locals, replace rest with table
+        local out = {}
+        for i = 1, overflow_start_line - 1 do
+            table.insert(out, lines[i])
+        end
+        table.insert(out, indent .. "local " .. tname .. " = {" .. table.concat(exprs, ", ") .. "}")
+        for i = overflow_end_line + 1, #lines do
+            table.insert(out, lines[i])
+        end
+
+        local new_src = table.concat(out, "\n")
+
+        -- Replace all references to overflow variable names (e.g. k180 â†’ _catExt[1])
+        for k = 0, overflow_count - 1 do
+            local vname = best.base .. (best.start_num + MAX_SAFE + k)
+            local repl  = tname .. "[" .. (k + 1) .. "]"
+            local vpat  = vname:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+            new_src = new_src:gsub("([^%a%d_])" .. vpat .. "([^%a%d_])", "%1" .. repl .. "%2")
+            new_src = new_src:gsub("^" .. vpat .. "([^%a%d_])", repl .. "%1")
+            new_src = new_src:gsub("([^%a%d_])" .. vpat .. "$", "%1" .. repl)
+        end
+
+        return new_src
+    end
+
+    -- ---------------------------------------------------------------------------
+    -- Strategy 2: No sequential numbered run found (or run too short).
+    -- Find the largest block of consecutive  local <name> = <expr>  lines at the
+    -- same indentation level and split it so that no contiguous stretch exceeds
+    -- MAX_SAFE declarations.  Each extra block is introduced with the same
+    -- _catExt table approach.  Unlike strategy 1 the overflow variable names are
+    -- NOT rewritten here â€“ instead each chunk keeps its own small table with a
+    -- unique suffix (_catExt2, _catExt3, â€¦).  This is safe only when the overflow
+    -- locals are no longer referenced after their declaration block, which is
+    -- typical for obfuscated VM dispatch tables.
+    -- ---------------------------------------------------------------------------
+    local function _any_local_pattern(ln)
+        -- matches: [indent]local <name> = <anything>
+        local ind, rest = ln:match("^(%s*)local%s+([%a_][%w_]*%s*=.-)%s*$")
+        if ind and rest and rest ~= "" then
+            return ind, rest
+        end
+        return nil, nil
+    end
+
+    -- Scan for the longest run of local-decl lines at the same indent
+    local best2 = nil
+    local rs2, ri2, rc2 = nil, nil, 0
+    for i, ln in ipairs(lines) do
+        local ind = _any_local_pattern(ln)
+        if ind and (ri2 == nil or ind == ri2) then
+            if rs2 == nil then rs2 = i; ri2 = ind; rc2 = 1
+            else rc2 = rc2 + 1 end
+        else
+            if rc2 > MAX_SAFE and (best2 == nil or rc2 > best2.count) then
+                best2 = { start = rs2, count = rc2, indent = ri2 }
+            end
+            if ind then
+                rs2 = i; ri2 = ind; rc2 = 1
+            else
+                rs2 = nil; ri2 = nil; rc2 = 0
+            end
+        end
+    end
+    if rc2 > MAX_SAFE and (best2 == nil or rc2 > best2.count) then
+        best2 = { start = rs2, count = rc2, indent = ri2 }
+    end
+
+    if not best2 then return src end
+
+    -- Split the run into chunks of MAX_SAFE; wrap overflow in _catExt<n> tables
+    local out2 = {}
+    local chunk_idx = 0
+    local in_run_pos = 0
+    local chunk_open = false
+
+    for i = 1, #lines do
+        local in_run = (i >= best2.start and i < best2.start + best2.count)
+        if in_run then
+            in_run_pos = in_run_pos + 1
+            if in_run_pos == 1 then
+                -- First chunk: emit normally
+                table.insert(out2, lines[i])
+            elseif (in_run_pos - 1) % MAX_SAFE == 0 then
+                -- Close previous extra table if open
+                if chunk_open then
+                    table.insert(out2, best2.indent .. "}")
+                    chunk_open = false
+                end
+                -- Open new extra table
+                chunk_idx = chunk_idx + 1
+                local tname2 = "_catExt" .. chunk_idx
+                -- Start table with first element from this line
+                local _, rest = _any_local_pattern(lines[i])
+                -- Extract just the rhs (after '=')
+                local rhs = (rest or ""):match("=[%s]*(.-)%s*$") or "nil"
+                if rhs:find(",", 1, true) then rhs = "(" .. rhs .. ")" end
+                table.insert(out2, best2.indent .. "local " .. tname2 .. " = {" .. rhs)
+                chunk_open = true
+            else
+                local _, rest = _any_local_pattern(lines[i])
+                local rhs = (rest or ""):match("=[%s]*(.-)%s*$") or "nil"
+                if rhs:find(",", 1, true) then rhs = "(" .. rhs .. ")" end
+                table.insert(out2, best2.indent .. ", " .. rhs)
+            end
+        else
+            if chunk_open then
+                table.insert(out2, best2.indent .. "}")
+                chunk_open = false
+            end
+            table.insert(out2, lines[i])
+        end
+    end
+    if chunk_open then
+        table.insert(out2, best2.indent .. "}")
+    end
+
+    return table.concat(out2, "\n")
+end
+
+
+-- Sandboxed dynamic execution for Roblox obfuscated scripts.
+-- Provides CatMio.dump_file() and CatMio.dump_string() using SECTION 20 string
+-- extractors, catmio static analysis, and a minimal Roblox API sandbox.
+
+-- Internal state (shared across calls via upvalues)
+local _dyn_loop_counter        = 0
+local _dyn_loop_line_counts    = {}
+local _dyn_loop_detected_lines = {}
+local _dyn_instance_creations  = {}
+local _dyn_script_loads        = {}
+local _dyn_remote_calls        = {}
+local _dyn_wad_pool    = nil
+local _dyn_xor_pool    = nil
+local _dyn_k0lrot_pool = nil
+local _dyn_lc_pool     = nil
+local _dyn_prom_pool   = nil
+
+local _DYN_TIMEOUT_SECONDS = 120
+local _DYN_LOOP_THRESHOLD  = 100
+local _DYN_MAX_OUTPUT      = 200 * 1024 * 1024
+
+local function _dyn_reset()
+    _dyn_loop_counter        = 0
+    _dyn_loop_line_counts    = {}
+    _dyn_loop_detected_lines = {}
+    _dyn_instance_creations  = {}
+    _dyn_script_loads        = {}
+    _dyn_remote_calls        = {}
+    _dyn_wad_pool    = nil
+    _dyn_xor_pool    = nil
+    _dyn_k0lrot_pool = nil
+    _dyn_lc_pool     = nil
+    _dyn_prom_pool   = nil
+end
+
+-- Create a minimal Roblox API sandbox for dynamic execution.
+local function _create_roblox_sandbox()
+    local function _mk_instance(cls)
+        local inst = {ClassName = cls or "Instance", Name = cls or "Instance"}
+        local function _mk_signal()
+            local sig = {}
+            sig.Connect  = function(self, fn) return {Disconnect=function()end,Connected=true} end
+            sig.Wait     = function(self) return nil end
+            sig.Fire     = function(self, ...) end
+            sig.Once     = function(self, fn) return {Disconnect=function()end,Connected=true} end
+            return sig
+        end
+        local mt = {
+            __index = function(t_, k)
+                local rv = rawget(t_, k)
+                if rv ~= nil then return rv end
+                if k:match("^%u") then return _mk_signal() end
+                return function(...) return nil end
+            end,
+            __newindex = function(t_, k, v) rawset(t_, k, v) end,
+            __tostring = function(t_) return tostring(rawget(t_,"ClassName") or "Instance") end,
+        }
+        setmetatable(inst, mt)
+        inst.FindFirstChild        = function(self, n, r_) return nil end
+        inst.FindFirstChildOfClass = function(self, c) return nil end
+        inst.GetChildren           = function(self) return {} end
+        inst.GetDescendants        = function(self) return {} end
+        inst.IsA                   = function(self, c) return rawget(self,"ClassName") == c end
+        inst.WaitForChild          = function(self, n, t_) return nil end
+        inst.GetService            = function(self, s) return _mk_instance(s) end
+        inst.Changed               = _mk_signal()
+        inst.ChildAdded            = _mk_signal()
+        inst.ChildRemoved          = _mk_signal()
+        inst.DescendantAdded       = _mk_signal()
+        inst.AncestryChanged       = _mk_signal()
+        return inst
+    end
+
+    local function _mk_vec2(x,y)    return {X=x or 0, Y=y or 0} end
+    local function _mk_vec3(x,y,z)  return {X=x or 0, Y=y or 0, Z=z or 0} end
+    local function _mk_color3(r,g,b) return {R=r or 0, G=g or 0, B=b or 0} end
+    local function _mk_udim2(xs,xo,ys,yo)
+        return {X={Scale=xs or 0,Offset=xo or 0}, Y={Scale=ys or 0,Offset=yo or 0}}
+    end
+
+    local _frozen = setmetatable({}, {__mode="k"})
+    local _table_ext = setmetatable({}, {__index = table})
+    _table_ext.freeze   = function(t_) if type(t_)=="table" then _frozen[t_]=true end return t_ end
+    _table_ext.isfrozen = function(t_) return _frozen[t_]==true end
+
+    local _tid = 8
+    local _clip = ""
+    local _fpscap = 0
+    local _vfs, _vfd = {}, {}
+    local _ro  = setmetatable({}, {__mode="k"})
+    local _flags = {}
+    local _ncm = "__namecall"
+    local _ccs = setmetatable({}, {__mode="k"})
+    local _invalidated  = setmetatable({}, {__mode="k"})
+    local _replacements = setmetatable({}, {__mode="k"})
+
+    local function _b64e(s)
+        local b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        return ((s:gsub(".", function(x)
+            local r, b_ = "", x:byte()
+            for i = 8, 1, -1 do r = r .. (b_ % 2^i - b_ % 2^(i-1) > 0 and "1" or "0") end
+            return r
+        end) .. "0000"):gsub("%d%d%d?%d?%d?%d?", function(x)
+            if #x < 6 then return "" end
+            local c = 0
+            for i = 1, 6 do c = c + (x:sub(i,i) == "1" and 2^(6-i) or 0) end
+            return b:sub(c+1, c+1)
+        end) .. ({"","==","="})[#s%3+1])
+    end
+    local function _b64d(s)
+        local b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        s = s:gsub("[^" .. b .. "=]", "")
+        return (s:gsub(".", function(x)
+            if x == "=" then return "" end
+            local r, f = "", b:find(x) - 1
+            for i = 6, 1, -1 do r = r .. (f % 2^i - f % 2^(i-1) > 0 and "1" or "0") end
+            return r
+        end):gsub("%d%d%d?%d?%d?%d?%d?%d?", function(x)
+            if #x ~= 8 then return "" end
+            local c = 0
+            for i = 1, 8 do c = c + (x:sub(i,i) == "1" and 2^(8-i) or 0) end
+            return string.char(c)
+        end))
+    end
+
+    local _ws = _mk_instance("Workspace")
+    local _lp = _mk_instance("Player")
+    rawset(_lp, "Name", "Player1")
+    rawset(_lp, "DisplayName", "Player1")
+    rawset(_lp, "UserId", 1)
+    rawset(_lp, "Character", _mk_instance("Model"))
+    rawset(_lp, "Backpack", _mk_instance("Backpack"))
+    local _players = _mk_instance("Players")
+    rawset(_players, "LocalPlayer", _lp)
+    rawset(_players, "GetPlayers", function() return {_lp} end)
+    local _game = _mk_instance("DataModel")
+    rawset(_game, "GetService", function(self, s)
+        if s == "Players" then return _players end
+        if s == "Workspace" or s == "workspace" then return _ws end
+        local svc = _mk_instance(s)
+        if s == "HttpService" then
+            rawset(svc, "GetAsync", function(self2, url)
+                table.insert(_dyn_remote_calls, {type="GET", url=url})
+                return "{}"
+            end)
+            rawset(svc, "PostAsync", function(self2, url, data)
+                table.insert(_dyn_remote_calls, {type="POST", url=url, data=data})
+                return "{}"
+            end)
+            rawset(svc, "RequestAsync", function(self2, opts)
+                table.insert(_dyn_remote_calls, {type=(opts or {}).Method or "GET", url=(opts or {}).Url})
+                return {Success=true,StatusCode=200,StatusMessage="OK",Headers={},Body="{}"}
+            end)
+            rawset(svc, "JSONEncode", function(self2, t_)
+                if type(t_) ~= "table" then return tostring(t_) end
+                local parts = {}
+                for k, v in pairs(t_) do table.insert(parts, tostring(k)..":"..tostring(v)) end
+                return "{" .. table.concat(parts, ",") .. "}"
+            end)
+            rawset(svc, "JSONDecode", function(self2, s) return {} end)
+        end
+        return svc
+    end)
+
+    local sandbox = setmetatable({}, {__index = _G, __newindex = _G})
+
+    rawset(sandbox, "game",      _game)
+    rawset(sandbox, "Game",      _game)
+    rawset(sandbox, "workspace", _ws)
+    rawset(sandbox, "Workspace", _ws)
+    rawset(sandbox, "script",    _mk_instance("Script"))
+    rawset(sandbox, "Instance", {
+        new = function(cls, parent)
+            local inst = _mk_instance(cls)
+            table.insert(_dyn_instance_creations, {class = cls})
+            return inst
+        end,
+        fromExisting = function(inst) return inst end,
+    })
+    rawset(sandbox, "Vector2",   {new=_mk_vec2, zero=_mk_vec2(0,0), one=_mk_vec2(1,1)})
+    rawset(sandbox, "Vector3",   {new=_mk_vec3, zero=_mk_vec3(0,0,0), one=_mk_vec3(1,1,1)})
+    rawset(sandbox, "Color3",    {
+        new    = _mk_color3,
+        fromRGB = function(r,g,b) return _mk_color3(r/255,g/255,b/255) end,
+        fromHSV = function(h,s,v) return _mk_color3(h,s,v) end,
+    })
+    rawset(sandbox, "CFrame",    {new=function(...) return {Position=_mk_vec3()} end, identity={Position=_mk_vec3()}})
+    rawset(sandbox, "UDim2",     {new=_mk_udim2, fromOffset=function(x,y) return _mk_udim2(0,x,0,y) end, fromScale=function(x,y) return _mk_udim2(x,0,y,0) end})
+    rawset(sandbox, "UDim",      {new=function(s,o) return {Scale=s or 0,Offset=o or 0} end})
+    rawset(sandbox, "BrickColor",{new=function(v) return {Name=tostring(v),Color=_mk_color3()} end, random=function() return {Name="Medium stone grey",Color=_mk_color3()} end})
+    rawset(sandbox, "Enum", setmetatable({}, {__index=function(_,k)
+        return setmetatable({}, {__index=function(_,v)
+            return setmetatable({Name=v,Value=0}, {__tostring=function(x) return k.."."..v end})
+        end})
+    end}))
+    rawset(sandbox, "tick",  os.clock)
+    rawset(sandbox, "time",  os.clock)
+    rawset(sandbox, "wait",  function(n) return n or 0, os.clock() end)
+    rawset(sandbox, "task",  {wait=function(n) return n or 0 end, delay=function()end, spawn=function()end, defer=function()end, cancel=function()end, synchronize=function()end, desynchronize=function()end})
+    rawset(sandbox, "spawn", function(f) end)
+    rawset(sandbox, "delay", function(n,f) end)
+    rawset(sandbox, "newproxy", function(has_meta)
+        if not has_meta then return {} end
+        local proxy = {}; setmetatable(proxy, {}); return proxy
+    end)
+    rawset(sandbox, "getidentity",       function() return _tid end)
+    rawset(sandbox, "getthreadidentity", function() return _tid end)
+    rawset(sandbox, "setidentity",       function(id) _tid=tonumber(id) or 8 end)
+    rawset(sandbox, "setthreadidentity", function(id) _tid=tonumber(id) or 8 end)
+    rawset(sandbox, "getthreadcontext",  function() return _tid end)
+    rawset(sandbox, "setthreadcontext",  function(id) _tid=tonumber(id) or 8 end)
+    rawset(sandbox, "identitycheck",     function() return _tid end)
+    rawset(sandbox, "getnamecallmethod", function() return _ncm end)
+    rawset(sandbox, "setnamecallmethod", function(m_) _ncm=m_ or "__namecall" end)
+    rawset(sandbox, "setreadonly",   function(t_,v) _ro[t_]=v==true end)
+    rawset(sandbox, "isreadonly",    function(t_) return _ro[t_]==true end)
+    rawset(sandbox, "make_writeable",function(t_) _ro[t_]=false end)
+    rawset(sandbox, "make_readonly", function(t_) _ro[t_]=true end)
+    rawset(sandbox, "setfflag",      function(k,v) _flags[tostring(k)]=tostring(v) end)
+    rawset(sandbox, "getfflag",      function(k) return _flags[tostring(k)] or "" end)
+    rawset(sandbox, "newcclosure",   function(f) if type(f)~="function" then return f end local w_=function(...) return f(...) end; _ccs[w_]=true; return w_ end)
+    rawset(sandbox, "iscclosure",    function(f) return type(f)=="function" and (_ccs[f]==true) end)
+    rawset(sandbox, "isnewcclosure", function(f) return type(f)=="function" and (_ccs[f]==true) end)
+    rawset(sandbox, "clonefunction", function(f) if type(f)~="function" then return f end return function(...) return f(...) end end)
+    rawset(sandbox, "copyfunction",  function(f) return f end)
+    rawset(sandbox, "getexecutorname",    function() return "ExploitExecutor" end)
+    rawset(sandbox, "identifyexecutor",   function() return "ExploitExecutor","1.0" end)
+    rawset(sandbox, "hookfunction",       function(f,r_) return type(r_)=="function" and r_ or f end)
+    rawset(sandbox, "hookmetamethod",     function(obj,m_,r_) return type(r_)=="function" and r_ or function()end end)
+    rawset(sandbox, "replaceclosure",     function(f,r_) return type(r_)=="function" and r_ or f end)
+    rawset(sandbox, "islclosure",         function(f) return type(f)=="function" end)
+    rawset(sandbox, "isexecutorclosure",  function() return false end)
+    rawset(sandbox, "checkcaller",        function() return true end)
+    rawset(sandbox, "getrawmetatable",    function(x) return type(x)=="table" and getmetatable(x) or {} end)
+    rawset(sandbox, "setrawmetatable",    function(x,mt) if type(x)=="table" then pcall(setmetatable,x,mt) end return x end)
+    rawset(sandbox, "fireclickdetector",  function() end)
+    rawset(sandbox, "fireproximityprompt",function() end)
+    rawset(sandbox, "firetouchinterest",  function() end)
+    rawset(sandbox, "firesignal",         function() end)
+    rawset(sandbox, "mousemoverel",       function() end)
+    rawset(sandbox, "mouse1click",        function() end)
+    rawset(sandbox, "mouse2click",        function() end)
+    rawset(sandbox, "keypress",           function() end)
+    rawset(sandbox, "keyrelease",         function() end)
+    rawset(sandbox, "isrbxactive",        function() return true end)
+    rawset(sandbox, "isgameactive",       function() return true end)
+    rawset(sandbox, "getconnections",     function() return {{Enabled=true,ForeignState=false,LuaConnection=true,Function=function()end,Thread=nil,Disconnect=function()end,Reconnect=function()end}} end)
+    rawset(sandbox, "getcallbackvalue",   function(obj,prop) return function()end end)
+    rawset(sandbox, "getscripts",         function() return {} end)
+    rawset(sandbox, "getloadedmodules",   function() return {} end)
+    rawset(sandbox, "getsenv",            function() return sandbox end)
+    rawset(sandbox, "getrenv",            function() return sandbox end)
+    rawset(sandbox, "getreg",             function() return {} end)
+    rawset(sandbox, "getgc",              function() return {} end)
+    rawset(sandbox, "getinstances",       function() return {_game, _ws} end)
+    rawset(sandbox, "getnilinstances",    function() return {} end)
+    rawset(sandbox, "decompile",          function() return "-- decompiled" end)
+    rawset(sandbox, "replicatesignal",    function() end)
+    rawset(sandbox, "cloneref",           function(x) return x end)
+    rawset(sandbox, "compareinstances",   function(a_,b_) return rawequal(a_,b_) end)
+    rawset(sandbox, "isluau",             function() return true end)
+    rawset(sandbox, "islua",              function() return false end)
+    rawset(sandbox, "checkclosure",       function(f) return type(f)=="function" end)
+    rawset(sandbox, "isourclosure",       function(f) return type(f)=="function" end)
+    rawset(sandbox, "getupvalues",        function(f)
+        if type(f)~="function" then return {} end
+        local uvs,i_ = {},1
+        while true do local n,v_=debug.getupvalue(f,i_); if not n then break end; uvs[n]=v_; i_=i_+1 end
+        return uvs
+    end)
+    rawset(sandbox, "getupvalue",         function(f,idx) if type(f)~="function" then return nil end local _,v_=debug.getupvalue(f,idx or 1); return v_ end)
+    rawset(sandbox, "setupvalue",         function(f,idx,val) if type(f)=="function" then debug.setupvalue(f,idx,val) end end)
+    rawset(sandbox, "getconstants",       function(f) return {} end)
+    rawset(sandbox, "getprotos",          function(f) return {} end)
+    rawset(sandbox, "getproto",           function(f,idx) return function()end end)
+    rawset(sandbox, "getstack",           function(lvl,idx) return nil end)
+    rawset(sandbox, "setstack",           function(lvl,idx,val) end)
+    rawset(sandbox, "getscriptbytecode",  function() return "" end)
+    rawset(sandbox, "getscripthash",      function() return string.rep("0",64) end)
+    rawset(sandbox, "getscriptclosure",   function(f) return f end)
+    rawset(sandbox, "getscriptfunction",  function(f) return f end)
+    rawset(sandbox, "firehook",           function() end)
+    rawset(sandbox, "lz4compress",        function(s) return s end)
+    rawset(sandbox, "lz4decompress",      function(s) return s end)
+    rawset(sandbox, "protectgui",         function() end)
+    rawset(sandbox, "gethui",             function() return _mk_instance("ScreenGui") end)
+    rawset(sandbox, "gethiddenui",        function() return _mk_instance("ScreenGui") end)
+    rawset(sandbox, "request",            function(o_) return {Success=true,StatusCode=200,StatusMessage="OK",Headers={},Body="{}"} end)
+    rawset(sandbox, "http_request",       function(o_) return {Success=true,StatusCode=200,StatusMessage="OK",Headers={},Body="{}"} end)
+    rawset(sandbox, "setclipboard",       function(s) _clip=tostring(s or "") end)
+    rawset(sandbox, "getclipboard",       function() return _clip end)
+    rawset(sandbox, "toclipboard",        function(s) _clip=tostring(s or "") end)
+    rawset(sandbox, "fromclipboard",      function() return _clip end)
+    rawset(sandbox, "setrbxclipboard",    function(s) _clip=tostring(s or "") end)
+    rawset(sandbox, "queue_on_teleport",  function() end)
+    rawset(sandbox, "queueonteleport",    function() end)
+    rawset(sandbox, "readfile",           function(p_) return _vfs[p_] or "" end)
+    rawset(sandbox, "writefile",          function(p_,c_) _vfs[p_]=tostring(c_ or "") end)
+    rawset(sandbox, "appendfile",         function(p_,c_) _vfs[p_]=(_vfs[p_] or "")..tostring(c_ or "") end)
+    rawset(sandbox, "listfiles",          function(p_) local r_={} for k in pairs(_vfs) do table.insert(r_,k) end return r_ end)
+    rawset(sandbox, "isfile",             function(p_) return _vfs[p_]~=nil end)
+    rawset(sandbox, "isfolder",           function(p_) return _vfd[p_]==true end)
+    rawset(sandbox, "makefolder",         function(p_) _vfd[p_]=true end)
+    rawset(sandbox, "delfolder",          function(p_) _vfd[p_]=nil end)
+    rawset(sandbox, "delfile",            function(p_) _vfs[p_]=nil end)
+    rawset(sandbox, "setfpscap",          function(fps) _fpscap=tonumber(fps) or 0 end)
+    rawset(sandbox, "getfpscap",          function() return _fpscap end)
+    rawset(sandbox, "getobjects",         function() return {} end)
+    rawset(sandbox, "getobject",          function() return nil end)
+    rawset(sandbox, "getsynasset",        function(p_) return "rbxasset://"..tostring(p_) end)
+    rawset(sandbox, "getcustomasset",     function(p_) return "rbxasset://"..tostring(p_) end)
+    rawset(sandbox, "messagebox",         function(text,cap,t_) return 1 end)
+    rawset(sandbox, "rconsoleprint",      function(...) end)
+    rawset(sandbox, "rconsoleclear",      function() end)
+    rawset(sandbox, "rconsolecreate",     function() end)
+    rawset(sandbox, "rconsoledestroy",    function() end)
+    rawset(sandbox, "rconsoleinput",      function() return "" end)
+    rawset(sandbox, "consoleclear",       function() end)
+    rawset(sandbox, "consoleprint",       function(...) end)
+    rawset(sandbox, "consolewarn",        function(...) end)
+    rawset(sandbox, "consoleerror",       function(...) end)
+    rawset(sandbox, "bit32",              bit32)
+    rawset(sandbox, "bit",                bit)
+    rawset(sandbox, "table",              _table_ext)
+    rawset(sandbox, "_G",                 sandbox)
+    rawset(sandbox, "cache", {
+        invalidate = function(obj) if obj~=nil then _invalidated[obj]=true end end,
+        iscached   = function(obj) return obj~=nil and not _invalidated[obj] end,
+        replace    = function(old,new_) if old~=nil then _replacements[old]=new_ end return new_ end,
+    })
+    rawset(sandbox, "getfenv",  function() return sandbox end)
+    rawset(sandbox, "getgenv",  function() return sandbox end)
+    rawset(sandbox, "getcallingscript",  function() return rawget(sandbox,"script") end)
+    rawset(sandbox, "dofile",   function() return nil end)
+    rawset(sandbox, "loadfile", function() return nil,"not supported" end)
+    rawset(sandbox, "loadstring", function(code, name)
+        table.insert(_dyn_script_loads, {snippet=string.sub(tostring(code or ""),1,120)})
+        return load(code, name or "loadstring_chunk", "t", sandbox)
+    end)
+    rawset(sandbox, "crypt", {
+        base64encode=_b64e, base64decode=_b64d, base64_encode=_b64e, base64_decode=_b64d,
+        encrypt=function(s,k_) return s end, decrypt=function(s,k_) return s end,
+        hash=function(s) return string.rep("0",64) end,
+        generatekey=function() return string.rep("\0",32) end,
+        generatebytes=function(n) return string.rep("\0",tonumber(n) or 16) end,
+    })
+    rawset(sandbox, "base64_encode", _b64e)
+    rawset(sandbox, "base64_decode", _b64d)
+    rawset(sandbox, "base64encode",  _b64e)
+    rawset(sandbox, "base64decode",  _b64d)
+    rawset(sandbox, "debug", {
+        getconstant=function(f,idx) return nil end,
+        getconstants=function(f) return {} end,
+        setconstant=function(f,idx,val) end,
+        getinfo=function(f,what) return debug.getinfo(f, what or "nSl") end,
+        getproto=function(f,idx,copy) return function()end end,
+        getprotos=function(f) return {} end,
+        getstack=function(lvl,idx) return idx and nil or {} end,
+        setstack=function(lvl,idx,val) end,
+        getupvalue=function(f,idx) if type(f)~="function" then return nil end local _,v_=debug.getupvalue(f,idx or 1); return v_ end,
+        getupvalues=function(f)
+            if type(f)~="function" then return {} end
+            local out_,i_={},1
+            while true do local n,v_=debug.getupvalue(f,i_); if not n then break end; out_[n]=v_; i_=i_+1 end
+            return out_
+        end,
+        setupvalue=function(f,idx,val) if type(f)=="function" then pcall(debug.setupvalue,f,idx,val) end end,
+        traceback=function(msg,lvl) return tostring(msg or "") end,
+        profilebegin=function() end, profileend=function() end, sethook=function() end,
+    })
+    rawset(sandbox, "Drawing", {
+        new=function(drawType)
+            local obj={Visible=true,Color=_mk_color3(1,1,1),Transparency=1,ZIndex=1,
+                       Thickness=1,Filled=false,Text="",Position=_mk_vec2(),Size=_mk_vec2()}
+            obj.Remove=function() obj.Visible=false end; obj.Destroy=obj.Remove
+            return obj
+        end,
+        Fonts={UI=0,System=1,Plex=2,Monospace=3},
+    })
+    rawset(sandbox, "WebSocket", {
+        connect=function(url)
+            local function _mke()
+                return setmetatable({},{__index=function(_,k) if k=="Connect" then return function() return {Disconnect=function()end} end end end})
+            end
+            return {Send=function()end,Close=function()end,OnMessage=_mke(),OnClose=_mke()}
+        end
+    })
+    rawset(sandbox, "LuraphContinue",  function() end)
+    rawset(sandbox, "LARRY_CHECKINDEX",function(x,ba) return x[ba] end)
+    rawset(sandbox, "LARRY_GET",       function(b5) return b5 end)
+    rawset(sandbox, "LARRY_CALL",      function(as,...) return as(...) end)
+    rawset(sandbox, "LARRY_NAMECALL",  function(eS,em,...) return eS[em](eS,...) end)
+    return sandbox
+end
+
+-- Run all string extractors, populate _dyn_*_pool state variables.
+local function _run_string_extractors(source)
+    local wad_strings, wad_total, wad_lookup = wad_extract_strings(source)
+    _dyn_wad_pool = wad_strings and {strings=wad_strings,total=wad_total or 0,lookup=wad_lookup} or nil
+
+    local xor_strings, xor_fn = xor_extract_strings(source)
+    _dyn_xor_pool = (xor_strings and #xor_strings>0)
+        and {strings=xor_strings,fn=tostring(xor_fn)} or nil
+
+    local gw_strings, gw_total, gw_var, gw_label = generic_wrapper_extract_strings(source)
+    _dyn_k0lrot_pool = (gw_strings and #gw_strings>0)
+        and {strings=gw_strings,total=gw_total,var_name=gw_var,label=gw_label} or nil
+
+    local lc_strings, lc_total, lc_var = lightcate_extract_strings(source)
+    _dyn_lc_pool = (lc_strings and #lc_strings>0)
+        and {strings=lc_strings,total=lc_total,var_name=lc_var} or nil
+
+    local prom_strings, prom_total, prom_var = prometheus_extract_strings(source)
+    _dyn_prom_pool = (prom_strings and #prom_strings>0)
+        and {strings=prom_strings,total=prom_total,var_name=prom_var} or nil
+end
+
+-- Append pool entries as Lua comments into the report table.
+-- Emit pool entries as actual Lua local declarations (no comment clutter).
+-- prefix: short variable prefix, e.g. "_s" → _s_4 = "GetEnumItems"
+local function _emit_pool_as_locals(report, pool, prefix)
+    if not pool or not pool.strings or #pool.strings==0 then return end
+    for i = 1, #pool.strings do
+        local entry = pool.strings[i]
+        local idx   = (type(entry)=="table" and entry.idx) or i
+        local val   = (type(entry)=="table" and entry.val) or entry
+        local is_bin= type(entry)=="table" and entry.binary
+        if is_bin then
+            local hex = tostring(val):gsub(".", function(c)
+                return string.format("\\%d", string.byte(c))
+            end)
+            table.insert(report, string.format('local %s_%d = "%s"', prefix, idx, hex))
+        elseif type(val)=="string" and #val>0 then
+            -- escape backslashes and double-quotes
+            local escaped = val:gsub("\\","\\\\"):gsub('"','\\"')
+            table.insert(report, string.format('local %s_%d = "%s"', prefix, idx, escaped))
+        end
+    end
+end
+
+-- Core implementation used by both dump_string and dump_file.
+local function _do_dump(source)
+    _dyn_reset()
+    reset_state()
+    reset_output()
+
+    local report = {}
+    local function _rpt(line) table.insert(report, line) end
+
+    -- Only header comment; everything else is actual Lua code.
+    _rpt("-- generated with catmio | https://discord.gg/cq9GkRKX2V")
+
+    -- 1. Run string extractors on raw source
+    _run_string_extractors(source)
+
+    -- 2. Emit decoded string pools as Lua local declarations
+    --    WAD pool uses prefix "_w", generic-wrapper uses "_s", others follow.
+    if _dyn_wad_pool then
+        _emit_pool_as_locals(report, _dyn_wad_pool, "_w")
+    end
+    if _dyn_xor_pool then
+        _emit_pool_as_locals(report, _dyn_xor_pool, "_x")
+    end
+    if _dyn_k0lrot_pool then
+        _emit_pool_as_locals(report, _dyn_k0lrot_pool, "_s")
+    end
+    if _dyn_lc_pool then
+        _emit_pool_as_locals(report, _dyn_lc_pool, "_lc")
+    end
+    if _dyn_prom_pool then
+        _emit_pool_as_locals(report, _dyn_prom_pool, "_p")
+    end
+
+    -- 3. Dynamic execution (sandbox)
+    local sanitized = normalise_source(source)
+
+    local chunk, load_err = load(sanitized, "Obfuscated_Script")
+    if not chunk and tostring(load_err):find("too many local variables", 1, true) then
+        for _pass = 1, 5 do
+            local fixed = _reduce_locals(sanitized)
+            if fixed == sanitized then break end
+            local c2, e2 = load(fixed, "Obfuscated_Script")
+            sanitized = fixed
+            if c2 then chunk=c2; load_err=nil; break
+            else load_err=e2; if not tostring(e2):find("too many local variables",1,true) then break end
+            end
+        end
+    end
+
+    if chunk then
+        local _sb = _create_roblox_sandbox()
+        rawset(_sb, "getfenv", function() return _sb end)
+        rawset(_sb, "getgenv", function() return _sb end)
+        local chunk2 = load(sanitized, "Obfuscated_Script", "t", _sb)
+        if chunk2 then chunk = chunk2 end
+
+        local _exec_start = os.clock()
+        local _is_wad     = (_dyn_wad_pool ~= nil)
+
+        debug.sethook(function()
+            if os.clock() - _exec_start > _DYN_TIMEOUT_SECONDS then
+                debug.sethook()
+                error("TIMEOUT_FORCED_BY_DUMPER", 0)
+            end
+            local inf = debug.getinfo(2, "Sl")
+            if inf and inf.currentline and inf.currentline > 0 then
+                local key = (inf.short_src or "?") .. ":" .. inf.currentline
+                local cnt = (_dyn_loop_line_counts[key] or 0) + 1
+                _dyn_loop_line_counts[key] = cnt
+                if cnt > _DYN_LOOP_THRESHOLD and not _dyn_loop_detected_lines[key] then
+                    _dyn_loop_detected_lines[key] = true
+                    _dyn_loop_counter = _dyn_loop_counter + 1
+                end
+            end
+        end, "", _is_wad and 300 or 50)
+
+        xpcall(function() chunk() end, function(err) return tostring(err) end)
+
+        debug.sethook()
+
+        -- Emit intercepted instance creations as Lua code
+        for _, ic in ipairs(_dyn_instance_creations) do
+            _rpt(string.format('local _inst = Instance.new("%s")', tostring(ic.class)))
+        end
+        -- Emit intercepted remote/HTTP calls as Lua code
+        for _, rc in ipairs(_dyn_remote_calls) do
+            local t_ = tostring(rc.type or "Remote")
+            local u_ = tostring(rc.url or "?"):gsub('"','\\"')
+            _rpt(string.format('-- %s: "%s"', t_, u_))
+        end
+        -- Emit loadstring payloads as Lua code
+        for _, sl in ipairs(_dyn_script_loads) do
+            local snip = tostring(sl.snippet or ""):gsub('"','\\"')
+            _rpt(string.format('-- loadstring: "%s"', snip))
+        end
+    end
+
+    state.loop_counter  = _dyn_loop_counter
+    state.output_lines  = #report
+
+    return table.concat(report, "\n")
+end
+
+-- Public API: assign to CatMio table (no new locals in main chunk)
+function CatMio.dump_string(source)
+    if not source then return "-- [CATMIO] No source provided" end
+    return _do_dump(source)
+end
+
+function CatMio.dump_file(input_path, output_path)
+    if not input_path then
+        io.stderr:write("[CATMIO] dump_file: no input path\n")
+        return false
+    end
+    local f = io.open(input_path, "rb")
     if not f then
-        io.stderr:write("[CATMIO] Cannot open input file: " .. tostring(arg[1]) .. "\n")
-        os.exit(1)
+        io.stderr:write("[CATMIO] Cannot open: " .. tostring(input_path) .. "\n")
+        return false
     end
     local source = f:read("*a")
     f:close()
 
-    local report = CatMio.run(source)
+    local report = _do_dump(source)
 
-    local out_path = arg[2] or CFG.OUTPUT_FILE
+    local out_path = output_path or CFG.OUTPUT_FILE
     local out = io.open(out_path, "wb")
     if not out then
-        io.stderr:write("[CATMIO] Cannot open output file: " .. tostring(out_path) .. "\n")
-        os.exit(1)
+        io.stderr:write("[CATMIO] Cannot open output: " .. tostring(out_path) .. "\n")
+        return false
     end
     out:write(report)
     out:close()
+    return true
+end
+end)() -- end SECTIONS 20+21
+
+-- ============================================================
+--  STANDALONE ENTRY POINT
+--  When invoked directly as: lua catmio.lua <input> [output] [deobf_output]
+--  Uses CatMio.dump_file() for full dynamic + static analysis.
+--  Prints "Lines: N | Loops: M" to stdout so cat.py can parse stats.
+--  If arg[3] is provided, writes the deobfuscated source separately.
+-- ============================================================
+if arg and arg[1] then
+    local ok = CatMio.dump_file(arg[1], arg[2])
+    if not ok then
+        io.stderr:write("[CATMIO] dump_file failed for: " .. tostring(arg[1]) .. "\n")
+        os.exit(1)
+    end
+
+    -- Write deobfuscated source to its own file when arg[3] is supplied
+    local deobf_path = arg[3]
+    if deobf_path then
+        local f2 = io.open(arg[1], "rb")
+        if f2 then
+            local src2 = f2:read("*a")
+            f2:close()
+            local deobf_src = CatMio.apply_deobf_passes(src2)
+            if deobf_src and #deobf_src > 0 then
+                local df = io.open(deobf_path, "wb")
+                if df then
+                    df:write(deobf_src)
+                    df:close()
+                else
+                    io.stderr:write("[CATMIO] Cannot open deobf output: " .. tostring(deobf_path) .. "\n")
+                end
+            end
+        end
+    end
 
     -- Print stats in the format cat.py expects
     print(string.format("Lines: %d | Loops: %d", state.output_lines, state.loop_counter))
