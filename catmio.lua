@@ -365,18 +365,9 @@ local function xor_byte_decode(s, key)
     key = key % 256
     local out = {}
     for i = 1, #s do
-        local b = string.byte(s, i)
-        out[#out+1] = string.char((b + 256 - key) % 256 + key - ((b + 256 - key) % 256 >= key and key or 0))
-    end
-    -- simpler XOR:
-    out = {}
-    for i = 1, #s do
-        local b   = string.byte(s, i)
-        local xb  = b - math.floor(b / 256) * 256  -- ensure byte range
-        local res = 0
-        local bv  = xb
-        local kv  = key % 256
-        -- manual XOR via bit decomposition
+        local b  = string.byte(s, i)
+        local bv = b
+        local kv = key
         local acc = 0
         local bit = 1
         for _ = 1, 8 do
@@ -387,8 +378,7 @@ local function xor_byte_decode(s, key)
             kv = math.floor(kv / 2)
             bit = bit * 2
         end
-        res = acc
-        out[#out+1] = string.char(res)
+        out[#out+1] = string.char(acc)
     end
     return table.concat(out)
 end
@@ -1372,7 +1362,11 @@ local function make_Vector2(x, y)
         end,
         __index = function(t, k)
             if k == "Magnitude" then return math.sqrt(x*x + y*y) end
-            if k == "Unit" then local m = math.sqrt(x*x+y*y); return make_Vector2(x/m, y/m) end
+            if k == "Unit" then
+                local m = math.sqrt(x*x + y*y)
+                if m == 0 then return make_Vector2(0, 0) end
+                return make_Vector2(x/m, y/m)
+            end
             return rawget(t, k)
         end,
     })
@@ -1478,7 +1472,11 @@ local UDim = { new = make_UDim }
 
 local function make_Rect(x0, y0, x1, y1)
     if type(x0) == "table" then
-        x0, y0, x1, y1 = x0.X, x0.Y, y0.X, y0.Y
+        -- Two Vector2 arguments: make_Rect(min_vec2, max_vec2)
+        local min_v = x0
+        local max_v = y0
+        x0, y0 = min_v.X, min_v.Y
+        x1, y1 = max_v.X, max_v.Y
     end
     local r = {
         Min    = make_Vector2(x0 or 0, y0 or 0),
@@ -1918,11 +1916,13 @@ executor_stubs.bit32 = {
 -- ============================================================
 --  SECTION 17 – TASK LIBRARY
 -- ============================================================
+local unpack_fn = table.unpack or unpack
+
 local task_lib = {
     spawn = function(fn, ...)
         local args = {...}
         state.deferred_hooks[#state.deferred_hooks+1] = {kind="spawn", fn=fn}
-        local ok, err = pcall(fn, table.unpack(args))
+        local ok, err = pcall(fn, unpack_fn(args))
         if not ok then
             emit("-- [TASK:spawn] error: " .. tostring(err))
         end
@@ -1930,7 +1930,7 @@ local task_lib = {
     defer = function(fn, ...)
         local args = {...}
         state.deferred_hooks[#state.deferred_hooks+1] = {kind="defer", fn=fn}
-        local ok, err = pcall(fn, table.unpack(args))
+        local ok, err = pcall(fn, unpack_fn(args))
         if not ok then
             emit("-- [TASK:defer] error: " .. tostring(err))
         end
