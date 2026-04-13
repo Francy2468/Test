@@ -552,13 +552,12 @@ local function emit(line)
         return
     end
     flush_rep()
-    if rep_n == 0 then
-        rep_buf  = line
-        rep_n    = 1
-        rep_full = 0
-        rep_pos  = #output_buffer + 1
-    end
-    table.insert(output_buffer, line)
+    -- Buffer the new line; flush_rep() will insert it when the next
+    -- different line arrives (or at the end via an explicit flush_rep() call).
+    rep_buf  = line
+    rep_n    = 1
+    rep_full = 0
+    rep_pos  = #output_buffer + 1
 end
 
 local function emit_blank()
@@ -6466,5 +6465,36 @@ CatMio.bw_ror    = bw_ror
 CatMio.CFG = CFG
 CatMio.FINGERPRINTS = OBFUSCATOR_FINGERPRINTS
 CatMio.VM_SIGS = VM_BOUNDARY_SIGS
+
+-- ============================================================
+--  STANDALONE ENTRY POINT
+--  When invoked directly as: lua catmio.lua <input> [output]
+--  Reads the source from arg[1], writes the analysis report to
+--  arg[2] (or CFG.OUTPUT_FILE), and prints stats to stdout so
+--  that cat.py can parse "Lines:" and "Loops:".
+-- ============================================================
+if arg and arg[1] then
+    local f = io.open(arg[1], "rb")
+    if not f then
+        io.stderr:write("[CATMIO] Cannot open input file: " .. tostring(arg[1]) .. "\n")
+        os.exit(1)
+    end
+    local source = f:read("*a")
+    f:close()
+
+    local report = CatMio.run(source)
+
+    local out_path = arg[2] or CFG.OUTPUT_FILE
+    local out = io.open(out_path, "wb")
+    if not out then
+        io.stderr:write("[CATMIO] Cannot open output file: " .. tostring(out_path) .. "\n")
+        os.exit(1)
+    end
+    out:write(report)
+    out:close()
+
+    -- Print stats in the format cat.py expects
+    print(string.format("Lines: %d | Loops: %d", state.output_lines, state.loop_counter))
+end
 
 return CatMio
